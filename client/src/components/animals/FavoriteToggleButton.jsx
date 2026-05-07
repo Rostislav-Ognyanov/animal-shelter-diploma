@@ -21,6 +21,9 @@ export function FavoriteToggleButton({ animal, variant = 'card', className = '',
 
   const isAnimalFavorite = isFavorite(animalId);
   const isBusy = isPending(animalId) || isLoading;
+  const isDetailVariant = variant === 'detail';
+  const actionLabel = isAnimalFavorite ? 'Премахни от любими' : 'Добави в любими';
+  const accessibleLabel = isBusy ? 'Изчакване...' : actionLabel;
 
   async function handleClick() {
     try {
@@ -52,13 +55,18 @@ export function FavoriteToggleButton({ animal, variant = 'card', className = '',
         className
       )}
       disabled={isBusy}
+      aria-label={accessibleLabel}
+      aria-pressed={isAnimalFavorite}
+      title={actionLabel}
       onClick={handleClick}
     >
-      {isBusy
-        ? 'Изчакване...'
-        : isAnimalFavorite
-          ? 'Премахни от любими'
-          : 'Добави в любими'}
+      {isDetailVariant ? (
+        accessibleLabel
+      ) : (
+        <span className="favorite-toggle-icon" aria-hidden="true">
+          {isBusy ? '…' : isAnimalFavorite ? '♥' : '♡'}
+        </span>
+      )}
     </button>
   );
 }

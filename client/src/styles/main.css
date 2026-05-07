@@ -5093,3 +5093,54 @@ footer {
     width: 100%;
   }
 }
+
+/* favorite overlay in animal cards */
+.animal-card-media {
+  position: relative;
+}
+
+.animal-card-favorite-toggle {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  z-index: 2;
+}
+
+.favorite-toggle-card {
+  width: 46px;
+  min-width: 46px;
+  min-height: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: 16px;
+  border-color: rgba(47, 111, 78, 0.14);
+  background: rgba(255, 255, 255, 0.94);
+  color: #6b7d73;
+  box-shadow: 0 12px 24px rgba(24, 48, 34, 0.16);
+}
+
+.favorite-toggle-card:hover:not(:disabled) {
+  background: #ffffff;
+  border-color: rgba(47, 111, 78, 0.24);
+  color: var(--primary);
+}
+
+.favorite-toggle-card.is-active {
+  border-color: rgba(193, 78, 101, 0.18);
+  background: rgba(255, 246, 248, 0.98);
+  color: #c14e65;
+}
+
+.favorite-toggle-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+@media (max-width: 720px) {
+  .favorite-toggle-card {
+    width: 46px;
+  }
+}

@@ -10,7 +10,11 @@ export function AnimalCard({ animal, showManageLink = false }) {
 
   return (
     <article className="animal-card">
-      <AnimalImage src={animal.imageUrl ?? animal.image} alt={visibleName} />
+      <div className="animal-card-media">
+        <AnimalImage src={animal.imageUrl ?? animal.image} alt={visibleName} />
+        <FavoriteToggleButton animal={animal} variant="card" className="animal-card-favorite-toggle" />
+      </div>
+
       <div className="animal-card-body">
         <AnimalStatusBadge status={animal.status} statusLabel={animal.statusLabel} />
         <h3>{visibleName}</h3>
@@ -21,7 +25,6 @@ export function AnimalCard({ animal, showManageLink = false }) {
           <Link className="animal-card-link" to={`/animals/${animal.id}`}>
             Подробности
           </Link>
-          <FavoriteToggleButton animal={animal} />
           {showManageLink ? (
             <Link className="animal-card-manage-link" to={`/animals/${animal.id}/edit`}>
               Редакция
