@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useAuth } from '../../auth/AuthProvider.jsx';
@@ -66,6 +66,7 @@ function readImageFileAsDataUrl(file) {
 
 export function RescueReportPage() {
   const { currentUser } = useAuth();
+  const imageInputRef = useRef(null);
   const [formValues, setFormValues] = useState(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState({});
   const [isReadingImage, setIsReadingImage] = useState(false);
@@ -93,6 +94,16 @@ export function RescueReportPage() {
     () => getRescueReportDisplayName(submitState.submittedReport),
     [submitState.submittedReport]
   );
+
+  function clearFormFields() {
+    setFormValues({ ...EMPTY_FORM });
+    setFormErrors({});
+    setIsReadingImage(false);
+
+    if (imageInputRef.current) {
+      imageInputRef.current.value = '';
+    }
+  }
 
   function handleFieldChange(fieldName, value) {
     setFormValues((currentValue) => ({
@@ -146,12 +157,7 @@ export function RescueReportPage() {
   }
 
   function resetForm() {
-    setFormValues({
-      ...EMPTY_FORM,
-      name: [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(' ').trim() || '',
-    });
-    setFormErrors({});
-    setIsReadingImage(false);
+    clearFormFields();
     setSubmitState({
       isSubmitting: false,
       submittedReport: null,
@@ -191,7 +197,7 @@ export function RescueReportPage() {
         submittedReport: createdReport,
         feedback: createSuccessFeedback('Сигналът беше изпратен успешно.'),
       });
-      setFormErrors({});
+      clearFormFields();
     } catch (error) {
       setSubmitState({
         isSubmitting: false,
@@ -329,6 +335,7 @@ export function RescueReportPage() {
           <div className="rescue-form-grid-wide rescue-photo-field">
             <span>Снимка по желание</span>
             <input
+              ref={imageInputRef}
               type="file"
               accept="image/*"
               onChange={handleImageChange}
@@ -368,5 +375,3 @@ export function RescueReportPage() {
     </main>
   );
 }
-
-

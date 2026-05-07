@@ -9,10 +9,6 @@ const PROFILE_MENUS = {
     { href: '/profile', label: 'Профил' },
     { href: '/favorites', label: 'Любими животни' },
     { href: '/adoptions/my', label: 'Моите заявки' },
-    { href: '/volunteers', label: 'Доброволчество' },
-    { href: '/donations', label: 'Дарения' },
-    { href: '/svurji-se-s-nas', label: 'Свържи се с нас' },
-    { href: '/search', label: 'Животни' },
     { href: '/logout', label: 'Изход от профил' },
   ],
   employee: [
@@ -48,5 +44,3 @@ export function getProfileMenu(roleCandidate) {
     links: PROFILE_MENUS[role] ?? PROFILE_MENUS.guest,
   };
 }
-
-

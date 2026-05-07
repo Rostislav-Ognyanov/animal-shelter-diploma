@@ -290,6 +290,7 @@ export function VolunteerApplicationPage() {
         submittedApplication: createdApplication,
         feedback: createSuccessFeedback('Кандидатурата беше изпратена успешно.'),
       });
+      setFormValues({ ...EMPTY_FORM });
       setFormErrors({});
     } catch (error) {
       setSubmitState({
@@ -563,5 +564,6 @@ export function VolunteerApplicationPage() {
     </main>
   );
 }
+
 
 

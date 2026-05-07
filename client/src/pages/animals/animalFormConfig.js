@@ -4,6 +4,7 @@
   ANIMAL_SIZE_OPTIONS,
   ANIMAL_SPECIES_OPTIONS,
 } from './animalUi.js';
+import { buildAnimalStoredNames, getAnimalFormNameValue } from './animalNameTransform.js';
 
 export const SPECIES_OPTIONS = ANIMAL_SPECIES_OPTIONS;
 export const GENDER_OPTIONS = ANIMAL_GENDER_OPTIONS;
@@ -14,7 +15,6 @@ export const ANIMAL_FORM_VALIDATION_MESSAGE = 'Моля, коригирай от
 
 const INITIAL_ANIMAL_FORM_VALUES = {
   name: '',
-  displayName: '',
   species: 'dog',
   breed: '',
   age: '',
@@ -37,6 +37,53 @@ function parseImageUrlsText(value) {
     .filter(Boolean);
 }
 
+function formatDateForForm(value) {
+  if (!value) {
+    return '';
+  }
+
+  const dateValue = new Date(value);
+
+  if (Number.isNaN(dateValue.getTime())) {
+    return '';
+  }
+
+  const day = String(dateValue.getDate()).padStart(2, '0');
+  const month = String(dateValue.getMonth() + 1).padStart(2, '0');
+  const year = String(dateValue.getFullYear());
+
+  return `${day}/${month}/${year}`;
+}
+
+function parseFormDateToIso(value) {
+  const normalizedValue = String(value ?? '').trim();
+
+  if (!normalizedValue) {
+    throw new Error('Датата на приемане е задължителна.');
+  }
+
+  const dateMatch = normalizedValue.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+  if (!dateMatch) {
+    throw new Error('Въведи дата във формат dd/mm/yyyy.');
+  }
+
+  const [, day, month, year] = dateMatch;
+  const isoDate = `${year}-${month}-${day}T00:00:00.000Z`;
+  const parsedDate = new Date(isoDate);
+
+  if (
+    Number.isNaN(parsedDate.getTime()) ||
+    parsedDate.getUTCFullYear() !== Number(year) ||
+    parsedDate.getUTCMonth() + 1 !== Number(month) ||
+    parsedDate.getUTCDate() !== Number(day)
+  ) {
+    throw new Error('Въведи валидна дата във формат dd/mm/yyyy.');
+  }
+
+  return isoDate;
+}
+
 export function getInitialAnimalFormValues() {
   return {
     ...INITIAL_ANIMAL_FORM_VALUES,
@@ -46,15 +93,15 @@ export function getInitialAnimalFormValues() {
 export function validateAnimalForm(values) {
   const errors = {};
 
-  if (!values.name.trim()) {
+  if (!String(values.name ?? '').trim()) {
     errors.name = 'Името е задължително.';
   }
 
-  if (!values.breed.trim()) {
+  if (!String(values.breed ?? '').trim()) {
     errors.breed = 'Породата е задължителна.';
   }
 
-  if (!String(values.age).trim()) {
+  if (!String(values.age ?? '').trim()) {
     errors.age = 'Възрастта е задължителна.';
   } else {
     const numericAge = Number(values.age);
@@ -66,13 +113,19 @@ export function validateAnimalForm(values) {
 
   if (!values.intakeDate) {
     errors.intakeDate = 'Датата на приемане е задължителна.';
+  } else {
+    try {
+      parseFormDateToIso(values.intakeDate);
+    } catch (error) {
+      errors.intakeDate = error.message;
+    }
   }
 
-  if (!values.healthStatus.trim()) {
+  if (!String(values.healthStatus ?? '').trim()) {
     errors.healthStatus = 'Здравният статус е задължителен.';
   }
 
-  if (!values.description.trim()) {
+  if (!String(values.description ?? '').trim()) {
     errors.description = 'Описанието е задължително.';
   }
 
@@ -84,21 +137,23 @@ export function validateAnimalForm(values) {
 }
 
 export function buildAnimalPayload(values) {
+  const normalizedName = buildAnimalStoredNames(values.name);
+
   return {
-    name: values.name.trim(),
-    displayName: values.displayName.trim(),
+    name: normalizedName.name,
+    displayName: normalizedName.displayName,
     species: values.species,
-    breed: values.breed.trim(),
+    breed: String(values.breed ?? '').trim(),
     age: Number(values.age),
     gender: values.gender,
     size: values.size,
     status: values.status,
     isActive: Boolean(values.isActive),
-    intakeDate: values.intakeDate,
-    healthStatus: values.healthStatus.trim(),
+    intakeDate: parseFormDateToIso(values.intakeDate),
+    healthStatus: String(values.healthStatus ?? '').trim(),
     vaccinated: values.vaccinated,
     neutered: values.neutered,
-    description: values.description.trim(),
+    description: String(values.description ?? '').trim(),
     imageUrls: parseImageUrlsText(values.imageUrlsText),
   };
 }
@@ -111,8 +166,7 @@ export function mapAnimalToFormValues(animal) {
       : [];
 
   return {
-    name: animal?.name ?? '',
-    displayName: animal?.displayName ?? '',
+    name: getAnimalFormNameValue(animal),
     species: animal?.species ?? 'dog',
     breed: animal?.breed ?? '',
     age: animal?.age !== undefined && animal?.age !== null ? String(animal.age) : '',
@@ -120,7 +174,7 @@ export function mapAnimalToFormValues(animal) {
     size: animal?.size ?? 'medium',
     status: animal?.status ?? 'available',
     isActive: animal?.isActive ?? true,
-    intakeDate: animal?.intakeDate ? String(animal.intakeDate).slice(0, 10) : '',
+    intakeDate: formatDateForForm(animal?.intakeDate),
     healthStatus: animal?.healthStatus ?? '',
     vaccinated: Boolean(animal?.vaccinated),
     neutered: Boolean(animal?.neutered),

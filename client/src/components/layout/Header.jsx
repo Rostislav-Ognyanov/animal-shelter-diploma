@@ -1,7 +1,7 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-import { getRoleDescription, getRoleLabel } from '../../auth/roleUi.js';
+import { getRoleLabel } from '../../auth/roleUi.js';
 import { getMainNavigation } from '../../navigation/appNavigation.js';
 
 function renderMenuLink(item, onClick, className = '', children = item.label) {
@@ -27,7 +27,6 @@ export function Header({ siteName, profileMenu, currentUser, onLogout, role }) {
   const profileRef = useRef(null);
   const mainNavigation = useMemo(() => getMainNavigation(role), [role]);
   const roleLabel = getRoleLabel(role);
-  const roleDescription = getRoleDescription(role);
   const currentUserName =
     [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(' ').trim() ||
     currentUser?.username ||
@@ -144,14 +143,6 @@ export function Header({ siteName, profileMenu, currentUser, onLogout, role }) {
             </button>
 
             <div className={`profile-dropdown ${isProfileOpen ? 'is-open' : ''}`}>
-              {currentUser ? (
-                <div className="profile-dropdown-summary">
-                  <strong>{currentUserName}</strong>
-                  <span>{profileMenu.roleLabel}</span>
-                  <small>{roleDescription}</small>
-                </div>
-              ) : null}
-
               {(profileMenu.links ?? []).map((link) => (
                 <div key={`${link.href}-${link.label}`}>{renderProfileLink(link)}</div>
               ))}

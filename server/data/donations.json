@@ -1,1 +1,12 @@
-﻿[]
+[
+  {
+    "id": "b6e4ec2f-34a2-4b27-a1e9-fc906bf2b338",
+    "name": "Анна Петрова",
+    "email": "client@animalshelter.local",
+    "phone": "+359 88 123 4567",
+    "amount": 100,
+    "message": "Страхотни сте! Продължавайте!",
+    "createdAt": "2026-05-07T13:24:04.281Z",
+    "updatedAt": "2026-05-07T13:24:04.281Z"
+  }
+]

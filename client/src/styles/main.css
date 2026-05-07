@@ -5144,3 +5144,141 @@ footer {
     width: 46px;
   }
 }
+
+/* animal form layout polish */
+.animal-entry-grid {
+  align-items: start;
+}
+
+.animal-entry-grid-primary,
+.animal-entry-grid-secondary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.animal-entry-form label {
+  min-width: 0;
+  height: 100%;
+  align-content: start;
+}
+
+.animal-entry-form label > span:first-child,
+.animal-image-upload-header > span:first-child {
+  min-height: 1.35rem;
+}
+
+.animal-entry-form input,
+.animal-entry-form select,
+.animal-entry-form textarea,
+.animal-image-upload-input {
+  width: 100%;
+}
+
+.animal-entry-form textarea {
+  min-height: 152px;
+}
+
+.animal-image-upload-panel {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid rgba(47, 111, 78, 0.1);
+  border-radius: 22px;
+  background: #f8fbf9;
+}
+
+.animal-image-upload-header {
+  display: grid;
+  gap: 0.35rem;
+  color: #355240;
+  font-weight: 600;
+}
+
+.animal-image-upload-input {
+  min-height: 52px;
+  padding: 0.75rem 0.95rem;
+  border: 1px dashed rgba(47, 111, 78, 0.24);
+  border-radius: 14px;
+  background: #ffffff;
+  color: var(--text-main);
+}
+
+.animal-entry-image-paths {
+  display: grid !important;
+  gap: 0.45rem;
+}
+
+.animal-image-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.8rem;
+}
+
+.animal-image-preview-card {
+  overflow: hidden;
+  border: 1px solid rgba(47, 111, 78, 0.12);
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.animal-image-preview-card img {
+  width: 100%;
+  height: 164px;
+  object-fit: cover;
+}
+
+.animal-entry-checkboxes {
+  gap: 0.8rem;
+  justify-content: flex-start;
+}
+
+.animal-entry-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-width: 205px;
+  min-height: 52px;
+  padding: 0.8rem 1rem;
+  text-align: center;
+}
+
+.animal-entry-checkbox input[type='checkbox'] {
+  width: 14px;
+  height: 14px;
+}
+
+@media (max-width: 900px) {
+  .animal-entry-grid-primary,
+  .animal-entry-grid-secondary {
+    grid-template-columns: 1fr;
+  }
+}
+
+.animal-image-upload-trigger {
+  justify-self: start;
+}
+
+.animal-image-upload-input {
+  display: none;
+}
+
+.animal-image-preview-card {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.65rem;
+}
+
+.animal-image-remove-button {
+  min-height: 38px;
+  border: 1px solid rgba(47, 111, 78, 0.14);
+  border-radius: 12px;
+  background: #ffffff;
+  color: var(--text-main);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.animal-image-panel-actions {
+  display: flex;
+  justify-content: flex-start;
+}

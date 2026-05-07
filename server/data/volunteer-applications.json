@@ -1,1 +1,48 @@
-﻿[]
+[
+  {
+    "id": "a60045f4-fe67-4bb6-a4d7-1f412e635a39",
+    "firstName": "Анна",
+    "lastName": "Петрова",
+    "email": "client@animalshelter.local",
+    "phone": "+359 88 123 4567",
+    "age": 16,
+    "guardianConsent": true,
+    "guardianName": "Елена Петрова",
+    "guardianContact": "+359 88 123 7654",
+    "preferredPositions": [
+      "animal-care",
+      "walking"
+    ],
+    "otherPosition": "",
+    "motivation": "Обичам да съм покрай животни и да съм навън с тях за разходка.",
+    "experience": "Това е първият път, в който кандидатствам за доброволец. Но в свободното си време съм разхождала много животни на разходка и съм се грижила за двете ни кучета у дома.",
+    "availability": "Всеки уикенд - петък до неделя",
+    "status": "pending",
+    "notes": "",
+    "createdAt": "2026-05-07T13:20:03.546Z",
+    "updatedAt": "2026-05-07T13:20:03.546Z"
+  },
+  {
+    "id": "d5cadb81-35a8-4c5b-84c2-9927d7a69c1a",
+    "firstName": "Анна",
+    "lastName": "Петрова",
+    "email": "client@animalshelter.local",
+    "phone": "+359 88 123 4567",
+    "age": 16,
+    "guardianConsent": true,
+    "guardianName": "Елена Петрова",
+    "guardianContact": "+359 88 123 7654",
+    "preferredPositions": [
+      "animal-care",
+      "walking"
+    ],
+    "otherPosition": "",
+    "motivation": "Обичам да съм покрай животни и да съм навън с тях за разходка.",
+    "experience": "Това е първият път, в който кандидатствам за доброволец. Но в свободното си време съм разхождала много животни на разходка и съм се грижила за двете ни кучета у дома.",
+    "availability": "Всеки уикенд - петък до неделя",
+    "status": "approved",
+    "notes": "",
+    "createdAt": "2026-05-07T13:20:07.230Z",
+    "updatedAt": "2026-05-07T13:29:26.671Z"
+  }
+]

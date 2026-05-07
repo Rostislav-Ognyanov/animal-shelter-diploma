@@ -146,6 +146,7 @@ export function DonationPage() {
         submittedDonation: createdDonation,
         feedback: createSuccessFeedback('Дарението беше записано успешно.'),
       });
+      setFormValues({ ...EMPTY_FORM });
       setFormErrors({});
     } catch (error) {
       setSubmitState({
@@ -303,6 +304,7 @@ export function DonationPage() {
     </main>
   );
 }
+
 
 
 

@@ -1,2 +1,8 @@
-﻿[]
-
+[
+  {
+    "id": "be575f2b-4b54-42d8-a6ce-e8e7e3887af5",
+    "userId": "seed-client-001",
+    "animalId": "hotdog-dachshund-dog",
+    "createdAt": "2026-05-07T13:25:03.868Z"
+  }
+]
