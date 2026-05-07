@@ -1,0 +1,168 @@
+[
+  {
+    "id": "demo-adoption-pending-001",
+    "userId": "seed-client-001",
+    "user": {
+      "id": "seed-client-001",
+      "firstName": "Анна",
+      "lastName": "Петрова",
+      "username": "client",
+      "email": "client@animalshelter.local",
+      "role": "client"
+    },
+    "animalId": "hotdog-dachshund-dog",
+    "animal": {
+      "id": "hotdog-dachshund-dog",
+      "slug": "hotdog-dachshund-dog",
+      "name": "Hotdog",
+      "displayName": "Хотдог",
+      "species": "dog",
+      "breed": "Dachshund",
+      "status": "available",
+      "imageUrl": "/images/animals/Dogs/Dachshund_Hotdog.jpg"
+    },
+    "status": "pending",
+    "motivation": "Имам стабилен дом и опит с малки кучета. Хотдог ще има ежедневни разходки и спокойна среда.",
+    "contactPhone": "+359888111222",
+    "internalNotes": [],
+    "createdAt": "2026-04-18T10:30:00.000Z",
+    "updatedAt": "2026-04-18T10:30:00.000Z"
+  },
+  {
+    "id": "demo-adoption-under-review-001",
+    "userId": "seed-client-002",
+    "user": {
+      "id": "seed-client-002",
+      "firstName": "Георги",
+      "lastName": "Димитров",
+      "username": "client2",
+      "email": "client2@animalshelter.local",
+      "role": "client"
+    },
+    "animalId": "lily-beagle-dog",
+    "animal": {
+      "id": "lily-beagle-dog",
+      "slug": "lily-beagle-dog",
+      "name": "Lily",
+      "displayName": "Лили",
+      "species": "dog",
+      "breed": "Beagle",
+      "status": "reserved",
+      "imageUrl": "/images/animals/Dogs/Beagle_Lily.jpg"
+    },
+    "status": "under-review",
+    "motivation": "Лили изглежда подходяща за нашето семейство. Имаме двор и време за обучение и грижа.",
+    "contactPhone": "+359888222333",
+    "internalNotes": [
+      {
+        "text": "Първоначалният преглед е направен. Очаква се потвърждение за посещение.",
+        "authorId": "seed-employee-001",
+        "authorName": "Мария Иванова",
+        "createdAt": "2026-04-19T11:15:00.000Z"
+      }
+    ],
+    "createdAt": "2026-04-19T09:20:00.000Z",
+    "updatedAt": "2026-04-19T11:15:00.000Z"
+  },
+  {
+    "id": "demo-adoption-approved-001",
+    "userId": "seed-client-001",
+    "user": {
+      "id": "seed-client-001",
+      "firstName": "Анна",
+      "lastName": "Петрова",
+      "username": "client",
+      "email": "client@animalshelter.local",
+      "role": "client"
+    },
+    "animalId": "kiara-american-pitbull-dog",
+    "animal": {
+      "id": "kiara-american-pitbull-dog",
+      "slug": "kiara-american-pitbull-dog",
+      "name": "Kiara",
+      "displayName": "Киара",
+      "species": "dog",
+      "breed": "American Pitbull",
+      "status": "reserved",
+      "imageUrl": "/images/animals/Dogs/American_Pitbull_Kiara.webp"
+    },
+    "status": "approved",
+    "motivation": "Искам да осиновя Киара и мога да осигуря активен режим, ветеринарна грижа и постоянен контакт с екипа.",
+    "contactPhone": "+359888333444",
+    "internalNotes": [
+      {
+        "text": "Заявката е одобрена след разговор с кандидата. Остава финална среща.",
+        "authorId": "seed-employee-001",
+        "authorName": "Мария Иванова",
+        "createdAt": "2026-04-20T14:00:00.000Z"
+      }
+    ],
+    "createdAt": "2026-04-20T08:45:00.000Z",
+    "updatedAt": "2026-04-20T14:00:00.000Z"
+  },
+  {
+    "id": "demo-adoption-completed-001",
+    "userId": "seed-client-002",
+    "user": {
+      "id": "seed-client-002",
+      "firstName": "Георги",
+      "lastName": "Димитров",
+      "username": "client2",
+      "email": "client2@animalshelter.local",
+      "role": "client"
+    },
+    "animalId": "max-golden-retriever-dog",
+    "animal": {
+      "id": "max-golden-retriever-dog",
+      "slug": "max-golden-retriever-dog",
+      "name": "Max",
+      "displayName": "Макс",
+      "species": "dog",
+      "breed": "Golden Retriever",
+      "status": "adopted",
+      "imageUrl": "/images/animals/Dogs/Golden_Retriever_Max.jpg"
+    },
+    "status": "completed",
+    "motivation": "Макс вече е преминал през среща с нашето семейство и сме готови да финализираме осиновяването.",
+    "contactPhone": "+359888444555",
+    "internalNotes": [
+      {
+        "text": "Осиновяването е финализирано. Документите са предадени.",
+        "authorId": "seed-admin-001",
+        "authorName": "Системен Администратор",
+        "createdAt": "2026-04-21T16:30:00.000Z"
+      }
+    ],
+    "createdAt": "2026-04-21T09:10:00.000Z",
+    "updatedAt": "2026-04-21T16:30:00.000Z"
+  },
+  {
+    "id": "demo-adoption-cancelled-001",
+    "userId": "seed-client-001",
+    "user": {
+      "id": "seed-client-001",
+      "firstName": "Анна",
+      "lastName": "Петрова",
+      "username": "client",
+      "email": "client@animalshelter.local",
+      "role": "client"
+    },
+    "animalId": "mona-munchkin-cat",
+    "animal": {
+      "id": "mona-munchkin-cat",
+      "slug": "mona-munchkin-cat",
+      "name": "Mona",
+      "displayName": "Мона",
+      "species": "cat",
+      "breed": "Munchkin",
+      "status": "available",
+      "imageUrl": "/images/animals/Cats/Munchkin_Mona.webp"
+    },
+    "status": "cancelled",
+    "motivation": "Имах интерес към Мона, но временно не мога да поема ангажимента и отменям заявката.",
+    "contactPhone": "+359888555666",
+    "internalNotes": [],
+    "createdAt": "2026-04-22T12:00:00.000Z",
+    "updatedAt": "2026-04-22T13:00:00.000Z"
+  }
+]

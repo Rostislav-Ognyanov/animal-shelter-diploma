@@ -1,0 +1,80 @@
+[
+  {
+    "id": "seed-admin-001",
+    "firstName": "Системен",
+    "lastName": "Администратор",
+    "username": "admin",
+    "email": "admin@animalshelter.local",
+    "passwordHash": "$2b$10$ARg7hUeFFY7O72fu3WWTaugVREk7leM6m2q195EN1vY0t.Vb8JcCG",
+    "role": "admin",
+    "isActive": true,
+    "lastLoginAt": "2026-04-26T14:14:07.690Z",
+    "createdAt": "2026-04-01T09:00:00.000Z",
+    "updatedAt": "2026-04-26T14:14:07.690Z"
+  },
+  {
+    "id": "seed-employee-001",
+    "firstName": "Мария",
+    "lastName": "Иванова",
+    "username": "employee",
+    "email": "employee@animalshelter.local",
+    "passwordHash": "$2b$10$vbDkbbhZeEku0r/z63pqEem2IuXAGk4SKKt6MS2IOvpAL2j3KavRm",
+    "role": "employee",
+    "isActive": true,
+    "lastLoginAt": "2026-04-26T14:14:07.617Z",
+    "createdAt": "2026-04-01T09:05:00.000Z",
+    "updatedAt": "2026-04-26T14:14:07.617Z"
+  },
+  {
+    "id": "seed-client-001",
+    "firstName": "Анна",
+    "lastName": "Петрова",
+    "username": "client",
+    "email": "client@animalshelter.local",
+    "passwordHash": "$2b$10$9bgScoVw.SJ5Nl/C41VIBe.0zLUfGkqWKiJOxZJaHbaOXjRcG4jW2",
+    "role": "client",
+    "isActive": true,
+    "lastLoginAt": "2026-04-26T14:14:07.545Z",
+    "createdAt": "2026-04-01T09:10:00.000Z",
+    "updatedAt": "2026-04-26T14:14:07.546Z"
+  },
+  {
+    "id": "seed-client-002",
+    "firstName": "Георги",
+    "lastName": "Димитров",
+    "username": "client2",
+    "email": "client2@animalshelter.local",
+    "passwordHash": "$2b$10$i9H13UpW/nuvn4lrvpJAgO402Vr1n1BBCLi6pi7XSjrvUGWsvGH3S",
+    "role": "client",
+    "isActive": true,
+    "lastLoginAt": null,
+    "createdAt": "2026-04-01T09:15:00.000Z",
+    "updatedAt": "2026-04-23T09:00:00.000Z"
+  },
+  {
+    "id": "seed-employee-inactive-001",
+    "firstName": "Петър",
+    "lastName": "Стоянов",
+    "username": "employee.inactive",
+    "email": "employee.inactive@animalshelter.local",
+    "passwordHash": "$2b$10$8TFS.KFndqVhTk95CMV1xOYzx2Mt8B1uOzlut0pJePczgOmRCFpIy",
+    "role": "employee",
+    "isActive": false,
+    "lastLoginAt": null,
+    "createdAt": "2026-04-01T09:20:00.000Z",
+    "updatedAt": "2026-04-23T09:00:00.000Z"
+  },
+  {
+    "id": "d55dbd01-1f18-4560-95ee-e617a3bc001a",
+    "firstName": "Додо",
+    "lastName": "Додов",
+    "username": "dodo",
+    "email": "dodo@dodo.com",
+    "passwordHash": "$2b$10$wkGhFP0V6zntUElF7d8db.WpcuXCg/Q6U4KWzvhlE0QdM6jHeCUPq",
+    "role": "client",
+    "isActive": true,
+    "lastLoginAt": "2026-04-16T13:15:40.079Z",
+    "createdAt": "2026-04-15T14:24:02.831Z",
+    "updatedAt": "2026-04-16T13:15:40.080Z"
+  }
+]
