@@ -4054,6 +4054,7 @@ footer {
   display: grid;
   gap: 0.65rem;
   padding: 1rem;
+  align-content: space-evenly;
 }
 
 .species-showcase-tab {
@@ -4325,9 +4326,9 @@ footer {
 
 .species-showcase-list {
   padding: 0.95rem;
-  gap: 1.15rem;
+  gap: 1rem;
   justify-items: center;
-  align-content: start;
+  align-content: space-evenly;
 }
 
 .species-showcase-tab {
@@ -4684,7 +4685,8 @@ footer {
 
 .animals-overview-species-card {
   position: relative;
-  min-height: 250px;
+  aspect-ratio: 1 / 1;
+  min-height: 0;
   overflow: hidden;
   border-radius: 18px;
   color: #ffffff;
@@ -4716,7 +4718,7 @@ footer {
   bottom: 0.95rem;
   z-index: 2;
   color: #ffffff;
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   font-weight: 800;
 }
 

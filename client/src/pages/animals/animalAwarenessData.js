@@ -66,8 +66,8 @@ export const SPECIES_SHOWCASE_ITEMS = [
       'Неподходящата среда може да доведе до стрес, отказ от храна и здравословни усложнения.',
       'При изоставяне или неправилно преместване рискът за тях е висок, защото са силно зависими от контролирани условия.',
     ],
-    imageSrc: '/images/animals/Lizards/Martin.webp',
-    imageAlt: 'Мартин - гущер от приюта',
+    imageSrc: '/images/animals/Lizards/Sirocco.jpg',
+    imageAlt: 'Сироко - гущер от приюта',
   },
   {
     value: 'owl',
