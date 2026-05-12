@@ -11,7 +11,16 @@ export const ANIMAL_GENDER_VALUES = ['male', 'female', 'unknown'];
 
 export const ANIMAL_SIZE_VALUES = ['small', 'medium', 'large', 'extra-large'];
 
-export const ANIMAL_SPECIES_VALUES = ['dog', 'cat', 'rabbit', 'fox'];
+export const ANIMAL_SPECIES_VALUES = [
+  'dog',
+  'cat',
+  'rabbit',
+  'fox',
+  'lizard',
+  'owl',
+  'horse',
+  'hedgehog',
+];
 
 export const ANIMAL_ID_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -64,4 +73,8 @@ export const ANIMAL_SPECIES_LABELS = {
   cat: 'Котка',
   rabbit: 'Зайче',
   fox: 'Лисица',
+  lizard: 'Гущер',
+  owl: 'Сова',
+  horse: 'Кон',
+  hedgehog: 'Таралеж',
 };

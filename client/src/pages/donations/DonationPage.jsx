@@ -288,7 +288,7 @@ export function DonationPage() {
 
           <div className="profile-form-actions donation-form-grid-wide">
             <button type="submit" className="animals-primary-action" disabled={submitState.isSubmitting}>
-              {submitState.isSubmitting ? 'Записване...' : 'Запази дарението'}
+              {submitState.isSubmitting ? 'Записване...' : 'Заяви дарение'}
             </button>
             <button
               type="button"

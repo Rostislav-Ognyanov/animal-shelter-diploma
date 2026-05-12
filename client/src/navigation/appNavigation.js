@@ -10,11 +10,11 @@
   },
   { to: '/volunteers', label: 'Доброволец' },
   {
-    to: '/search',
+    to: '/za-zhivotnite',
     label: 'За животните',
     items: [
-      { href: '/#species-showcase-section', label: 'Информация за животните ни' },
-      { href: '/#rescue-stories-section', label: 'Истории за спасявания' },
+      { to: '/za-zhivotnite#species-showcase-section', label: 'Информация за животните ни' },
+      { to: '/istorii-za-spasyavaniya', label: 'Истории за спасявания' },
     ],
   },
   { to: '/svurji-se-s-nas', label: 'Свържи се с нас' },

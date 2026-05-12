@@ -518,7 +518,7 @@ export function VolunteerApplicationPage() {
             <input
               type="text"
               value={formValues.availability}
-              placeholder="Например: делнични вечери, уикенди, 2-3 пъти месечно"
+              placeholder="Например: делнични дни, уикенди, 2-3 пъти месечно"
               onChange={(event) => handleFieldChange('availability', event.target.value)}
               disabled={submitState.isSubmitting}
             />

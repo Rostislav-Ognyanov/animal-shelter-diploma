@@ -3,6 +3,10 @@
   { value: 'cat', label: 'Котка' },
   { value: 'rabbit', label: 'Зайче' },
   { value: 'fox', label: 'Лисица' },
+  { value: 'lizard', label: 'Гущер' },
+  { value: 'owl', label: 'Сова' },
+  { value: 'horse', label: 'Кон' },
+  { value: 'hedgehog', label: 'Таралеж' },
 ];
 
 const BASE_SIZE_OPTIONS = [
@@ -86,6 +90,22 @@ const SPECIES_ALIASES = {
   foxes: 'fox',
   лисица: 'fox',
   лисици: 'fox',
+  lizard: 'lizard',
+  lizards: 'lizard',
+  гущер: 'lizard',
+  гущери: 'lizard',
+  owl: 'owl',
+  owls: 'owl',
+  сова: 'owl',
+  сови: 'owl',
+  horse: 'horse',
+  horses: 'horse',
+  кон: 'horse',
+  коне: 'horse',
+  hedgehog: 'hedgehog',
+  hedgehogs: 'hedgehog',
+  таралеж: 'hedgehog',
+  таралежи: 'hedgehog',
 };
 
 const SIZE_ALIASES = {

@@ -26,6 +26,10 @@ export const RESCUE_REPORT_SPECIES_LABELS = {
   cat: 'Котка',
   rabbit: 'Зайче',
   fox: 'Лисица',
+  lizard: 'Гущер',
+  owl: 'Сова',
+  horse: 'Кон',
+  hedgehog: 'Таралеж',
   bird: 'Птица',
   other: 'Друго',
 };

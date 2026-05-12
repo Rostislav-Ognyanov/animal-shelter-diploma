@@ -179,14 +179,6 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
     }));
   }
 
-  function handleSearchSubmit(event) {
-    event.preventDefault();
-
-    updateRouteFilters(
-      mergeAnimalsRouteFilters(activeFilters, { query: formValues.query }, { resetPage: true })
-    );
-  }
-
   function handleFiltersSubmit(event) {
     event.preventDefault();
 
@@ -274,81 +266,76 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
       </section>
 
       <section className="animals-toolbar-card">
-        <form className="animals-toolbar-search" onSubmit={handleSearchSubmit}>
-          <input
-            type="search"
-            name="query"
-            placeholder="Търсене по име, порода или вид"
-            value={formValues.query}
-            onChange={(event) => handleFieldChange('query', event.target.value)}
-          />
-          <button type="submit" disabled={animalsState.isLoading && !showInitialLoading}>
-            Търси
-          </button>
-        </form>
-
-        <label className="animals-toolbar-sort">
-          <span>Сортиране</span>
-          <select value={activeFilters.sort} onChange={handleSortChange}>
-            {SORT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </section>
-
-      <section className="animals-filters-card">
-        <div className="animals-filters-heading">
-          <h2>Филтри</h2>
-
-        </div>
-
-        <form className="animals-filters-form" onSubmit={handleFiltersSubmit}>
-          <label>
-            <span>Вид</span>
-            <select
-              value={formValues.species}
-              onChange={(event) => handleFieldChange('species', event.target.value)}
-            >
-              {SPECIES_OPTIONS.map((option) => (
-                <option key={option.value || 'all-species'} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            <span>Размер</span>
-            <select value={formValues.size} onChange={(event) => handleFieldChange('size', event.target.value)}>
-              {SIZE_OPTIONS.map((option) => (
-                <option key={option.value || 'all-sizes'} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            <span>Статус</span>
-            <select value={formValues.status} onChange={(event) => handleFieldChange('status', event.target.value)}>
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option.value || 'all-statuses'} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div className="animals-filters-actions">
-            <button type="submit" className="animals-primary-action">
-              Приложи
+        <form className="animals-search-filters-form" onSubmit={handleFiltersSubmit}>
+          <div className="animals-toolbar-search">
+            <input
+              type="search"
+              name="query"
+              placeholder="Търсене по име, порода или вид"
+              value={formValues.query}
+              onChange={(event) => handleFieldChange('query', event.target.value)}
+            />
+            <button type="submit" disabled={animalsState.isLoading && !showInitialLoading}>
+              Търси
             </button>
-            <button type="button" className="animals-secondary-action" onClick={handleClearFilters}>
-              Изчисти
-            </button>
+          </div>
+
+          <div className="animals-filters-form">
+            <label>
+              <span>Вид</span>
+              <select
+                value={formValues.species}
+                onChange={(event) => handleFieldChange('species', event.target.value)}
+              >
+                {SPECIES_OPTIONS.map((option) => (
+                  <option key={option.value || 'all-species'} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Размер</span>
+              <select value={formValues.size} onChange={(event) => handleFieldChange('size', event.target.value)}>
+                {SIZE_OPTIONS.map((option) => (
+                  <option key={option.value || 'all-sizes'} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Статус</span>
+              <select value={formValues.status} onChange={(event) => handleFieldChange('status', event.target.value)}>
+                {STATUS_OPTIONS.map((option) => (
+                  <option key={option.value || 'all-statuses'} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="animals-toolbar-sort">
+              <span>Сортиране</span>
+              <select value={activeFilters.sort} onChange={handleSortChange}>
+                {SORT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="animals-filters-actions">
+              <button type="submit" className="animals-primary-action">
+                Приложи
+              </button>
+              <button type="button" className="animals-secondary-action" onClick={handleClearFilters}>
+                Изчисти
+              </button>
+            </div>
           </div>
         </form>
       </section>

@@ -23,13 +23,28 @@ export const RESCUE_REPORT_URGENCY_LABELS = {
   critical: 'Критична',
 };
 
-export const RESCUE_REPORT_SPECIES_VALUES = ['dog', 'cat', 'rabbit', 'fox', 'bird', 'other'];
+export const RESCUE_REPORT_SPECIES_VALUES = [
+  'dog',
+  'cat',
+  'rabbit',
+  'fox',
+  'lizard',
+  'owl',
+  'horse',
+  'hedgehog',
+  'bird',
+  'other',
+];
 
 export const RESCUE_REPORT_SPECIES_LABELS = {
   dog: 'Куче',
   cat: 'Котка',
   rabbit: 'Зайче',
   fox: 'Лисица',
+  lizard: 'Гущер',
+  owl: 'Сова',
+  horse: 'Кон',
+  hedgehog: 'Таралеж',
   bird: 'Птица',
   other: 'Друго',
 };

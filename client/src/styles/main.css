@@ -1146,15 +1146,22 @@ footer {
 
 .animals-toolbar-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
   gap: 1rem;
-  align-items: end;
+}
+
+.animals-search-filters-form {
+  display: grid;
+  gap: 1rem;
 }
 
 .animals-toolbar-search {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(220px, 520px) auto;
   gap: 0.75rem;
+  justify-content: center;
+  align-items: center;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(47, 111, 78, 0.12);
 }
 
 .animals-toolbar-search input,
@@ -1166,6 +1173,14 @@ footer {
   border-radius: 14px;
   background: #f8fbf9;
   color: var(--text-main);
+}
+
+.animals-toolbar-search input[type='search'] {
+  padding-left: 3rem;
+  background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='11' cy='11' r='7' stroke='%235c6961' stroke-width='2'/%3E%3Cpath d='M16.5 16.5L21 21' stroke='%235c6961' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: 1rem center;
+  background-size: 1.15rem;
 }
 
 .animals-toolbar-search button,
@@ -1200,7 +1215,7 @@ footer {
 .animals-toolbar-sort {
   display: grid;
   gap: 0.45rem;
-  min-width: 250px;
+  min-width: 0;
   color: #355240;
   font-weight: 600;
 }
@@ -1223,7 +1238,7 @@ footer {
 
 .animals-filters-form {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
   gap: 0.85rem;
   align-items: end;
 }
@@ -4566,9 +4581,207 @@ footer {
   margin-top: 0.2rem;
 }
 
+.animals-overview-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.animals-overview-info-card,
+.animals-overview-species-section,
+.animals-overview-stories-section,
+.rescue-stories-page-heading,
+.rescue-stories-page-grid {
+  border: 1px solid var(--border-soft);
+  border-radius: 24px;
+  background: var(--surface-color);
+  box-shadow: 0 16px 32px rgba(24, 48, 34, 0.08);
+}
+
+.animals-overview-info-card {
+  min-height: 340px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.85rem;
+  padding: 2rem;
+}
+
+.animals-overview-info-card-left {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.animals-overview-info-card-right {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.animals-overview-info-card h1,
+.animals-overview-info-card h2,
+.animals-overview-section-heading h1,
+.animals-overview-section-heading h2,
+.animals-overview-story-card h2,
+.animals-overview-story-card h3 {
+  margin: 0;
+  color: var(--primary);
+}
+
+.animals-overview-info-card p,
+.animals-overview-story-card p,
+.rescue-stories-page-heading p {
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.75;
+}
+
+.animals-overview-species-section,
+.animals-overview-stories-section {
+  display: grid;
+  gap: 1rem;
+  padding: 1.35rem;
+}
+
+.animals-overview-species-intro {
+  display: grid;
+  gap: 0.55rem;
+  justify-items: center;
+  text-align: center;
+}
+
+.animals-overview-species-intro h2 {
+  margin: 0;
+  color: var(--primary);
+  font-size: clamp(1.55rem, 2.4vw, 2.15rem);
+  font-weight: 800;
+}
+
+.animals-overview-species-intro p {
+  max-width: 78ch;
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.75;
+}
+
+.animals-overview-species-intro strong {
+  color: var(--text-main);
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.animals-overview-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.animals-overview-species-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.animals-overview-species-card {
+  position: relative;
+  min-height: 250px;
+  overflow: hidden;
+  border-radius: 18px;
+  color: #ffffff;
+  text-decoration: none;
+  isolation: isolate;
+}
+
+.animals-overview-species-card img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  transition: transform 180ms ease;
+}
+
+.animals-overview-species-card::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 42%;
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.68));
+  z-index: 1;
+}
+
+.animals-overview-species-card span {
+  position: absolute;
+  left: 1rem;
+  right: 1rem;
+  bottom: 0.95rem;
+  z-index: 2;
+  color: #ffffff;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.animals-overview-species-card:hover img,
+.animals-overview-species-card:focus-visible img {
+  transform: scale(1.04);
+}
+
+.animals-overview-stories-grid,
+.rescue-stories-page-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.animals-overview-story-card {
+  display: grid;
+  gap: 0.65rem;
+  padding: 1.15rem;
+  border: 1px solid rgba(47, 111, 78, 0.12);
+  border-radius: 18px;
+  background: #f8fbf9;
+}
+
+.animals-overview-story-card small {
+  color: var(--text-soft);
+  font-size: 0.78rem;
+}
+
+.rescue-stories-page-shell {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.rescue-stories-page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem;
+}
+
+.rescue-stories-page-grid {
+  padding: 1.35rem;
+}
+
 @media (max-width: 900px) {
-  .support-page-grid {
+  .support-page-grid,
+  .animals-overview-info-grid,
+  .animals-overview-species-grid,
+  .animals-overview-stories-grid,
+  .rescue-stories-page-grid {
     grid-template-columns: 1fr;
+  }
+
+  .animals-overview-info-card,
+  .animals-overview-info-card-right {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .rescue-stories-page-heading,
+  .animals-overview-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 

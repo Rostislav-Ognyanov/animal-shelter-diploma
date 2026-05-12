@@ -98,11 +98,11 @@ function normalizeDonationAmount(value) {
   const numericValue = Number(value);
 
   if (!Number.isFinite(numericValue) || numericValue < 1) {
-    throw createHttpError(400, 'Сумата на дарението трябва да бъде поне 1 лв.');
+    throw createHttpError(400, 'Сумата на дарението трябва да бъде поне 1 евро.');
   }
 
   if (numericValue > MAX_DONATION_AMOUNT) {
-    throw createHttpError(400, `Сумата на дарението не може да надвишава ${MAX_DONATION_AMOUNT} лв.`);
+    throw createHttpError(400, `Сумата на дарението не може да надвишава ${MAX_DONATION_AMOUNT} евро.`);
   }
 
   return Number(numericValue.toFixed(2));
@@ -160,7 +160,7 @@ function serializeDonation(donation) {
     email: donation.email ?? '',
     phone: donation.phone ?? '',
     amount: donation.amount ?? 0,
-    currency: 'BGN',
+    currency: 'EUR',
     message: donation.message ?? '',
     createdAt: normalizeDateOutput(donation.createdAt),
     updatedAt: normalizeDateOutput(donation.updatedAt),

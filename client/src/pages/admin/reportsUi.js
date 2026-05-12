@@ -26,6 +26,10 @@ const ANIMAL_SPECIES_LABELS = {
   cat: 'Котки',
   rabbit: 'Зайци',
   fox: 'Лисици',
+  lizard: 'Гущери',
+  owl: 'Сови',
+  horse: 'Коне',
+  hedgehog: 'Таралежи',
 };
 
 const ANIMAL_SIZE_LABELS = {

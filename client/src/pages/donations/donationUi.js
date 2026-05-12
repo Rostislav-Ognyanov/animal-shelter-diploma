@@ -4,12 +4,12 @@ export function formatDonationAmount(amount) {
   const numericAmount = Number(amount);
 
   if (!Number.isFinite(numericAmount)) {
-    return '0,00 лв.';
+    return '0,00 €';
   }
 
   return new Intl.NumberFormat('bg-BG', {
     style: 'currency',
-    currency: 'BGN',
+    currency: 'EUR',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(numericAmount);
