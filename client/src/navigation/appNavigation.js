@@ -13,7 +13,7 @@
     to: '/za-zhivotnite',
     label: 'За животните',
     items: [
-      { to: '/za-zhivotnite#species-showcase-section', label: 'Информация за животните ни' },
+      { to: '/informacia-za-zhivotnite', label: 'Информация за животните ни' },
       { to: '/istorii-za-spasyavaniya', label: 'Истории за спасявания' },
     ],
   },

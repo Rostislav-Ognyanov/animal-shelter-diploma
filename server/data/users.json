@@ -21,9 +21,9 @@
     "passwordHash": "$2b$10$vbDkbbhZeEku0r/z63pqEem2IuXAGk4SKKt6MS2IOvpAL2j3KavRm",
     "role": "employee",
     "isActive": true,
-    "lastLoginAt": "2026-05-07T13:14:56.829Z",
+    "lastLoginAt": "2026-05-13T13:31:14.237Z",
     "createdAt": "2026-04-01T09:05:00.000Z",
-    "updatedAt": "2026-05-07T13:14:56.830Z"
+    "updatedAt": "2026-05-13T13:31:14.237Z"
   },
   {
     "id": "seed-client-001",

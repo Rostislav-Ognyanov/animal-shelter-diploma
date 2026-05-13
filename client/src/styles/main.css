@@ -4650,6 +4650,7 @@ footer {
   text-align: center;
 }
 
+.animals-overview-species-intro h1,
 .animals-overview-species-intro h2 {
   margin: 0;
   color: var(--primary);
@@ -4765,12 +4766,96 @@ footer {
   padding: 1.35rem;
 }
 
+.species-info-shell {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.species-info-hero,
+.species-info-not-found {
+  border: 1px solid var(--border-soft);
+  border-radius: 24px;
+  background: var(--surface-color);
+  box-shadow: 0 16px 32px rgba(24, 48, 34, 0.08);
+}
+
+.species-info-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(280px, 0.75fr);
+  gap: 1.25rem;
+  overflow: hidden;
+}
+
+.species-info-hero-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
+}
+
+.species-info-hero-copy h1 {
+  margin: 0;
+  color: var(--primary);
+  font-size: clamp(2.2rem, 4vw, 3.4rem);
+  line-height: 1;
+}
+
+.species-info-hero-copy p,
+.species-info-chapter p,
+.species-info-not-found p {
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.75;
+}
+
+.species-info-hero-image {
+  min-height: 360px;
+}
+
+.species-info-hero-image img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.species-info-chapters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.species-info-chapter,
+.species-info-not-found {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.35rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 20px;
+  background: #f8fbf9;
+}
+
+.species-info-chapter h2,
+.species-info-not-found h1 {
+  margin: 0;
+  color: var(--primary);
+  font-size: 1.25rem;
+}
+
+.species-info-not-found {
+  justify-items: start;
+}
+
 @media (max-width: 900px) {
   .support-page-grid,
   .animals-overview-info-grid,
   .animals-overview-species-grid,
   .animals-overview-stories-grid,
-  .rescue-stories-page-grid {
+  .rescue-stories-page-grid,
+  .species-info-hero,
+  .species-info-chapters {
     grid-template-columns: 1fr;
   }
 
@@ -4784,6 +4869,10 @@ footer {
   .animals-overview-section-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .species-info-hero-image {
+    min-height: 280px;
   }
 }
 

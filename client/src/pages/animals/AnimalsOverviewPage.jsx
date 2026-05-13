@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
 
 import { RESCUE_STORIES, SPECIES_SHOWCASE_ITEMS } from './animalAwarenessData.js';
-import { buildAnimalsSearchPath } from './animalsListQuery.js';
+
+const FEATURED_SPECIES = SPECIES_SHOWCASE_ITEMS.slice(0, 4);
 
 export function AnimalsOverviewPage() {
   return (
@@ -35,21 +36,19 @@ export function AnimalsOverviewPage() {
       </section>
 
       <section className="animals-overview-species-section" id="species-showcase-section">
-        <div className="animals-overview-species-intro">
-          <h2>Искаш ли да научиш повече за животните?</h2>
-          <p>
-            В страниците с факти за животните ще научиш много любопитни факти за живота и поведението на всеки вид, в
-            домашни условия или в природата.
-          </p>
-          <strong>Кликни върху вид по-долу за повече информация</strong>
+        <div className="animals-overview-section-heading animals-overview-stories-heading">
+          <h2>Информация за животните ни</h2>
+          <Link className="animals-secondary-action" to="/informacia-za-zhivotnite">
+            Вижте повече
+          </Link>
         </div>
 
         <div className="animals-overview-species-grid">
-          {SPECIES_SHOWCASE_ITEMS.map((species) => (
+          {FEATURED_SPECIES.map((species) => (
             <Link
               key={species.value}
               className="animals-overview-species-card"
-              to={buildAnimalsSearchPath({ species: species.value })}
+              to={`/za-zhivotnite/${species.value}`}
             >
               <img src={species.imageSrc} alt={species.imageAlt} />
               <span>{species.tabLabel}</span>

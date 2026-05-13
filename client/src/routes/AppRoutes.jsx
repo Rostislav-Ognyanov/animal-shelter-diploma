@@ -9,10 +9,12 @@ import { AdoptionRequestsAdminPage } from '../pages/adoptions/AdoptionRequestsAd
 import { CreateAdoptionRequestPage } from '../pages/adoptions/CreateAdoptionRequestPage.jsx';
 import { MyAdoptionRequestsPage } from '../pages/adoptions/MyAdoptionRequestsPage.jsx';
 import { AnimalDetailsPage } from '../pages/animals/AnimalDetailsPage.jsx';
+import { AnimalsInfoPage } from '../pages/animals/AnimalsInfoPage.jsx';
 import { AnimalsOverviewPage } from '../pages/animals/AnimalsOverviewPage.jsx';
 import { CreateAnimalPage } from '../pages/animals/CreateAnimalPage.jsx';
 import { EditAnimalPage } from '../pages/animals/EditAnimalPage.jsx';
 import { RescueStoriesPage } from '../pages/animals/RescueStoriesPage.jsx';
+import { SpeciesInfoPage } from '../pages/animals/SpeciesInfoPage.jsx';
 import { LoginPage } from '../pages/auth/LoginPage.jsx';
 import { RegisterPage } from '../pages/auth/RegisterPage.jsx';
 import { RescueReportDetailsPage } from '../pages/contact/RescueReportDetailsPage.jsx';
@@ -40,6 +42,8 @@ export function AppRoutes({ homeData, role }) {
       <Route path="/search" element={<SearchResultsPage role={role} />} />
       <Route path="/podkrepa" element={<SupportPage />} />
       <Route path="/za-zhivotnite" element={<AnimalsOverviewPage />} />
+      <Route path="/informacia-za-zhivotnite" element={<AnimalsInfoPage />} />
+      <Route path="/za-zhivotnite/:species" element={<SpeciesInfoPage />} />
       <Route path="/istorii-za-spasyavaniya" element={<RescueStoriesPage />} />
       <Route path="/volunteers" element={<VolunteerApplicationPage />} />
       <Route path="/donations" element={<DonationPage />} />
