@@ -44,7 +44,7 @@ export function AboutPage() {
             пострадали, изоставени или рискови животни.
           </p>
 
-          <Link className="animals-primary-action about-page-contact-button" to="/svurji-se-s-nas">
+          <Link className="about-page-contact-link" to="/svurji-se-s-nas">
             Свържи се с нас
           </Link>
         </article>

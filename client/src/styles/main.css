@@ -4596,9 +4596,18 @@ footer {
   line-height: 1.75;
 }
 
-.about-page-contact-button {
+.about-page-contact-link {
+  color: var(--primary);
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 0.22em;
   width: fit-content;
   margin-top: 0.35rem;
+}
+
+.about-page-contact-link:hover,
+.about-page-contact-link:focus-visible {
+  color: var(--primary-deep);
 }
 
 .about-page-toggle-grid {
