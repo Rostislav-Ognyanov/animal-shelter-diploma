@@ -43,12 +43,11 @@ export function AboutPage() {
             спокойна среда за възстановяване. Екипът има опит с различни случаи и е подготвен да реагира при сигнали за
             пострадали, изоставени или рискови животни.
           </p>
-        </article>
 
-        <Link className="about-page-contact-card" to="/svurji-se-s-nas">
-          <span>Имаш сигнал или въпрос?</span>
-          <strong>Свържи се с нас</strong>
-        </Link>
+          <Link className="animals-primary-action about-page-contact-button" to="/svurji-se-s-nas">
+            Свържи се с нас
+          </Link>
+        </article>
       </section>
 
       <section className="about-page-work-card">

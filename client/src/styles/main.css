@@ -4551,7 +4551,6 @@ footer {
 
 .about-page-hero,
 .about-page-intro article,
-.about-page-contact-card,
 .about-page-work-card,
 .about-page-toggle-card {
   border: 1px solid var(--border-soft);
@@ -4573,9 +4572,7 @@ footer {
 
 .about-page-intro {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.38fr);
-  gap: 1rem;
-  align-items: stretch;
+  grid-template-columns: 1fr;
 }
 
 .about-page-intro article,
@@ -4599,36 +4596,14 @@ footer {
   line-height: 1.75;
 }
 
-.about-page-contact-card {
-  display: grid;
-  align-content: center;
-  gap: 0.35rem;
-  padding: 1.35rem;
-  color: var(--primary-deep);
-  text-decoration: none;
-  transition:
-    transform 160ms ease,
-    box-shadow 160ms ease;
-}
-
-.about-page-contact-card:hover,
-.about-page-contact-card:focus-visible {
-  transform: translateY(-2px);
-  box-shadow: 0 18px 34px rgba(24, 48, 34, 0.12);
-}
-
-.about-page-contact-card span {
-  color: var(--text-soft);
-}
-
-.about-page-contact-card strong {
-  color: var(--primary);
-  font-size: 1.3rem;
+.about-page-contact-button {
+  width: fit-content;
+  margin-top: 0.35rem;
 }
 
 .about-page-toggle-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 1rem;
 }
 
