@@ -4544,6 +4544,124 @@ footer {
   border-top: 1px solid rgba(0, 0, 0, 0.08);
 }
 
+.about-page-shell {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.about-page-hero,
+.about-page-intro article,
+.about-page-contact-card,
+.about-page-work-card,
+.about-page-toggle-card {
+  border: 1px solid var(--border-soft);
+  border-radius: 24px;
+  background: var(--surface-color);
+  box-shadow: 0 16px 32px rgba(24, 48, 34, 0.08);
+}
+
+.about-page-hero {
+  padding: 2rem;
+}
+
+.about-page-hero h1 {
+  margin: 0;
+  color: var(--primary);
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  line-height: 1;
+}
+
+.about-page-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.38fr);
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.about-page-intro article,
+.about-page-work-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.35rem;
+}
+
+.about-page-intro h2,
+.about-page-work-card h2 {
+  margin: 0;
+  color: var(--primary);
+}
+
+.about-page-intro p,
+.about-page-work-card p,
+.about-page-toggle-card p {
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.75;
+}
+
+.about-page-contact-card {
+  display: grid;
+  align-content: center;
+  gap: 0.35rem;
+  padding: 1.35rem;
+  color: var(--primary-deep);
+  text-decoration: none;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.about-page-contact-card:hover,
+.about-page-contact-card:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 34px rgba(24, 48, 34, 0.12);
+}
+
+.about-page-contact-card span {
+  color: var(--text-soft);
+}
+
+.about-page-contact-card strong {
+  color: var(--primary);
+  font-size: 1.3rem;
+}
+
+.about-page-toggle-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.about-page-toggle-card {
+  overflow: hidden;
+}
+
+.about-page-toggle-card button {
+  width: 100%;
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.2rem 1.35rem;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  text-align: left;
+}
+
+.about-page-toggle-card button strong {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.about-page-toggle-card p {
+  padding: 0 1.35rem 1.35rem;
+}
+
 .support-page-shell,
 .animals-overview-shell {
   display: grid;
@@ -4552,15 +4670,49 @@ footer {
 
 .support-page-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
 }
 
 .support-page-card,
 .support-page-hero,
+.support-page-impact article,
 .animals-overview-hero {
   display: grid;
   gap: 0.8rem;
+}
+
+.support-page-hero,
+.support-page-impact article,
+.support-page-card {
+  border: 1px solid var(--border-soft);
+  border-radius: 24px;
+  background: var(--surface-color);
+  box-shadow: 0 16px 32px rgba(24, 48, 34, 0.08);
+}
+
+.support-page-hero {
+  padding: 2rem;
+}
+
+.support-page-hero p {
+  max-width: 76ch;
+}
+
+.support-page-impact {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.support-page-impact article,
+.support-page-card {
+  padding: 1.35rem;
+}
+
+.support-page-impact strong {
+  color: var(--primary);
+  font-size: 1.2rem;
 }
 
 .support-page-card h2,
@@ -4571,11 +4723,21 @@ footer {
 }
 
 .support-page-card p,
+.support-page-impact p,
 .animals-overview-hero p,
 .support-page-hero p {
   margin: 0;
   color: var(--text-soft);
   line-height: 1.7;
+}
+
+.support-page-card {
+  align-content: start;
+}
+
+.support-page-card .animals-primary-action {
+  margin-top: 0.25rem;
+  width: fit-content;
 }
 
 .animals-overview-actions {
@@ -4850,6 +5012,9 @@ footer {
 
 @media (max-width: 900px) {
   .support-page-grid,
+  .support-page-impact,
+  .about-page-intro,
+  .about-page-toggle-grid,
   .animals-overview-info-grid,
   .animals-overview-species-grid,
   .animals-overview-stories-grid,

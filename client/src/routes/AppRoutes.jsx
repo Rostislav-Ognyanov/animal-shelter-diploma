@@ -15,6 +15,7 @@ import { CreateAnimalPage } from '../pages/animals/CreateAnimalPage.jsx';
 import { EditAnimalPage } from '../pages/animals/EditAnimalPage.jsx';
 import { RescueStoriesPage } from '../pages/animals/RescueStoriesPage.jsx';
 import { SpeciesInfoPage } from '../pages/animals/SpeciesInfoPage.jsx';
+import { AboutPage } from '../pages/about/AboutPage.jsx';
 import { LoginPage } from '../pages/auth/LoginPage.jsx';
 import { RegisterPage } from '../pages/auth/RegisterPage.jsx';
 import { RescueReportDetailsPage } from '../pages/contact/RescueReportDetailsPage.jsx';
@@ -40,6 +41,7 @@ export function AppRoutes({ homeData, role }) {
       <Route path="/" element={<HomePage homeData={homeData} role={role} />} />
       <Route path="/animals" element={<Navigate to="/search" replace />} />
       <Route path="/search" element={<SearchResultsPage role={role} />} />
+      <Route path="/za-nas" element={<AboutPage />} />
       <Route path="/podkrepa" element={<SupportPage />} />
       <Route path="/za-zhivotnite" element={<AnimalsOverviewPage />} />
       <Route path="/informacia-za-zhivotnite" element={<AnimalsInfoPage />} />

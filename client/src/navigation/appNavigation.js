@@ -1,7 +1,7 @@
 ﻿const MAIN_NAVIGATION = [
-  { href: '/#about-section', label: 'За нас' },
+  { to: '/za-nas', label: 'За нас' },
   {
-    to: '/donations',
+    to: '/podkrepa',
     label: 'Подкрепа',
     items: [
       { to: '/donations', label: 'Дарения' },
