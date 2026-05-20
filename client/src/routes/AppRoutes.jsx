@@ -1,6 +1,7 @@
 ﻿import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { GuestOnlyRoute, ProtectedRoute } from '../auth/AuthGuards.jsx';
+import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage.jsx';
 import { AdminReportsPage } from '../pages/admin/AdminReportsPage.jsx';
 import { AdminUserDetailsPage } from '../pages/admin/AdminUserDetailsPage.jsx';
 import { AdminUsersPage } from '../pages/admin/AdminUsersPage.jsx';
@@ -29,6 +30,7 @@ import { HomePage } from '../pages/home/HomePage.jsx';
 import { AccessDeniedPage } from '../pages/not-found/AccessDeniedPage.jsx';
 import { NotFoundPage } from '../pages/not-found/NotFoundPage.jsx';
 import { SearchResultsPage } from '../pages/search/SearchResultsPage.jsx';
+import { StaffDashboardPage } from '../pages/staff/StaffDashboardPage.jsx';
 import { SupportPage } from '../pages/support/SupportPage.jsx';
 import { MyProfilePage } from '../pages/users/MyProfilePage.jsx';
 import { VolunteerApplicationDetailsPage } from '../pages/volunteers/VolunteerApplicationDetailsPage.jsx';
@@ -68,6 +70,7 @@ export function AppRoutes({ homeData, role }) {
         <Route path="/adoptions/:requestId" element={<AdoptionRequestDetailsPage />} />
       </Route>
       <Route element={<ProtectedRoute allowedRoles={['employee', 'admin']} />}>
+        <Route path="/staff" element={<StaffDashboardPage />} />
         <Route path="/animals/new" element={<CreateAnimalPage role={role} />} />
         <Route path="/animals/:animalId/edit" element={<EditAnimalPage role={role} />} />
         <Route path="/staff/adoptions" element={<AdoptionRequestsAdminPage />} />
@@ -79,6 +82,7 @@ export function AppRoutes({ homeData, role }) {
         <Route path="/staff/signals/:reportId" element={<RescueReportDetailsPage />} />
       </Route>
       <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+        <Route path="/admin" element={<AdminDashboardPage />} />
         <Route path="/admin/users" element={<AdminUsersPage />} />
         <Route path="/admin/users/:userId" element={<AdminUserDetailsPage />} />
         <Route path="/admin/adoptions" element={<AdoptionRequestsAdminPage />} />
