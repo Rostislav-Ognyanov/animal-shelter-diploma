@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 import { RESCUE_STORIES } from '../../pages/animals/animalAwarenessData.js';
 
 export function RescueStoriesSection() {
@@ -19,6 +21,10 @@ export function RescueStoriesSection() {
             </article>
           ))}
         </div>
+
+        <Link className="about-page-contact-link rescue-stories-more-link" to="/istorii-za-spasyavaniya">
+          Виж повече
+        </Link>
       </div>
     </section>
   );

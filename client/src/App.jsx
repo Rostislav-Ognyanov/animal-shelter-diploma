@@ -91,7 +91,7 @@ function AppLayout() {
         role={role}
       />
       <AppRoutes homeData={homeData} role={role} />
-      <Footer footer={homeData.footer} />
+      <Footer footer={homeData.footer} siteName={homeData.siteName} />
     </div>
   );
 }

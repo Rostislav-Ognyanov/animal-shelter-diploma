@@ -485,6 +485,82 @@ img {
   line-height: 1.8;
 }
 
+.home-help-section {
+  padding: 0;
+}
+
+.home-help-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  border-radius: 30px;
+  box-shadow: 0 22px 48px rgba(24, 48, 34, 0.14);
+}
+
+.home-help-panel {
+  min-height: 430px;
+  display: grid;
+  grid-template-rows: auto minmax(84px, auto) minmax(105px, auto) auto;
+  justify-items: center;
+  align-content: center;
+  gap: 1.35rem;
+  padding: 50px;
+  color: #ffffff;
+  text-align: center;
+}
+
+.home-help-panel-volunteer {
+  background:
+    radial-gradient(circle at top left, rgba(255, 239, 205, 0.22), transparent 38%),
+    linear-gradient(135deg, #8c4e2f, #c77745);
+}
+
+.home-help-panel-donation {
+  background:
+    radial-gradient(circle at top right, rgba(220, 251, 255, 0.24), transparent 34%),
+    linear-gradient(135deg, #2f6f87, #68a9b3);
+}
+
+.home-help-icon {
+  width: 76px;
+  height: 76px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.home-help-panel h2 {
+  max-width: 17ch;
+  margin: 0;
+  color: #fffdf2;
+  font-size: clamp(1.65rem, 2.7vw, 2.45rem);
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.home-help-panel p {
+  max-width: 64ch;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 1.04rem;
+  line-height: 1.55;
+}
+
+.home-help-panel .home-help-link {
+  margin-top: 1.25rem;
+  align-self: end;
+  color: #ffffff;
+  text-decoration-color: #d7f4a3;
+}
+
+.home-help-panel .home-help-link:hover,
+.home-help-panel .home-help-link:focus-visible {
+  color: #efffd4;
+}
+
 .animals {
   padding: 2.5rem 0 0;
 }
@@ -870,21 +946,84 @@ footer {
 .footer-container {
   width: min(100%, var(--page-max-width));
   margin: 0 auto;
-  padding: 2rem 24px;
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem;
+  padding: 3rem 24px;
+  display: grid;
+  grid-template-columns: minmax(220px, auto) minmax(0, 1fr) minmax(190px, auto) minmax(220px, auto);
+  align-items: start;
+  gap: 1.5rem;
 }
 
-.footer-info p,
-.footer-links a {
+.footer-brand-block {
+  display: grid;
+  gap: 0.7rem;
+  justify-items: start;
+}
+
+.footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.footer-brand img {
+  width: 42px;
+  border-radius: 14px;
+}
+
+.footer-nav {
+  justify-self: end;
+}
+
+.footer-nav ul {
+  list-style: none;
+  display: grid;
+  gap: 0.45rem;
+  justify-items: end;
   margin: 0;
+  padding: 0;
+}
+
+.footer-nav li {
+  display: block;
+}
+
+.footer-nav a,
+.footer-links a {
+  display: inline-flex;
+  align-items: center;
+  padding-bottom: 0.2rem;
+  border-bottom: 2px solid transparent;
+  color: #ffffff;
+  font-weight: 400;
+  transition:
+    border-color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.footer-nav a:hover,
+.footer-links a:hover {
+  border-color: rgba(255, 255, 255, 0.85);
+  opacity: 0.95;
+}
+
+.footer-info {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.footer-info p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .footer-links {
   display: grid;
   gap: 0.45rem;
+  justify-items: end;
+  margin-left: 8rem;
 }
 
 @media (max-width: 1100px) {
@@ -932,6 +1071,26 @@ footer {
     padding: 0.8rem 24px;
   }
 
+  .footer-container {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .footer-brand-block,
+  .footer-links {
+    justify-items: center;
+  }
+
+  .footer-links {
+    margin-left: 0;
+  }
+
+  .footer-info {
+    justify-self: center;
+    text-align: center;
+  }
+
   .header-left {
     min-width: auto;
   }
@@ -947,6 +1106,14 @@ footer {
 
   .hero-search {
     flex-direction: column;
+  }
+
+  .home-help-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-help-panel {
+    min-height: 340px;
   }
 
   .section-heading {
@@ -4494,18 +4661,36 @@ footer {
 }
 
 .rescue-stories {
-  padding: 2.5rem 0 0;
+  padding: 0;
 }
 
 .rescue-stories-container {
   display: grid;
-  gap: 1.35rem;
+  gap: 0.85rem;
+  padding: 1.35rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 28px;
+  background: var(--surface-color);
+  box-shadow: 0 16px 32px rgba(24, 48, 34, 0.08);
+}
+
+.rescue-stories-heading {
+  margin-bottom: 0;
+}
+
+.rescue-stories-heading p {
+  margin-top: 0.25rem;
 }
 
 .rescue-stories-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
+}
+
+.rescue-stories-more-link {
+  width: fit-content;
+  margin: 0.35rem auto 0;
 }
 
 .rescue-story-card {
