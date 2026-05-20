@@ -23,6 +23,7 @@ import {
 const RESCUE_REPORTS_DATA_PATH = 'data/rescue-reports.json';
 const RESCUE_REPORT_ID_PATTERN =
   /^[0-9a-f]{24}$|^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^[0-9+\s().-]{6,32}$/;
 
 function normalizeText(value) {
@@ -177,9 +178,10 @@ function assertValidRescueReportId(reportId) {
 
 function normalizeCreatePayload(payload) {
   assertBodyObject(payload);
-  assertAllowedFields(payload, ['name', 'phone', 'location', 'species', 'urgency', 'description', 'imageUrl']);
+  assertAllowedFields(payload, ['name', 'email', 'phone', 'location', 'species', 'urgency', 'description', 'imageUrl']);
 
   const name = normalizeText(payload.name);
+  const email = normalizeLookupText(payload.email);
   const phone = normalizeText(payload.phone);
   const location = normalizeText(payload.location);
   const species = normalizeReportSpecies(payload.species);
@@ -187,8 +189,12 @@ function normalizeCreatePayload(payload) {
   const description = normalizeText(payload.description);
   const imageUrl = normalizeOptionalImageUrl(payload.imageUrl);
 
-  if (!name || !phone || !location || !description) {
+  if (!name || !email || !phone || !location || !description) {
     throw createHttpError(400, 'Попълни всички задължителни полета на сигнала.');
+  }
+
+  if (!EMAIL_PATTERN.test(email)) {
+    throw createHttpError(400, 'Въведи валиден имейл адрес.');
   }
 
   if (!PHONE_PATTERN.test(phone)) {
@@ -197,6 +203,7 @@ function normalizeCreatePayload(payload) {
 
   return {
     name,
+    email,
     phone,
     location,
     species,
@@ -224,6 +231,7 @@ function serializeRescueReport(report) {
   return {
     id: serializeId(report),
     name: report.name ?? '',
+    email: report.email ?? '',
     phone: report.phone ?? '',
     location: report.location ?? '',
     species,

@@ -5380,6 +5380,89 @@ footer {
   background: linear-gradient(180deg, #f4faf6, #edf5ef);
 }
 
+.contact-intro-hero {
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.82fr);
+}
+
+.contact-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.contact-info-card {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem;
+  border: 1px solid rgba(47, 111, 78, 0.12);
+  border-radius: 20px;
+  background: #f8fbf9;
+}
+
+.contact-info-card span {
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.contact-info-card strong {
+  color: var(--text-main);
+  line-height: 1.45;
+}
+
+.contact-type-section {
+  gap: 1rem;
+}
+
+.contact-type-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.contact-type-card {
+  min-height: 132px;
+  display: grid;
+  align-content: start;
+  gap: 0.45rem;
+  padding: 1rem;
+  border: 1px solid rgba(47, 111, 78, 0.12);
+  border-radius: 20px;
+  background: #f8fbf9;
+  color: var(--text-main);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.contact-type-card:hover,
+.contact-type-card:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(47, 111, 78, 0.28);
+  box-shadow: 0 12px 22px rgba(24, 48, 34, 0.08);
+}
+
+.contact-type-card.is-selected {
+  border-color: rgba(47, 111, 78, 0.42);
+  background: #eef6f0;
+}
+
+.contact-type-card strong {
+  color: var(--primary);
+  font-size: 1rem;
+}
+
+.contact-type-card span {
+  color: var(--text-soft);
+  line-height: 1.45;
+}
+
 .rescue-hero h1,
 .rescue-card h2,
 .rescue-card h3,
@@ -5599,6 +5682,10 @@ footer {
 }
 
 @media (max-width: 1100px) {
+  .contact-type-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .rescue-table-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -5606,6 +5693,9 @@ footer {
 
 @media (max-width: 900px) {
   .rescue-hero,
+  .contact-intro-hero,
+  .contact-info-grid,
+  .contact-type-grid,
   .rescue-form-grid,
   .rescue-card .profile-form-grid,
   .rescue-details-grid {

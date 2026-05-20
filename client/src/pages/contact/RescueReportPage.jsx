@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useAuth } from '../../auth/AuthProvider.jsx';
@@ -12,43 +12,115 @@ import {
   getRescueReportStatusLabel,
 } from './rescueReportUi.js';
 
+const CONTACT_TYPES = [
+  {
+    value: 'animal',
+    label: 'Животно в нужда',
+    description: 'За намерено, пострадало или изоставено животно.',
+  },
+  {
+    value: 'adoption',
+    label: 'Осиновяване',
+    description: 'За въпрос относно животно, заявка или следваща стъпка.',
+  },
+  {
+    value: 'volunteering',
+    label: 'Доброволчество',
+    description: 'За участие, наличност или подходяща дейност.',
+  },
+  {
+    value: 'donation',
+    label: 'Дарение',
+    description: 'За материална подкрепа, сума или конкретна нужда.',
+  },
+  {
+    value: 'general',
+    label: 'Общо запитване',
+    description: 'За всичко останало, свързано с приюта.',
+  },
+];
+
+const CONTACT_INFO = [
+  { label: 'Телефон', value: '+359 888 123 456' },
+  { label: 'Email', value: 'contact@animal-shelter.bg' },
+  { label: 'Адрес', value: 'гр. София, ул. Зелена грижа 12' },
+  { label: 'Работно време', value: 'Понеделник - събота, 09:00 - 18:00' },
+];
+
 const EMPTY_FORM = {
+  inquiryType: 'animal',
   name: '',
+  email: '',
   phone: '',
+  subject: '',
   location: '',
   species: 'dog',
   urgency: 'medium',
+  animalName: '',
+  availability: '',
+  donationTopic: '',
   description: '',
   imageUrl: '',
 };
 
-function validateRescueReportForm(values) {
-  const errors = {};
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_PATTERN = /^[0-9+\s().-]{6,32}$/;
 
-  if (!String(values.name ?? '').trim()) {
+function buildInitialFormValues(currentUser, inquiryType = 'animal') {
+  return {
+    ...EMPTY_FORM,
+    inquiryType,
+    name:
+      [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(' ').trim() ||
+      currentUser?.username ||
+      '',
+    email: currentUser?.email ?? '',
+  };
+}
+
+function validateContactForm(values) {
+  const errors = {};
+  const name = String(values.name ?? '').trim();
+  const email = String(values.email ?? '').trim();
+  const phone = String(values.phone ?? '').trim();
+  const description = String(values.description ?? '').trim();
+
+  if (!name) {
     errors.name = 'Името е задължително.';
   }
 
-  if (!String(values.phone ?? '').trim()) {
-    errors.phone = 'Телефонът е задължителен.';
-  } else if (!/^[0-9+\s().-]{6,32}$/.test(String(values.phone ?? '').trim())) {
+  if (!email) {
+    errors.email = 'Имейлът е задължителен.';
+  } else if (!EMAIL_PATTERN.test(email)) {
+    errors.email = 'Въведи валиден имейл адрес.';
+  }
+
+  if (values.inquiryType === 'animal' && !phone) {
+    errors.phone = 'Телефонът е задължителен при сигнал за животно.';
+  } else if (phone && !PHONE_PATTERN.test(phone)) {
     errors.phone = 'Въведи валиден телефонен номер.';
   }
 
-  if (!String(values.location ?? '').trim()) {
-    errors.location = 'Посочи мястото на животното.';
+  if (!description) {
+    errors.description = 'Опиши накратко случая или въпроса си.';
   }
 
-  if (!String(values.species ?? '').trim()) {
-    errors.species = 'Избери вид животно.';
+  if (values.inquiryType === 'animal') {
+    if (!String(values.location ?? '').trim()) {
+      errors.location = 'Посочи мястото на животното.';
+    }
+
+    if (!String(values.species ?? '').trim()) {
+      errors.species = 'Избери вид животно.';
+    }
+
+    if (!String(values.urgency ?? '').trim()) {
+      errors.urgency = 'Избери ниво на спешност.';
+    }
   }
 
-  if (!String(values.urgency ?? '').trim()) {
-    errors.urgency = 'Избери ниво на спешност.';
-  }
-
-  if (!String(values.description ?? '').trim()) {
-    errors.description = 'Опиши какво се е случило и в какво състояние е животното.';
+  if (values.inquiryType === 'general' && !String(values.subject ?? '').trim()) {
+    errors.subject = 'Посочи тема на запитването.';
   }
 
   return errors;
@@ -67,36 +139,40 @@ function readImageFileAsDataUrl(file) {
 export function RescueReportPage() {
   const { currentUser } = useAuth();
   const imageInputRef = useRef(null);
-  const [formValues, setFormValues] = useState(EMPTY_FORM);
+  const [formValues, setFormValues] = useState(() => buildInitialFormValues(currentUser));
   const [formErrors, setFormErrors] = useState({});
   const [isReadingImage, setIsReadingImage] = useState(false);
   const [submitState, setSubmitState] = useState({
     isSubmitting: false,
-    submittedReport: null,
+    submittedRecord: null,
+    submittedType: '',
     feedback: createEmptyFeedback(),
   });
 
   useEffect(() => {
-    if (!currentUser) {
-      return;
-    }
-
     setFormValues((currentValue) => ({
       ...currentValue,
       name:
         currentValue.name ||
-        [currentUser.firstName, currentUser.lastName].filter(Boolean).join(' ').trim() ||
+        [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(' ').trim() ||
+        currentUser?.username ||
         '',
+      email: currentValue.email || currentUser?.email || '',
     }));
   }, [currentUser]);
 
-  const reportName = useMemo(
-    () => getRescueReportDisplayName(submitState.submittedReport),
-    [submitState.submittedReport]
+  const selectedContactType = useMemo(
+    () => CONTACT_TYPES.find((type) => type.value === formValues.inquiryType) ?? CONTACT_TYPES[0],
+    [formValues.inquiryType]
   );
 
-  function clearFormFields() {
-    setFormValues({ ...EMPTY_FORM });
+  const submittedReportName = useMemo(
+    () => getRescueReportDisplayName(submitState.submittedRecord),
+    [submitState.submittedRecord]
+  );
+
+  function clearFormFields(nextInquiryType = formValues.inquiryType) {
+    setFormValues(buildInitialFormValues(currentUser, nextInquiryType));
     setFormErrors({});
     setIsReadingImage(false);
 
@@ -116,6 +192,16 @@ export function RescueReportPage() {
       delete nextErrors[fieldName];
       return nextErrors;
     });
+  }
+
+  function handleInquiryTypeChange(nextInquiryType) {
+    setSubmitState((currentValue) => ({
+      ...currentValue,
+      submittedRecord: null,
+      submittedType: '',
+      feedback: createEmptyFeedback(),
+    }));
+    clearFormFields(nextInquiryType);
   }
 
   async function handleImageChange(event) {
@@ -160,9 +246,40 @@ export function RescueReportPage() {
     clearFormFields();
     setSubmitState({
       isSubmitting: false,
-      submittedReport: null,
+      submittedRecord: null,
+      submittedType: '',
       feedback: createEmptyFeedback(),
     });
+  }
+
+  function buildRescueReportPayload() {
+    return {
+      name: formValues.name,
+      email: formValues.email,
+      phone: formValues.phone,
+      location: formValues.location,
+      species: formValues.species,
+      urgency: formValues.urgency,
+      description: formValues.description,
+      imageUrl: formValues.imageUrl,
+    };
+  }
+
+  function buildContactInquiryPayload() {
+    return {
+      type: formValues.inquiryType,
+      name: formValues.name,
+      email: formValues.email,
+      phone: formValues.phone,
+      subject: formValues.subject,
+      description: formValues.description,
+      location: formValues.location,
+      species: formValues.species,
+      animalName: formValues.animalName,
+      availability: formValues.availability,
+      donationTopic: formValues.donationTopic,
+      imageUrl: formValues.imageUrl,
+    };
   }
 
   async function handleSubmit(event) {
@@ -172,7 +289,7 @@ export function RescueReportPage() {
       return;
     }
 
-    const validationErrors = validateRescueReportForm(formValues);
+    const validationErrors = validateContactForm(formValues);
 
     if (Object.keys(validationErrors).length > 0) {
       setFormErrors(validationErrors);
@@ -186,22 +303,30 @@ export function RescueReportPage() {
     try {
       setSubmitState({
         isSubmitting: true,
-        submittedReport: null,
+        submittedRecord: null,
+        submittedType: '',
         feedback: createEmptyFeedback(),
       });
 
-      const createdReport = await postJson('/api/rescue-reports', formValues);
+      const isAnimalReport = formValues.inquiryType === 'animal';
+      const createdRecord = isAnimalReport
+        ? await postJson('/api/rescue-reports', buildRescueReportPayload())
+        : await postJson('/api/contact-inquiries', buildContactInquiryPayload());
 
       setSubmitState({
         isSubmitting: false,
-        submittedReport: createdReport,
-        feedback: createSuccessFeedback('Сигналът беше изпратен успешно.'),
+        submittedRecord: createdRecord,
+        submittedType: formValues.inquiryType,
+        feedback: createSuccessFeedback(
+          isAnimalReport ? 'Сигналът беше изпратен успешно.' : 'Запитването беше изпратено успешно.'
+        ),
       });
-      clearFormFields();
+      clearFormFields(formValues.inquiryType);
     } catch (error) {
       setSubmitState({
         isSubmitting: false,
-        submittedReport: null,
+        submittedRecord: null,
+        submittedType: '',
         feedback: createErrorFeedback(error.message),
       });
     }
@@ -209,20 +334,52 @@ export function RescueReportPage() {
 
   return (
     <main className="route-shell rescue-shell">
-      <section className="rescue-hero">
+      <section className="rescue-hero contact-intro-hero">
         <div>
-          <h1>Свържи се с приюта</h1>
+          <p className="route-meta">Свържи се с нас</p>
+          <h1>Как можем да помогнем?</h1>
+          <p>
+            Можеш да се свържеш с приюта при намерено животно в нужда, въпроси за осиновяване,
+            доброволчество, дарения или общи запитвания. Всеки сигнал и всяко съобщение се преглеждат
+            от екипа и при нужда ще се свържем обратно с теб.
+          </p>
+        </div>
+
+        <div className="contact-info-grid" aria-label="Контактна информация">
+          {CONTACT_INFO.map((item) => (
+            <article key={item.label} className="contact-info-card">
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </article>
+          ))}
         </div>
       </section>
 
-      <div className="route-actions">
-        <Link className="animals-secondary-action" to="/search">
-          Към животните
-        </Link>
-        <Link className="animals-primary-action" to="/">
-          Към началото
-        </Link>
-      </div>
+      <section className="rescue-card contact-type-section">
+        <div>
+          <p className="route-meta">Тип запитване</p>
+          <h2>Избери с какво е свързана нуждата</h2>
+        </div>
+
+        <div className="contact-type-grid">
+          {CONTACT_TYPES.map((type) => {
+            const isSelected = type.value === formValues.inquiryType;
+
+            return (
+              <button
+                key={type.value}
+                type="button"
+                className={`contact-type-card ${isSelected ? 'is-selected' : ''}`}
+                onClick={() => handleInquiryTypeChange(type.value)}
+                disabled={submitState.isSubmitting || isReadingImage}
+              >
+                <strong>{type.label}</strong>
+                <span>{type.description}</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
       {submitState.feedback.message ? (
         <div className={`auth-status ${submitState.feedback.type === 'error' ? 'auth-status-error' : 'auth-status-info'}`}>
@@ -230,19 +387,31 @@ export function RescueReportPage() {
         </div>
       ) : null}
 
-      {submitState.submittedReport ? (
+      {submitState.submittedRecord ? (
         <section className="rescue-card rescue-success-card">
           <div className="rescue-success-heading">
-            <span className={`rescue-status is-${submitState.submittedReport.status}`}>
-              {getRescueReportStatusLabel(submitState.submittedReport.status)}
-            </span>
-            <h2>{reportName}</h2>
+            {submitState.submittedType === 'animal' ? (
+              <span className={`rescue-status is-${submitState.submittedRecord.status}`}>
+                {getRescueReportStatusLabel(submitState.submittedRecord.status)}
+              </span>
+            ) : (
+              <span className="rescue-status is-pending">В очакване</span>
+            )}
+            <h2>
+              {submitState.submittedType === 'animal'
+                ? submittedReportName
+                : `Запитване: ${selectedContactType.label}`}
+            </h2>
           </div>
-          <p>{getRescueReportStatusGuidance(submitState.submittedReport.status)}</p>
-          <p>Ще използваме телефона, който посочи, ако екипът има нужда от още информация.</p>
+          <p>
+            {submitState.submittedType === 'animal'
+              ? getRescueReportStatusGuidance(submitState.submittedRecord.status)
+              : 'Запитването е записано и очаква преглед от екипа.'}
+          </p>
+          <p>Ще използваме посочените контакти, ако е необходима допълнителна информация.</p>
           <div className="route-actions rescue-inline-actions">
             <button type="button" className="animals-primary-action" onClick={resetForm}>
-              Нов сигнал
+              Ново запитване
             </button>
             <Link className="animals-secondary-action" to="/">
               Към началото
@@ -266,6 +435,18 @@ export function RescueReportPage() {
           </label>
 
           <label>
+            <span>Email</span>
+            <input
+              type="email"
+              value={formValues.email}
+              onChange={(event) => handleFieldChange('email', event.target.value)}
+              disabled={submitState.isSubmitting || isReadingImage}
+              autoComplete="email"
+            />
+            {formErrors.email ? <span>{formErrors.email}</span> : null}
+          </label>
+
+          <label>
             <span>Телефон</span>
             <input
               type="tel"
@@ -277,89 +458,202 @@ export function RescueReportPage() {
             {formErrors.phone ? <span>{formErrors.phone}</span> : null}
           </label>
 
+          {formValues.inquiryType === 'general' ? (
+            <label>
+              <span>Тема</span>
+              <input
+                type="text"
+                value={formValues.subject}
+                onChange={(event) => handleFieldChange('subject', event.target.value)}
+                disabled={submitState.isSubmitting || isReadingImage}
+                placeholder="Напр. въпрос към екипа"
+              />
+              {formErrors.subject ? <span>{formErrors.subject}</span> : null}
+            </label>
+          ) : null}
+
+          {formValues.inquiryType === 'animal' ? (
+            <>
+              <label className="rescue-form-grid-wide">
+                <span>Местоположение</span>
+                <input
+                  type="text"
+                  value={formValues.location}
+                  onChange={(event) => handleFieldChange('location', event.target.value)}
+                  disabled={submitState.isSubmitting || isReadingImage}
+                  placeholder="Адрес, ориентир или квартал"
+                />
+                {formErrors.location ? <span>{formErrors.location}</span> : null}
+              </label>
+
+              <label>
+                <span>Вид животно</span>
+                <select
+                  value={formValues.species}
+                  onChange={(event) => handleFieldChange('species', event.target.value)}
+                  disabled={submitState.isSubmitting || isReadingImage}
+                >
+                  {RESCUE_REPORT_SPECIES_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                {formErrors.species ? <span>{formErrors.species}</span> : null}
+              </label>
+
+              <label>
+                <span>Спешност</span>
+                <select
+                  value={formValues.urgency}
+                  onChange={(event) => handleFieldChange('urgency', event.target.value)}
+                  disabled={submitState.isSubmitting || isReadingImage}
+                >
+                  {RESCUE_REPORT_URGENCY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                {formErrors.urgency ? <span>{formErrors.urgency}</span> : null}
+              </label>
+            </>
+          ) : null}
+
+          {formValues.inquiryType === 'adoption' ? (
+            <>
+              <label>
+                <span>Животно, ако има конкретно</span>
+                <input
+                  type="text"
+                  value={formValues.animalName}
+                  onChange={(event) => handleFieldChange('animalName', event.target.value)}
+                  disabled={submitState.isSubmitting || isReadingImage}
+                  placeholder="Напр. Лили, Макс..."
+                />
+              </label>
+              <label>
+                <span>Тип въпрос</span>
+                <select
+                  value={formValues.subject}
+                  onChange={(event) => handleFieldChange('subject', event.target.value)}
+                  disabled={submitState.isSubmitting || isReadingImage}
+                >
+                  <option value="">Избери тема</option>
+                  <option value="adoption-process">Процес на осиновяване</option>
+                  <option value="animal-details">Въпрос за конкретно животно</option>
+                  <option value="submitted-request">Вече подадена заявка</option>
+                  <option value="other">Друго</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          {formValues.inquiryType === 'volunteering' ? (
+            <>
+              <label>
+                <span>Наличност</span>
+                <input
+                  type="text"
+                  value={formValues.availability}
+                  onChange={(event) => handleFieldChange('availability', event.target.value)}
+                  disabled={submitState.isSubmitting || isReadingImage}
+                  placeholder="Напр. делнични дни, уикенд..."
+                />
+              </label>
+              <label>
+                <span>Интерес към дейност</span>
+                <select
+                  value={formValues.subject}
+                  onChange={(event) => handleFieldChange('subject', event.target.value)}
+                  disabled={submitState.isSubmitting || isReadingImage}
+                >
+                  <option value="">Избери дейност</option>
+                  <option value="animal-care">Грижа за животни</option>
+                  <option value="walking">Разходки</option>
+                  <option value="transport">Транспорт</option>
+                  <option value="events">Събития и кампании</option>
+                  <option value="other">Друго</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          {formValues.inquiryType === 'donation' ? (
+            <>
+              <label>
+                <span>Вид дарение</span>
+                <select
+                  value={formValues.donationTopic}
+                  onChange={(event) => handleFieldChange('donationTopic', event.target.value)}
+                  disabled={submitState.isSubmitting || isReadingImage}
+                >
+                  <option value="">Избери вид</option>
+                  <option value="money">Парично дарение</option>
+                  <option value="food">Храна</option>
+                  <option value="medicine">Лекарства и консумативи</option>
+                  <option value="materials">Материали и оборудване</option>
+                  <option value="other">Друго</option>
+                </select>
+              </label>
+              <label>
+                <span>Тема</span>
+                <input
+                  type="text"
+                  value={formValues.subject}
+                  onChange={(event) => handleFieldChange('subject', event.target.value)}
+                  disabled={submitState.isSubmitting || isReadingImage}
+                  placeholder="Напр. храна, транспорт, медикаменти"
+                />
+              </label>
+            </>
+          ) : null}
+
           <label className="rescue-form-grid-wide">
-            <span>Място</span>
-            <input
-              type="text"
-              value={formValues.location}
-              onChange={(event) => handleFieldChange('location', event.target.value)}
-              disabled={submitState.isSubmitting || isReadingImage}
-              placeholder="Адрес, ориентир или квартал"
-            />
-            {formErrors.location ? <span>{formErrors.location}</span> : null}
-          </label>
-
-          <label>
-            <span>Вид животно</span>
-            <select
-              value={formValues.species}
-              onChange={(event) => handleFieldChange('species', event.target.value)}
-              disabled={submitState.isSubmitting || isReadingImage}
-            >
-              {RESCUE_REPORT_SPECIES_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            {formErrors.species ? <span>{formErrors.species}</span> : null}
-          </label>
-
-          <label>
-            <span>Спешност</span>
-            <select
-              value={formValues.urgency}
-              onChange={(event) => handleFieldChange('urgency', event.target.value)}
-              disabled={submitState.isSubmitting || isReadingImage}
-            >
-              {RESCUE_REPORT_URGENCY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            {formErrors.urgency ? <span>{formErrors.urgency}</span> : null}
-          </label>
-
-          <label className="rescue-form-grid-wide">
-            <span>Описание</span>
+            <span>{formValues.inquiryType === 'animal' ? 'Описание на случая' : 'Описание / съобщение'}</span>
             <textarea
               value={formValues.description}
               onChange={(event) => handleFieldChange('description', event.target.value)}
               disabled={submitState.isSubmitting || isReadingImage}
-              placeholder="Опиши какво се е случило, как изглежда животното и защо смяташ, че е в нужда."
+              placeholder={
+                formValues.inquiryType === 'animal'
+                  ? 'Опиши какво се е случило, как изглежда животното и защо смяташ, че е в нужда.'
+                  : 'Опиши въпроса си и как екипът може да ти помогне.'
+              }
             />
             {formErrors.description ? <span>{formErrors.description}</span> : null}
           </label>
 
-          <div className="rescue-form-grid-wide rescue-photo-field">
-            <span>Снимка по желание</span>
-            <input
-              ref={imageInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-              disabled={submitState.isSubmitting || isReadingImage}
-            />
-            {formErrors.imageUrl ? <p className="rescue-field-error">{formErrors.imageUrl}</p> : null}
-            {formValues.imageUrl ? (
-              <div className="rescue-photo-preview">
-                <img src={formValues.imageUrl} alt="Преглед на качената снимка" />
-                <button
-                  type="button"
-                  className="animals-secondary-action"
-                  onClick={() => handleFieldChange('imageUrl', '')}
-                  disabled={submitState.isSubmitting || isReadingImage}
-                >
-                  Премахни снимката
-                </button>
-              </div>
-            ) : null}
-          </div>
+          {formValues.inquiryType === 'animal' ? (
+            <div className="rescue-form-grid-wide rescue-photo-field">
+              <span>Снимка по желание</span>
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                disabled={submitState.isSubmitting || isReadingImage}
+              />
+              {formErrors.imageUrl ? <p className="rescue-field-error">{formErrors.imageUrl}</p> : null}
+              {formValues.imageUrl ? (
+                <div className="rescue-photo-preview">
+                  <img src={formValues.imageUrl} alt="Преглед на качената снимка" />
+                  <button
+                    type="button"
+                    className="animals-secondary-action"
+                    onClick={() => handleFieldChange('imageUrl', '')}
+                    disabled={submitState.isSubmitting || isReadingImage}
+                  >
+                    Премахни снимката
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="profile-form-actions rescue-form-grid-wide">
             <button type="submit" className="animals-primary-action" disabled={submitState.isSubmitting || isReadingImage}>
-              {submitState.isSubmitting ? 'Изпращане...' : isReadingImage ? 'Качване...' : 'Изпрати сигнал'}
+              {submitState.isSubmitting ? 'Изпращане...' : isReadingImage ? 'Качване...' : 'Изпрати'}
             </button>
             <button
               type="button"

@@ -18,6 +18,12 @@ const rescueReportSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      default: '',
+    },
     location: {
       type: String,
       required: true,

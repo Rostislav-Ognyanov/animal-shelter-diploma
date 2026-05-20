@@ -34,9 +34,9 @@
     "passwordHash": "$2b$10$9bgScoVw.SJ5Nl/C41VIBe.0zLUfGkqWKiJOxZJaHbaOXjRcG4jW2",
     "role": "client",
     "isActive": true,
-    "lastLoginAt": "2026-05-20T14:38:43.409Z",
+    "lastLoginAt": "2026-05-20T14:58:50.524Z",
     "createdAt": "2026-04-01T09:10:00.000Z",
-    "updatedAt": "2026-05-20T14:38:43.410Z"
+    "updatedAt": "2026-05-20T14:58:50.526Z"
   },
   {
     "id": "seed-client-002",
