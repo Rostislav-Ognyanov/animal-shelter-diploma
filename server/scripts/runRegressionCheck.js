@@ -17,6 +17,7 @@ process.env.ANIMALS_ALLOW_MOCK_FALLBACK = 'true';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'regression-test-secret';
 
 const { hashPassword } = await import('../modules/auth/auth.security.js');
+const { ANIMAL_SPECIES_VALUES } = await import('../modules/animals/animal.constants.js');
 const { default: app } = await import('../app.js');
 
 function iso(dateValue) {
@@ -426,7 +427,10 @@ try {
     const adminAnimalMasterDataResponse = await adminSession.get('/api/reports/animal-master-data');
     expectStatus(adminAnimalMasterDataResponse, 200, 'admin animal master data');
     expect(extractItem(adminAnimalMasterDataResponse)?.totals?.totalAnimals === 3, 'animal master data should expose total animals');
-    expect((extractItem(adminAnimalMasterDataResponse)?.animalSpeciesBreakdown ?? []).length === 4, 'animal master data should include species breakdown');
+    expect(
+      (extractItem(adminAnimalMasterDataResponse)?.animalSpeciesBreakdown ?? []).length === ANIMAL_SPECIES_VALUES.length,
+      'animal master data should include species breakdown'
+    );
     expect((extractItem(adminAnimalMasterDataResponse)?.intakeByPeriod ?? []).length === 3, 'animal master data should include intake windows');
 
     const filteredAnimalMasterDataResponse = await adminSession.get('/api/reports/animal-master-data?period=custom&dateFrom=2026-02-01&dateTo=2026-02-28');
