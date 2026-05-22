@@ -14,7 +14,7 @@ async function startServer() {
 
   app.listen(PORT, () => {
     const databaseStatus = isDatabaseConnected() ? 'MongoDB connected' : 'MongoDB unavailable';
-    console.log(`Server is running at http://localhost:${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
     console.log(`Database status: ${databaseStatus}`);
     console.log(`Animals persistence: ${describeAnimalsPersistenceMode()}`);
   });

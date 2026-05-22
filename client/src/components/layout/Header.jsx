@@ -2,6 +2,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 
 import { getRoleLabel } from '../../auth/roleUi.js';
+import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
 import { getMainNavigation } from '../../navigation/appNavigation.js';
 
 function renderMenuLink(item, onClick, className = '', children = item.label) {
@@ -112,7 +113,7 @@ export function Header({ siteName, profileMenu, currentUser, onLogout, role }) {
       <div className="header-container">
         <div className="header-left">
           <Link className="logo" to="/">
-            <img src="/images/logo.jpg" alt="Лого на приюта" />
+            <img src={buildPublicAssetPath('images/logo.jpg')} alt="Лого на приюта" />
             <span>{siteName}</span>
           </Link>
         </div>
@@ -139,7 +140,7 @@ export function Header({ siteName, profileMenu, currentUser, onLogout, role }) {
               aria-label={currentUser ? `Профил на ${currentUserName}` : 'Профил'}
               onClick={() => setIsProfileOpen((currentValue) => !currentValue)}
             >
-              <img src="/images/icons/client.jpg" alt="Профил" />
+              <img src={buildPublicAssetPath('images/icons/client.jpg')} alt="Профил" />
             </button>
 
             <div className={`profile-dropdown ${isProfileOpen ? 'is-open' : ''}`}>

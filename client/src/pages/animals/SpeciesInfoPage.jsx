@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
 
+import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
 import { SPECIES_SHOWCASE_ITEMS } from './animalAwarenessData.js';
 import { buildAnimalsSearchPath } from './animalsListQuery.js';
 import { SPECIES_FACTS } from './speciesFactsData.js';
@@ -38,7 +39,7 @@ export function SpeciesInfoPage() {
         </div>
 
         <div className="species-info-hero-image">
-          <img src={speciesItem.imageSrc} alt={speciesItem.imageAlt} />
+          <img src={buildPublicAssetPath(speciesItem.imageSrc)} alt={speciesItem.imageAlt} />
         </div>
       </section>
 

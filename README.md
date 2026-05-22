@@ -95,9 +95,11 @@
 
 ```env
 PORT=5000
-DB_URL=mongodb://localhost:27017/animal-shelter
+DB_URL=your_mongodb_connection_string_here
 JWT_SECRET=your_jwt_secret_here
 ANIMALS_ALLOW_MOCK_FALLBACK=false
+VITE_DEV_SERVER_PORT=5173
+VITE_DEV_API_TARGET=your_local_backend_origin_here
 ```
 
 Бележки:
@@ -105,6 +107,7 @@ ANIMALS_ALLOW_MOCK_FALLBACK=false
 - `DB_URL` е нужен за реален MongoDB режим.
 - `JWT_SECRET` е задължителен за предвидим локален auth.
 - `ANIMALS_ALLOW_MOCK_FALLBACK=true` позволява локален fallback режим, когато MongoDB не е налична.
+- `VITE_DEV_API_TARGET` се попълва локално в `.env`, за да проксира `/api` заявките от Vite към backend-а.
 
 ## Стартиране на проекта
 
@@ -155,12 +158,12 @@ npm run seed:demo
 
 ## Полезни файлове
 
-- [server/app.js](D:/MY%20FILES/Course/projects/Diploma/server/app.js)
-- [server/modules/auth](D:/MY%20FILES/Course/projects/Diploma/server/modules/auth)
-- [server/modules/animals](D:/MY%20FILES/Course/projects/Diploma/server/modules/animals)
-- [server/modules/adoptions](D:/MY%20FILES/Course/projects/Diploma/server/modules/adoptions)
-- [client/src/routes/AppRoutes.jsx](D:/MY%20FILES/Course/projects/Diploma/client/src/routes/AppRoutes.jsx)
-- [client/src/auth/AuthProvider.jsx](D:/MY%20FILES/Course/projects/Diploma/client/src/auth/AuthProvider.jsx)
+- [server/app.js](server/app.js)
+- [server/modules/auth](server/modules/auth)
+- [server/modules/animals](server/modules/animals)
+- [server/modules/adoptions](server/modules/adoptions)
+- [client/src/routes/AppRoutes.jsx](client/src/routes/AppRoutes.jsx)
+- [client/src/auth/AuthProvider.jsx](client/src/auth/AuthProvider.jsx)
 
 ## Важно при архивиране
 

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 
+import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
 import { SPECIES_SHOWCASE_ITEMS } from './animalAwarenessData.js';
 
 export function AnimalsInfoPage() {
@@ -22,7 +23,7 @@ export function AnimalsInfoPage() {
               className="animals-overview-species-card"
               to={`/za-zhivotnite/${species.value}`}
             >
-              <img src={species.imageSrc} alt={species.imageAlt} />
+              <img src={buildPublicAssetPath(species.imageSrc)} alt={species.imageAlt} />
               <span>{species.tabLabel}</span>
             </Link>
           ))}

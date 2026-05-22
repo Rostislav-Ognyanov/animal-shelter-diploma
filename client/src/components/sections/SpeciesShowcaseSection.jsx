@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
 import { SPECIES_SHOWCASE_ITEMS } from '../../pages/animals/animalAwarenessData.js';
 import { buildAnimalsSearchPath } from '../../pages/animals/animalsListQuery.js';
 
@@ -74,7 +75,10 @@ export function SpeciesShowcaseSection() {
               </div>
 
               <div className="species-showcase-figure">
-                <img src={selectedSpecies.imageSrc} alt={selectedSpecies.imageAlt} />
+                <img
+                  src={buildPublicAssetPath(selectedSpecies.imageSrc)}
+                  alt={selectedSpecies.imageAlt}
+                />
               </div>
             </div>
           </article>

@@ -205,6 +205,16 @@ function normalizeDisplayText(value) {
   return String(value ?? '').trim();
 }
 
+function normalizeStoredAssetPath(value) {
+  const normalizedValue = normalizeDisplayText(value);
+
+  if (/^(?:data:|https?:|blob:)/i.test(normalizedValue)) {
+    return normalizedValue;
+  }
+
+  return normalizedValue.replace(/^\/+/, '');
+}
+
 function normalizeDateOutput(value) {
   if (!value) {
     return null;
@@ -291,7 +301,7 @@ function getPrimaryImageUrl(animal) {
     return animal.image;
   }
 
-  return '/images/animals/dog.png';
+  return 'images/animals/dog.png';
 }
 
 function getDisplayName(animal) {
@@ -315,10 +325,10 @@ function serializeAnimal(animal) {
   const ageText = formatAnimalAge(age);
   const displayName = getDisplayName(animal);
   const description = animal.description ?? animal.shortDescription ?? '';
-  const primaryImageUrl = getPrimaryImageUrl(animal);
+  const primaryImageUrl = normalizeStoredAssetPath(getPrimaryImageUrl(animal));
   const imageUrls =
     Array.isArray(animal.imageUrls) && animal.imageUrls.length > 0
-      ? animal.imageUrls
+      ? animal.imageUrls.map((imageUrl) => normalizeStoredAssetPath(imageUrl)).filter(Boolean)
       : [primaryImageUrl];
 
   return {
@@ -403,12 +413,12 @@ function normalizeImageUrls(payload, options = {}) {
     }
 
     return payload.imageUrls
-      .map((entry) => normalizeDisplayText(entry))
+      .map((entry) => normalizeStoredAssetPath(entry))
       .filter(Boolean);
   }
 
   if (payload.imageUrl !== undefined) {
-    const imageUrl = normalizeDisplayText(payload.imageUrl);
+    const imageUrl = normalizeStoredAssetPath(payload.imageUrl);
     return imageUrl ? [imageUrl] : [];
   }
 

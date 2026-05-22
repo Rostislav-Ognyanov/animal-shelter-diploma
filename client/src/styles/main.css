@@ -780,7 +780,7 @@ img {
   background-color: #f6f9f7;
   background-image:
     linear-gradient(90deg, rgba(246, 249, 247, 0.995) 0%, rgba(246, 249, 247, 0.985) 16%, rgba(246, 249, 247, 0.9) 30%, rgba(246, 249, 247, 0.62) 44%, rgba(246, 249, 247, 0.26) 58%, rgba(246, 249, 247, 0.04) 100%),
-    url('/images/animals/login_page_animal_photo.jpg');
+    url('../../public/images/animals/login_page_animal_photo.jpg');
   background-position: right center;
   background-repeat: no-repeat;
   background-size: auto 105%;

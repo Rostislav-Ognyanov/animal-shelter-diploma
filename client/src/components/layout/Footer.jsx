@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 
+import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
 import { getMainNavigation } from '../../navigation/appNavigation.js';
 
 function renderFooterLink(item) {
@@ -18,7 +19,7 @@ export function Footer({ footer, siteName }) {
       <div className="footer-container">
         <div className="footer-brand-block">
           <Link className="footer-brand" to="/">
-            <img src="/images/logo.jpg" alt="Лого на приюта" />
+            <img src={buildPublicAssetPath('images/logo.jpg')} alt="Лого на приюта" />
             <span>{siteName}</span>
           </Link>
           <div className="footer-info">

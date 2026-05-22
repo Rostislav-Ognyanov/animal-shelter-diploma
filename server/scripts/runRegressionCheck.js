@@ -1,4 +1,4 @@
-﻿import { promises as fs } from 'node:fs';
+import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -116,7 +116,7 @@ async function createFixtures() {
         vaccinated: true,
         neutered: true,
         description: 'Friendly dog used for regression scenarios.',
-        imageUrls: ['/images/animals/dog.png'],
+        imageUrls: ['images/animals/dog.png'],
         isActive: true,
         createdAt: iso('2026-02-10T10:00:00Z'),
         updatedAt: iso('2026-02-10T10:00:00Z'),
@@ -136,7 +136,7 @@ async function createFixtures() {
         vaccinated: true,
         neutered: false,
         description: 'Calm cat used for cancellation flow.',
-        imageUrls: ['/images/animals/dog.png'],
+        imageUrls: ['images/animals/dog.png'],
         isActive: true,
         createdAt: iso('2026-01-15T10:00:00Z'),
         updatedAt: iso('2026-01-15T10:00:00Z'),
@@ -156,7 +156,7 @@ async function createFixtures() {
         vaccinated: false,
         neutered: false,
         description: 'Rabbit used for non-available checks.',
-        imageUrls: ['/images/animals/dog.png'],
+        imageUrls: ['images/animals/dog.png'],
         isActive: true,
         createdAt: iso('2026-03-01T10:00:00Z'),
         updatedAt: iso('2026-03-01T10:00:00Z'),
@@ -290,7 +290,8 @@ try {
   });
 
   const address = server.address();
-  const baseUrl = `http://127.0.0.1:${address.port}`;
+  const regressionHost = process.env.REGRESSION_SERVER_HOST || 'localhost';
+  const baseUrl = `http://${regressionHost}:${address.port}`;
   const guestSession = new ApiSession(baseUrl, 'guest');
   const clientSession = new ApiSession(baseUrl, 'client');
   const employeeSession = new ApiSession(baseUrl, 'employee');
@@ -460,7 +461,7 @@ try {
       vaccinated: true,
       neutered: false,
       description: 'This create should be blocked because the employee is inactive.',
-      imageUrl: '/images/animals/dog.png',
+      imageUrl: 'images/animals/dog.png',
     });
     expectStatus(inactiveStaffActionResponse, 401, 'deactivated employee staff guard');
     expect(
@@ -544,7 +545,7 @@ try {
       vaccinated: true,
       neutered: false,
       description: 'Should not be created by client.',
-      imageUrl: '/images/animals/dog.png',
+      imageUrl: 'images/animals/dog.png',
     });
     expectStatus(clientCreateResponse, 403, 'client create animal guard');
 
@@ -562,7 +563,7 @@ try {
       vaccinated: true,
       neutered: true,
       description: 'Created during regression testing.',
-      imageUrl: '/images/animals/dog.png',
+      imageUrl: 'images/animals/dog.png',
     });
     expectStatus(createResponse, 201, 'employee create animal');
     createdAnimalId = extractItem(createResponse)?.slug;

@@ -15,7 +15,7 @@
     "neutered": false,
     "description": "Хотдог е куче от порода Dachshund на 1 година, с малък размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Dogs/Dachshund_Hotdog.jpg"
+      "images/animals/Dogs/Dachshund_Hotdog.jpg"
     ],
     "createdAt": "2026-04-01T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-23T09:00:00.000Z",
@@ -37,7 +37,7 @@
     "neutered": false,
     "description": "Лили е куче от порода Beagle на 6 години, с среден размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Dogs/Beagle_Lily.jpg"
+      "images/animals/Dogs/Beagle_Lily.jpg"
     ],
     "createdAt": "2026-04-02T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-23T09:00:00.000Z",
@@ -59,7 +59,7 @@
     "neutered": false,
     "description": "Киара е куче от порода American Pitbull на 2 години, с среден размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Dogs/American_Pitbull_Kiara.webp"
+      "images/animals/Dogs/American_Pitbull_Kiara.webp"
     ],
     "createdAt": "2026-04-03T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-23T09:00:00.000Z",
@@ -81,7 +81,7 @@
     "neutered": false,
     "description": "Макс е куче от порода Golden Retriever на 4 години, с голям размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Dogs/Golden_Retriever_Max.jpg"
+      "images/animals/Dogs/Golden_Retriever_Max.jpg"
     ],
     "createdAt": "2026-04-04T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-23T09:00:00.000Z",
@@ -103,7 +103,7 @@
     "neutered": false,
     "description": "Дани е куче от порода Irish Wolfhound на 7 години, с много голям размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Dogs/Irish_Wolfhound_Danny.avif"
+      "images/animals/Dogs/Irish_Wolfhound_Danny.avif"
     ],
     "createdAt": "2026-04-05T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-05T15:30:00.0000000+03:00",
@@ -125,7 +125,7 @@
     "neutered": false,
     "description": "Мона е котка от порода Munchkin на 6 месеца, с малък размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Cats/Munchkin_Mona.webp"
+      "images/animals/Cats/Munchkin_Mona.webp"
     ],
     "createdAt": "2026-04-06T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-23T09:00:00.000Z",
@@ -147,7 +147,7 @@
     "neutered": false,
     "description": "Том е котка от порода Domestic Shorthair Tuxedo на 3 години, с среден размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Cats/Domestic_Shorthair_Tuxedo_Tom.jpeg"
+      "images/animals/Cats/Domestic_Shorthair_Tuxedo_Tom.jpeg"
     ],
     "createdAt": "2026-04-07T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-07T15:30:00.0000000+03:00",
@@ -169,7 +169,7 @@
     "neutered": false,
     "description": "Гарфийлд е котка от порода Domestic Shorthair Ginger на 1 година, с среден размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Cats/Domestic_Shorthair_Ginger_Garfield.jpeg"
+      "images/animals/Cats/Domestic_Shorthair_Ginger_Garfield.jpeg"
     ],
     "createdAt": "2026-04-08T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-08T15:30:00.0000000+03:00",
@@ -191,7 +191,7 @@
     "neutered": false,
     "description": "Диона е котка от порода Domestic Longhair на 2 години, с среден размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Cats/Domestic_Longhair_Diona.png"
+      "images/animals/Cats/Domestic_Longhair_Diona.png"
     ],
     "createdAt": "2026-04-09T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-09T15:30:00.0000000+03:00",
@@ -213,7 +213,7 @@
     "neutered": false,
     "description": "Харисън е котка от порода Maine Coon на 2 години и 6 месеца, с голям размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Cats/Maine_Coon_Harrison.avif"
+      "images/animals/Cats/Maine_Coon_Harrison.avif"
     ],
     "createdAt": "2026-04-10T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-10T15:30:00.0000000+03:00",
@@ -235,7 +235,7 @@
     "neutered": false,
     "description": "Мини е зайче от порода Holland Lop на 3 месеца, с малък размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Rabbits/Holland_Lop_Minny.jpg"
+      "images/animals/Rabbits/Holland_Lop_Minny.jpg"
     ],
     "createdAt": "2026-04-11T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-11T15:30:00.0000000+03:00",
@@ -257,7 +257,7 @@
     "neutered": false,
     "description": "Били е зайче от порода English Spot на 6 месеца, с среден размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Rabbits/English_Spot_Billy.jpg"
+      "images/animals/Rabbits/English_Spot_Billy.jpg"
     ],
     "createdAt": "2026-04-12T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-12T15:30:00.0000000+03:00",
@@ -279,7 +279,7 @@
     "neutered": false,
     "description": "Дейзи е зайче от порода English Angora на 2 години, с среден размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Rabbits/English_Angora_Daisy.jpg"
+      "images/animals/Rabbits/English_Angora_Daisy.jpg"
     ],
     "createdAt": "2026-04-13T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-13T15:30:00.0000000+03:00",
@@ -301,7 +301,7 @@
     "neutered": false,
     "description": "Широ е зайче от порода New Zealand White на 10 месеца, с голям размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Rabbits/New_Zealand_White_Shiro.avif"
+      "images/animals/Rabbits/New_Zealand_White_Shiro.avif"
     ],
     "createdAt": "2026-04-14T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-14T15:30:00.0000000+03:00",
@@ -323,7 +323,7 @@
     "neutered": false,
     "description": "Руби е зайче от порода Flemish Giant на 4 години, с много голям размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Rabbits/Flemish_Giant_Ruby.webp"
+      "images/animals/Rabbits/Flemish_Giant_Ruby.webp"
     ],
     "createdAt": "2026-04-15T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-15T15:30:00.0000000+03:00",
@@ -345,7 +345,7 @@
     "neutered": false,
     "description": "Тина е лисица от порода Wild на 6 месеца, с малък размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Foxes/Tina.webp"
+      "images/animals/Foxes/Tina.webp"
     ],
     "createdAt": "2026-04-16T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-16T15:30:00.0000000+03:00",
@@ -367,7 +367,7 @@
     "neutered": false,
     "description": "Чарлс е лисица от порода Wild на 2 години, с среден размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Foxes/Charles.webp"
+      "images/animals/Foxes/Charles.webp"
     ],
     "createdAt": "2026-04-17T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-17T15:30:00.0000000+03:00",
@@ -389,7 +389,7 @@
     "neutered": false,
     "description": "Сидни е лисица от порода Wild на 3 години, с среден размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Foxes/Sidney.webp"
+      "images/animals/Foxes/Sidney.webp"
     ],
     "createdAt": "2026-04-18T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-18T15:30:00.0000000+03:00",
@@ -411,7 +411,7 @@
     "neutered": false,
     "description": "Итън е лисица от порода Wild на 6 години, с голям размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Foxes/Ethan.jpg"
+      "images/animals/Foxes/Ethan.jpg"
     ],
     "createdAt": "2026-04-19T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-19T15:30:00.0000000+03:00",
@@ -433,7 +433,7 @@
     "neutered": false,
     "description": "Даяна е гущер от порода Crested Gecko на 8 месеца, с малък размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Lizards/Dayana.webp"
+      "images/animals/Lizards/Dayana.webp"
     ],
     "createdAt": "2026-04-20T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-20T15:30:00.0000000+03:00",
@@ -455,7 +455,7 @@
     "neutered": false,
     "description": "Сироко е гущер от порода Leopard Gecko на 2 години, с малък размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Lizards/Sirocco.jpg"
+      "images/animals/Lizards/Sirocco.jpg"
     ],
     "createdAt": "2026-04-21T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-21T15:30:00.0000000+03:00",
@@ -477,7 +477,7 @@
     "neutered": false,
     "description": "Виви е гущер от порода Panther Chameleon на 5 години, с среден размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Lizards/Vivy.jpg"
+      "images/animals/Lizards/Vivy.jpg"
     ],
     "createdAt": "2026-04-22T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-22T15:30:00.0000000+03:00",
@@ -499,7 +499,7 @@
     "neutered": false,
     "description": "Мартин е гущер от порода Green Iguana на 3 години, с голям размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Lizards/Martin.webp"
+      "images/animals/Lizards/Martin.webp"
     ],
     "createdAt": "2026-04-23T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-23T15:30:00.0000000+03:00",
@@ -521,7 +521,7 @@
     "neutered": false,
     "description": "Били е сова от порода Northern Hawk Owl на 6 месеца, с малък размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Owls/Billy.webp"
+      "images/animals/Owls/Billy.webp"
     ],
     "createdAt": "2026-04-24T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-24T15:30:00.0000000+03:00",
@@ -543,7 +543,7 @@
     "neutered": false,
     "description": "Габриел е сова от порода Burrowing Owl на 1 година, с малък размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Owls/Gabrielle.webp"
+      "images/animals/Owls/Gabrielle.webp"
     ],
     "createdAt": "2026-04-25T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-25T15:30:00.0000000+03:00",
@@ -565,7 +565,7 @@
     "neutered": false,
     "description": "Сидни е сова от порода Barn Owl на 2 години, с среден размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Owls/Sydney.webp"
+      "images/animals/Owls/Sydney.webp"
     ],
     "createdAt": "2026-04-26T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-26T15:30:00.0000000+03:00",
@@ -587,7 +587,7 @@
     "neutered": false,
     "description": "Широ е сова от порода Snowy Owl на 6 години, с голям размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Owls/Shiro.jpg"
+      "images/animals/Owls/Shiro.jpg"
     ],
     "createdAt": "2026-04-27T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-27T15:30:00.0000000+03:00",
@@ -609,7 +609,7 @@
     "neutered": false,
     "description": "Доли е кон от порода Shetland Pony на 6 години, с малък размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Horses/Dolly.jpg"
+      "images/animals/Horses/Dolly.jpg"
     ],
     "createdAt": "2026-04-28T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-28T15:30:00.0000000+03:00",
@@ -631,7 +631,7 @@
     "neutered": false,
     "description": "Оден е кон от порода Thoroughbred Domestic на 10 години, с среден размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Horses/Oden.png"
+      "images/animals/Horses/Oden.png"
     ],
     "createdAt": "2026-04-29T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-29T15:30:00.0000000+03:00",
@@ -653,7 +653,7 @@
     "neutered": false,
     "description": "Зани е кон от порода Paso Fino на 2 години, с голям размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Horses/Zanny.webp"
+      "images/animals/Horses/Zanny.webp"
     ],
     "createdAt": "2026-04-30T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-30T15:30:00.0000000+03:00",
@@ -675,7 +675,7 @@
     "neutered": false,
     "description": "Райън е кон от порода Friesian на 8 години, с голям размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Horses/Ryan.jpg"
+      "images/animals/Horses/Ryan.jpg"
     ],
     "createdAt": "2026-04-31T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-31T15:30:00.0000000+03:00",
@@ -697,7 +697,7 @@
     "neutered": false,
     "description": "Ейнджъл е кон от порода Clydesdale на 5 години, с много голям размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Horses/Angel.webp"
+      "images/animals/Horses/Angel.webp"
     ],
     "createdAt": "2026-04-32T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-32T15:30:00.0000000+03:00",
@@ -719,7 +719,7 @@
     "neutered": false,
     "description": "Томи е таралеж от порода Wild на 6 месеца, с малък размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Hedgehogs/Tommy.jfif"
+      "images/animals/Hedgehogs/Tommy.jfif"
     ],
     "createdAt": "2026-04-33T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-33T15:30:00.0000000+03:00",
@@ -741,7 +741,7 @@
     "neutered": false,
     "description": "Роналд е таралеж от порода Wild на 1 месец, с малък размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Hedgehogs/Ronald.jfif"
+      "images/animals/Hedgehogs/Ronald.jfif"
     ],
     "createdAt": "2026-04-34T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-34T15:30:00.0000000+03:00",
@@ -763,7 +763,7 @@
     "neutered": false,
     "description": "Ашли е таралеж от порода Wild на 1 година, с среден размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Hedgehogs/Ashley.jpg"
+      "images/animals/Hedgehogs/Ashley.jpg"
     ],
     "createdAt": "2026-04-35T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-35T15:30:00.0000000+03:00",
@@ -785,7 +785,7 @@
     "neutered": false,
     "description": "Джина е таралеж от порода Wild на 1.5 години, с голям размер. Записът е въведен в системата и очаква допълнително описание от екипа на приюта.",
     "imageUrls": [
-      "/images/animals/Hedgehogs/Gina.jpg"
+      "images/animals/Hedgehogs/Gina.jpg"
     ],
     "createdAt": "2026-04-36T12:00:00.0000000+03:00",
     "updatedAt": "2026-04-36T15:30:00.0000000+03:00",

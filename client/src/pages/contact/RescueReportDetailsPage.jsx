@@ -2,6 +2,7 @@
 import { Link, useParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/AuthProvider.jsx';
+import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
 import { createEmptyFeedback, createErrorFeedback, createSuccessFeedback } from '../../lib/feedback.js';
 import { fetchJson, patchJson } from '../../lib/api.js';
 import {
@@ -219,7 +220,11 @@ export function RescueReportDetailsPage() {
 
           {report.imageUrl ? (
             <div className="rescue-detail-image-wrap">
-              <img className="rescue-detail-image" src={report.imageUrl} alt={`Снимка към сигнала от ${getRescueReportDisplayName(report)}`} />
+              <img
+                className="rescue-detail-image"
+                src={buildPublicAssetPath(report.imageUrl)}
+                alt={`Снимка към сигнала от ${getRescueReportDisplayName(report)}`}
+              />
             </div>
           ) : null}
 

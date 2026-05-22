@@ -19,7 +19,7 @@
       "species": "dog",
       "breed": "Dachshund",
       "status": "available",
-      "imageUrl": "/images/animals/Dogs/Dachshund_Hotdog.jpg"
+      "imageUrl": "images/animals/Dogs/Dachshund_Hotdog.jpg"
     },
     "status": "pending",
     "motivation": "Имам стабилен дом и опит с малки кучета. Хотдог ще има ежедневни разходки и спокойна среда.",
@@ -48,7 +48,7 @@
       "species": "dog",
       "breed": "Beagle",
       "status": "reserved",
-      "imageUrl": "/images/animals/Dogs/Beagle_Lily.jpg"
+      "imageUrl": "images/animals/Dogs/Beagle_Lily.jpg"
     },
     "status": "under-review",
     "motivation": "Лили изглежда подходяща за нашето семейство. Имаме двор и време за обучение и грижа.",
@@ -84,7 +84,7 @@
       "species": "dog",
       "breed": "American Pitbull",
       "status": "reserved",
-      "imageUrl": "/images/animals/Dogs/American_Pitbull_Kiara.webp"
+      "imageUrl": "images/animals/Dogs/American_Pitbull_Kiara.webp"
     },
     "status": "approved",
     "motivation": "Искам да осиновя Киара и мога да осигуря активен режим, ветеринарна грижа и постоянен контакт с екипа.",
@@ -120,7 +120,7 @@
       "species": "dog",
       "breed": "Golden Retriever",
       "status": "adopted",
-      "imageUrl": "/images/animals/Dogs/Golden_Retriever_Max.jpg"
+      "imageUrl": "images/animals/Dogs/Golden_Retriever_Max.jpg"
     },
     "status": "completed",
     "motivation": "Макс вече е преминал през среща с нашето семейство и сме готови да финализираме осиновяването.",
@@ -156,7 +156,7 @@
       "species": "cat",
       "breed": "Munchkin",
       "status": "available",
-      "imageUrl": "/images/animals/Cats/Munchkin_Mona.webp"
+      "imageUrl": "images/animals/Cats/Munchkin_Mona.webp"
     },
     "status": "cancelled",
     "motivation": "Имах интерес към Мона, но временно не мога да поема ангажимента и отменям заявката.",

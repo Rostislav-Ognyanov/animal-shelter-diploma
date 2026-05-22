@@ -1,6 +1,8 @@
 import { useState } from 'react';
 
-const DEFAULT_ANIMAL_IMAGE = '/images/animals/dog.png';
+import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
+
+const DEFAULT_ANIMAL_IMAGE = 'images/animals/dog.png';
 
 export function AnimalImage({
   src,
@@ -11,11 +13,12 @@ export function AnimalImage({
 }) {
   const [hasError, setHasError] = useState(false);
   const resolvedSrc = !hasError && src ? src : fallbackSrc;
+  const publicSrc = buildPublicAssetPath(resolvedSrc);
 
   return (
     <img
       className={className}
-      src={resolvedSrc}
+      src={publicSrc}
       alt={alt}
       loading={loading}
       decoding="async"

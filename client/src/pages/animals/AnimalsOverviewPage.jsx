@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 
+import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
 import { RESCUE_STORIES, SPECIES_SHOWCASE_ITEMS } from './animalAwarenessData.js';
 
 const FEATURED_SPECIES = SPECIES_SHOWCASE_ITEMS.slice(0, 4);
@@ -50,7 +51,7 @@ export function AnimalsOverviewPage() {
               className="animals-overview-species-card"
               to={`/za-zhivotnite/${species.value}`}
             >
-              <img src={species.imageSrc} alt={species.imageAlt} />
+              <img src={buildPublicAssetPath(species.imageSrc)} alt={species.imageAlt} />
               <span>{species.tabLabel}</span>
             </Link>
           ))}

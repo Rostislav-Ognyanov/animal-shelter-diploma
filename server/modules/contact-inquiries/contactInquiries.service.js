@@ -98,7 +98,11 @@ function normalizeOptionalImageUrl(value) {
     throw createHttpError(400, 'Качената снимка е твърде голяма за изпращане.');
   }
 
-  return imageUrl;
+  if (/^(?:data:|https?:|blob:)/i.test(imageUrl)) {
+    return imageUrl;
+  }
+
+  return imageUrl.replace(/^\/+/, '');
 }
 
 function normalizeCreatePayload(payload) {
