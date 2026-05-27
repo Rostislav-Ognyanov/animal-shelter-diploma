@@ -388,21 +388,32 @@ img {
   gap: 1.5rem;
 }
 
-.hero,
 .about {
   border-radius: 32px;
 }
 
 .hero {
+  border-radius: 0;
   padding: 5rem 0;
   color: #ffffff;
   background:
-    linear-gradient(135deg, rgba(47, 111, 78, 0.92), rgba(28, 67, 47, 0.92)),
-    radial-gradient(circle at top right, rgba(166, 214, 185, 0.28), transparent 35%);
+    linear-gradient(
+      90deg,
+      rgba(28, 67, 47, 0.98) 0%,
+      rgba(47, 111, 78, 0.96) 40%,
+      rgba(47, 111, 78, 0.72) 54%,
+      rgba(47, 111, 78, 0.24) 70%,
+      rgba(47, 111, 78, 0.08) 100%
+    ),
+    url('../../public/images/page_images/hero1.jpg');
+  background-position: center, right center;
+  background-size: cover, cover;
+  background-repeat: no-repeat;
 }
 
 .hero-content {
-  max-width: 660px;
+  max-width: min(45%, 650px);
+  margin-left: max(24px, calc((100vw - var(--content-max-width)) / 2));
 }
 
 .hero-eyebrow {
@@ -467,6 +478,33 @@ img {
   background: var(--surface-color);
 }
 
+.about-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.05fr);
+  gap: clamp(2rem, 4vw, 4.5rem);
+  align-items: center;
+}
+
+.about-image-wrap {
+  min-height: 430px;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 30px;
+  box-shadow: 0 22px 46px rgba(28, 67, 47, 0.16);
+}
+
+.about-image-wrap img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  object-fit: cover;
+}
+
+.about-text {
+  min-width: 0;
+}
+
 .about-content h2 {
   margin: 0 0 1.15rem;
   color: var(--primary);
@@ -476,13 +514,20 @@ img {
 .about-copy {
   display: grid;
   gap: 1.25rem;
-  max-width: 940px;
+  max-width: 760px;
 }
 
 .about-copy p {
   margin: 0;
   color: var(--text-main);
   line-height: 1.8;
+}
+
+.about .about-section-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 25px;
 }
 
 .home-help-section {
@@ -550,7 +595,7 @@ img {
 }
 
 .home-help-panel .home-help-link {
-  margin-top: 1.25rem;
+  margin-top: 25px;
   align-self: end;
   color: #ffffff;
   text-decoration-color: #d7f4a3;
@@ -558,6 +603,18 @@ img {
 
 .home-help-panel .home-help-link:hover,
 .home-help-panel .home-help-link:focus-visible {
+  color: #efffd4;
+}
+
+.hero .hero-about-link {
+  display: inline-flex;
+  margin-top: 25px;
+  color: #ffffff;
+  text-decoration-color: #d7f4a3;
+}
+
+.hero .hero-about-link:hover,
+.hero .hero-about-link:focus-visible {
   color: #efffd4;
 }
 
@@ -1159,6 +1216,27 @@ footer {
   .hero,
   .about {
     border-radius: 24px;
+  }
+
+  .hero {
+    background:
+      linear-gradient(90deg, rgba(28, 67, 47, 0.98), rgba(47, 111, 78, 0.72)),
+      url('../../public/images/page_images/hero1.jpg');
+    background-position: center, center;
+    background-size: cover, cover;
+  }
+
+  .hero-content {
+    max-width: 100%;
+    margin-left: 0;
+  }
+
+  .about-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .about-image-wrap {
+    min-height: 280px;
   }
 
   .hero-search {
@@ -4435,6 +4513,7 @@ footer {
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
+  margin-top: 25px;
 }
 
 .species-showcase-actions span {
@@ -4745,9 +4824,9 @@ footer {
   gap: 1rem;
 }
 
-.rescue-stories-more-link {
+.rescue-stories .rescue-stories-more-link {
   width: fit-content;
-  margin: 0.35rem auto 0;
+  margin: 25px auto 0;
 }
 
 .rescue-story-card {
