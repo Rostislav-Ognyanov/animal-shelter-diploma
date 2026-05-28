@@ -29,11 +29,7 @@ export function SupportPage() {
     <main className="route-shell support-page-shell">
       <section className="support-page-hero">
         <div>
-          <h1>Подкрепа</h1>
-          <p>
-            Помощта към приюта може да бъде финансова, практическа или чрез осиновяване. Всяко действие подкрепя
-            ежедневната грижа, лечението и намирането на сигурен дом за животните.
-          </p>
+          <h1>Как можеш да си съпричастен</h1>
         </div>
       </section>
 

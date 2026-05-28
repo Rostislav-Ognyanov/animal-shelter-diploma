@@ -4867,12 +4867,12 @@ footer {
 
 .about-page-shell {
   display: grid;
-  gap: 1.25rem;
+  gap: 0;
+  padding-top: 0;
 }
 
 .about-page-hero,
-.about-page-intro article,
-.about-page-work-card,
+.about-page-story-block,
 .about-page-toggle-card {
   border: 1px solid var(--border-soft);
   border-radius: 24px;
@@ -4881,36 +4881,94 @@ footer {
 }
 
 .about-page-hero {
-  padding: 2rem;
+  width: 100vw;
+  min-height: 460px;
+  margin-left: calc(50% - 50vw);
+  padding: 6rem 0;
+  display: flex;
+  align-items: center;
+  border: none;
+  border-radius: 0;
+  background:
+    linear-gradient(90deg, rgba(28, 67, 47, 0.86), rgba(47, 111, 78, 0.34)),
+    url('../../public/images/page_images/about_page.jpg');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  margin-bottom: 1.25rem;
 }
 
 .about-page-hero h1 {
-  margin: 0;
-  color: var(--primary);
+  width: min(100%, var(--content-max-width));
+  margin: 0 auto;
+  padding: 0 24px;
+  color: #ffffff;
   font-size: clamp(2.4rem, 5vw, 4rem);
   line-height: 1;
 }
 
-.about-page-intro {
+.about-page-split-inner {
+  width: min(100%, var(--content-max-width));
+  margin: 0 auto;
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+  gap: clamp(2rem, 4vw, 4.5rem);
+  align-items: center;
 }
 
-.about-page-intro article,
-.about-page-work-card {
+.about-page-story-block {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  padding: 0;
+  border-left: 0;
+  border-right: 0;
+  border-radius: 32px;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.about-page-story-row {
+  padding: 3rem 0;
+}
+
+.about-page-story-divider {
+  width: min(100%, var(--content-max-width));
+  height: 1px;
+  margin: 0 auto;
+  background: var(--primary);
+}
+
+.about-page-story-row-reversed {
+  grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.05fr);
+}
+
+.about-page-split-copy {
   display: grid;
   gap: 0.75rem;
-  padding: 1.35rem;
+  min-width: 0;
 }
 
-.about-page-intro h2,
-.about-page-work-card h2 {
+.about-page-split-image {
+  width: 100%;
+  height: 430px;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 30px;
+  box-shadow: 0 22px 46px rgba(28, 67, 47, 0.16);
+}
+
+.about-page-split-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.about-page-story-block h2 {
   margin: 0;
   color: var(--primary);
 }
 
-.about-page-intro p,
-.about-page-work-card p,
+.about-page-story-block p,
 .about-page-toggle-card p {
   margin: 0;
   color: var(--text-soft);
@@ -4935,6 +4993,7 @@ footer {
   display: grid;
   grid-template-columns: 1fr;
   gap: 1rem;
+  margin-top: 1.25rem;
 }
 
 .about-page-toggle-card {
@@ -4997,7 +5056,24 @@ footer {
 }
 
 .support-page-hero {
-  padding: 2rem;
+  min-height: 360px;
+  align-content: center;
+  padding: 4rem 2rem;
+  border: none;
+  color: #ffffff;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(28, 67, 47, 0.98) 0%,
+      rgba(47, 111, 78, 0.96) 42%,
+      rgba(47, 111, 78, 0.7) 58%,
+      rgba(47, 111, 78, 0.28) 76%,
+      rgba(47, 111, 78, 0.08) 100%
+    ),
+    url('../../public/images/page_images/support_page.jpg');
+  background-position: center, right center;
+  background-size: cover, cover;
+  background-repeat: no-repeat;
 }
 
 .support-page-hero p {
@@ -5025,6 +5101,11 @@ footer {
 .support-page-hero h1 {
   margin: 0;
   color: var(--primary);
+}
+
+.support-page-hero h1 {
+  max-width: 620px;
+  color: #ffffff;
 }
 
 .support-page-card p,
@@ -5318,7 +5399,7 @@ footer {
 @media (max-width: 900px) {
   .support-page-grid,
   .support-page-impact,
-  .about-page-intro,
+  .about-page-split-inner,
   .about-page-toggle-grid,
   .animals-overview-info-grid,
   .animals-overview-species-grid,
@@ -5339,6 +5420,14 @@ footer {
   .animals-overview-section-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .about-page-split-image {
+    height: 280px;
+  }
+
+  .about-page-story-row {
+    padding: 3rem 0;
   }
 
   .species-info-hero-image {
