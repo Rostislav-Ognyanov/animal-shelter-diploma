@@ -240,7 +240,7 @@ img {
 .page-shell {
   width: min(100%, var(--page-max-width));
   margin: 0 auto;
-  padding: 1rem 24px 2rem;
+  padding: 1rem 24px 0;
   display: grid;
   grid-template-columns: var(--filter-toggle-width) minmax(0, 1fr);
   gap: var(--page-gap);
@@ -728,7 +728,7 @@ img {
 .route-shell {
   width: min(100%, var(--page-max-width));
   margin: 0 auto;
-  padding: 1.5rem 24px 2.5rem;
+  padding: 1.5rem 24px 0;
 }
 
 .route-card {
@@ -1040,11 +1040,11 @@ img {
 }
 
 .auth-shell + footer {
-  margin-top: 0;
+  margin-top: 24px;
   background: linear-gradient(180deg, rgba(47, 111, 78, 0.98), var(--primary-deep));
 }
 footer {
-  margin-top: 2.5rem;
+  margin-top: 24px;
   background: var(--primary);
   color: #ffffff;
 }
@@ -1375,6 +1375,10 @@ footer {
   gap: 1.25rem;
 }
 
+.adoption-page-shell {
+  padding-top: 0;
+}
+
 .animals-list-hero,
 .animals-toolbar-card,
 .animals-filters-card,
@@ -1393,10 +1397,54 @@ footer {
   align-items: start;
 }
 
+.adoption-page-hero {
+  width: 100vw;
+  min-height: 460px;
+  margin-left: calc(50% - 50vw);
+  margin-top: 0;
+  padding: 6rem 0;
+  display: flex;
+  align-items: center;
+  border: none;
+  border-radius: 0;
+  color: #ffffff;
+  background:
+    linear-gradient(90deg, rgba(28, 67, 47, 0.86), rgba(47, 111, 78, 0.34)),
+    url('/images/page_images/adoption_page.jpg?v=2');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.adoption-page-hero > div {
+  width: min(100%, var(--content-max-width));
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
 .animals-list-hero h1 {
   margin: 0 0 0.85rem;
   line-height: 1.1;
   font-size: clamp(2.1rem, 4vw, 3rem);
+}
+
+.adoption-page-hero h1 {
+  width: min(100%, 720px);
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  line-height: 1;
+  text-wrap: balance;
+}
+
+.adoption-reason-about {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+}
+
+.adoption-reason-about .about-page-contact-link {
+  display: inline-flex;
+  align-items: center;
 }
 
 .animals-list-hero p:last-child {
@@ -1449,6 +1497,15 @@ footer {
 .animals-toolbar-card {
   display: grid;
   gap: 1rem;
+}
+
+.animals-toolbar-intro {
+  width: 100%;
+  margin: 0 auto;
+  color: var(--text-main);
+  line-height: 1.7;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .animals-search-filters-form {
@@ -1545,6 +1602,10 @@ footer {
   align-items: end;
 }
 
+.adoption-public-filters-form {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+}
+
 .animals-filters-form label {
   display: grid;
   gap: 0.45rem;
@@ -1556,6 +1617,10 @@ footer {
   display: grid;
   grid-template-columns: repeat(2, auto);
   gap: 0.75rem;
+}
+
+.animals-filters-actions-single {
+  grid-template-columns: auto;
 }
 
 .animals-list-summary {
@@ -1629,6 +1694,14 @@ footer {
 
   .animals-filters-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .animals-filters-actions-single {
+    grid-template-columns: 1fr;
+  }
+
+  .animals-toolbar-intro {
+    white-space: normal;
   }
 }
 
@@ -3815,6 +3888,11 @@ footer {
   gap: 1rem;
 }
 
+.volunteers-page-shell {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 .volunteers-hero,
 .volunteers-card,
 .volunteers-filters-card,
@@ -3833,12 +3911,65 @@ footer {
   align-items: start;
 }
 
+.volunteers-page-hero {
+  width: 100vw;
+  min-height: 460px;
+  margin-left: calc(50% - 50vw);
+  margin-top: 0;
+  padding: 6rem 0;
+  display: flex;
+  align-items: center;
+  border: none;
+  border-radius: 0;
+  color: #ffffff;
+  background:
+    linear-gradient(90deg, rgba(28, 67, 47, 0.86), rgba(47, 111, 78, 0.34)),
+    url('/images/page_images/volunteering_page.webp');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.volunteers-page-hero > div {
+  width: min(100%, var(--content-max-width));
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
 .volunteers-hero h1,
 .volunteers-card h2,
 .volunteers-card h3,
 .volunteers-table-row h2 {
   margin: 0;
   color: var(--primary);
+}
+
+.volunteers-page-hero h1 {
+  width: min(100%, 720px);
+  color: #ffffff;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  line-height: 1;
+  text-wrap: balance;
+}
+
+.volunteers-reason-about {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+}
+
+.volunteers-reason-layout {
+  width: min(100%, var(--content-max-width));
+  grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+}
+
+.volunteers-reason-about .about-page-contact-link {
+  display: inline-flex;
+  align-items: center;
+}
+
+.volunteers-reason-about .about-image-wrap {
+  height: 430px;
+  min-height: 0;
 }
 
 .volunteers-hero p,
@@ -3889,6 +4020,16 @@ footer {
   gap: 1rem;
 }
 
+#volunteer-personal-info {
+  scroll-margin-top: calc(var(--header-height) + 24px);
+}
+
+.volunteer-form-intro {
+  margin: 0;
+  color: var(--text-main);
+  line-height: 1.7;
+}
+
 .volunteer-form-grid textarea,
 .profile-form-grid textarea {
   min-height: 150px;
@@ -3902,6 +4043,12 @@ footer {
 
 .volunteer-form-grid label > span + span,
 .profile-form-grid label > span + span {
+  color: #b13838;
+  font-size: 0.86rem;
+}
+
+.volunteer-form-grid label > input + span,
+.volunteer-form-grid label > textarea + span {
   color: #b13838;
   font-size: 0.86rem;
 }
@@ -4077,6 +4224,12 @@ footer {
   color: var(--text-main);
 }
 
+.volunteer-required-marker {
+  margin-left: 0.25rem;
+  color: #b13838;
+  font-weight: 900;
+}
+
 .volunteer-field-error {
   margin: -0.35rem 0 0;
   color: #b13838;
@@ -4091,6 +4244,15 @@ footer {
 .donations-shell {
   display: grid;
   gap: 1rem;
+}
+
+.donations-page-shell {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.app:has(.donations-page-shell) footer {
+  margin-top: 24px;
 }
 
 .donations-hero,
@@ -4111,11 +4273,54 @@ footer {
   align-items: start;
 }
 
+.donations-page-hero {
+  width: 100vw;
+  min-height: 460px;
+  margin-left: calc(50% - 50vw);
+  margin-top: 0;
+  padding: 6rem 0;
+  display: flex;
+  align-items: center;
+  border: none;
+  border-radius: 0;
+  color: #ffffff;
+  background:
+    linear-gradient(90deg, rgba(28, 67, 47, 0.86), rgba(47, 111, 78, 0.34)),
+    url('../../public/images/page_images/donation_page.jpg');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.donations-page-hero > div {
+  width: min(100%, var(--content-max-width));
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
 .donations-hero h1,
 .donations-card h2,
 .donations-table-row h2 {
   margin: 0;
   color: var(--primary);
+}
+
+.donations-page-hero h1 {
+  width: min(100%, 720px);
+  color: #ffffff;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  line-height: 1;
+  text-wrap: balance;
+}
+
+.donations-reason-about {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+}
+
+.donations-reason-about .about-page-contact-link {
+  display: inline-flex;
+  align-items: center;
 }
 
 .donations-hero p,
@@ -4981,7 +5186,7 @@ footer {
   text-decoration: underline;
   text-underline-offset: 0.22em;
   width: fit-content;
-  margin-top: 0.35rem;
+  margin-top: 30px;
 }
 
 .about-page-contact-link:hover,
@@ -5032,23 +5237,27 @@ footer {
   gap: 1.5rem;
 }
 
-.support-page-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
+.support-page-shell {
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
-.support-page-card,
+.animals-page-shell {
+  padding-top: 0;
+}
+
+.support-page-shell + footer {
+  margin-top: 24px;
+}
+
 .support-page-hero,
-.support-page-impact article,
 .animals-overview-hero {
   display: grid;
   gap: 0.8rem;
 }
 
 .support-page-hero,
-.support-page-impact article,
-.support-page-card {
+.animals-overview-hero {
   border: 1px solid var(--border-soft);
   border-radius: 24px;
   background: var(--surface-color);
@@ -5056,47 +5265,59 @@ footer {
 }
 
 .support-page-hero {
-  min-height: 360px;
-  align-content: center;
-  padding: 4rem 2rem;
+  width: 100vw;
+  min-height: 460px;
+  margin-left: calc(50% - 50vw);
+  margin-top: 0;
+  padding: 6rem 0;
+  display: flex;
+  align-items: center;
   border: none;
+  border-radius: 0;
   color: #ffffff;
   background:
-    linear-gradient(
-      90deg,
-      rgba(28, 67, 47, 0.98) 0%,
-      rgba(47, 111, 78, 0.96) 42%,
-      rgba(47, 111, 78, 0.7) 58%,
-      rgba(47, 111, 78, 0.28) 76%,
-      rgba(47, 111, 78, 0.08) 100%
-    ),
+    linear-gradient(90deg, rgba(28, 67, 47, 0.86), rgba(47, 111, 78, 0.34)),
     url('../../public/images/page_images/support_page.jpg');
-  background-position: center, right center;
-  background-size: cover, cover;
+  background-position: center;
+  background-size: cover;
   background-repeat: no-repeat;
+}
+
+.animals-overview-page-hero {
+  width: 100vw;
+  min-height: 460px;
+  margin-left: calc(50% - 50vw);
+  margin-top: 0;
+  padding: 6rem 0;
+  display: flex;
+  align-items: center;
+  border: none;
+  border-radius: 0;
+  color: #ffffff;
+  background:
+    linear-gradient(90deg, rgba(28, 67, 47, 0.86), rgba(47, 111, 78, 0.34)),
+    url('/images/page_images/about_animals_page.jpg');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.animals-overview-page-hero > div {
+  width: min(100%, var(--content-max-width));
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.support-page-hero > div {
+  width: min(100%, var(--content-max-width));
+  margin: 0 auto;
+  padding: 0 24px;
 }
 
 .support-page-hero p {
   max-width: 76ch;
 }
 
-.support-page-impact {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.support-page-impact article,
-.support-page-card {
-  padding: 1.35rem;
-}
-
-.support-page-impact strong {
-  color: var(--primary);
-  font-size: 1.2rem;
-}
-
-.support-page-card h2,
 .animals-overview-hero h1,
 .support-page-hero h1 {
   margin: 0;
@@ -5104,12 +5325,44 @@ footer {
 }
 
 .support-page-hero h1 {
-  max-width: 620px;
+  width: min(100%, 720px);
   color: #ffffff;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  line-height: 1;
+  text-wrap: balance;
 }
 
-.support-page-card p,
-.support-page-impact p,
+.animals-overview-page-hero h1 {
+  width: min(100%, 720px);
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  line-height: 1;
+  text-wrap: balance;
+}
+
+.animals-overview-story-copy {
+  max-width: none;
+}
+
+.animals-overview-story-action {
+  display: inline-flex;
+  align-items: center;
+}
+
+.animals-overview-story-row {
+  grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+}
+
+.animals-overview-story-row.about-page-story-row-reversed {
+  grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.05fr);
+}
+
+.animals-overview-story-row .about-page-split-image {
+  width: 100%;
+  height: 430px;
+}
+
 .animals-overview-hero p,
 .support-page-hero p {
   margin: 0;
@@ -5117,13 +5370,19 @@ footer {
   line-height: 1.7;
 }
 
-.support-page-card {
-  align-content: start;
+.support-page-action-copy {
+  max-width: 920px;
 }
 
-.support-page-card .animals-primary-action {
-  margin-top: 0.25rem;
-  width: fit-content;
+.support-page-action-row {
+  gap: clamp(0.5rem, 1vw, 1rem);
+  grid-template-columns: minmax(0, 1fr) minmax(207px, 276px);
+}
+
+.support-page-action-image {
+  width: 100%;
+  height: 247px;
+  justify-self: end;
 }
 
 .animals-overview-actions {
@@ -5191,6 +5450,10 @@ footer {
   padding: 1.35rem;
 }
 
+#species-showcase-section {
+  scroll-margin-top: calc(var(--header-height) + 24px);
+}
+
 .animals-overview-species-intro {
   display: grid;
   gap: 0.55rem;
@@ -5224,6 +5487,20 @@ footer {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.animals-overview-heading-copy {
+  flex: 1;
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+  max-width: none;
+}
+
+.animals-overview-heading-copy p {
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.65;
 }
 
 .animals-overview-species-grid {
@@ -5311,7 +5588,65 @@ footer {
 }
 
 .rescue-stories-page-grid {
+  grid-template-columns: 1fr;
+  gap: 1rem;
   padding: 1.35rem;
+}
+
+.rescue-stories-page-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 330px);
+  gap: 1.25rem;
+  align-items: center;
+  padding: 1.15rem;
+  border: 1px solid rgba(47, 111, 78, 0.12);
+  border-radius: 18px;
+  background: #f8fbf9;
+}
+
+.rescue-stories-page-card-copy {
+  display: grid;
+  align-content: center;
+  gap: 0.65rem;
+  min-width: 0;
+  text-align: left;
+}
+
+.rescue-stories-page-card-copy small {
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.rescue-stories-page-card-copy h2 {
+  margin: 0;
+  color: var(--primary);
+  font-size: clamp(1.35rem, 2vw, 1.75rem);
+}
+
+.rescue-stories-page-card-copy p {
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.75;
+}
+
+.rescue-stories-page-image {
+  width: 100%;
+  max-width: 330px;
+  height: 230px;
+  max-height: 230px;
+  justify-self: end;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #edf5ef;
+}
+
+.rescue-stories-page-image img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
 }
 
 .species-info-shell {
@@ -5397,8 +5732,6 @@ footer {
 }
 
 @media (max-width: 900px) {
-  .support-page-grid,
-  .support-page-impact,
   .about-page-split-inner,
   .about-page-toggle-grid,
   .animals-overview-info-grid,
@@ -5420,6 +5753,15 @@ footer {
   .animals-overview-section-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .rescue-stories-page-card {
+    grid-template-columns: 1fr;
+  }
+
+  .rescue-stories-page-image {
+    max-width: none;
+    justify-self: stretch;
   }
 
   .about-page-split-image {
@@ -5484,7 +5826,7 @@ footer {
   border-radius: 18px;
   background: #ffffff;
   font-weight: 600;
-  color: var(--text-main);
+  color: #000000;
 }
 
 .volunteer-position-option input[type='checkbox'] {
@@ -5494,8 +5836,14 @@ footer {
   margin: 0;
 }
 
-.volunteer-position-option span {
-  color: var(--text-main);
+.volunteer-form-grid .volunteer-position-option > span {
+  color: #000000;
+}
+
+.volunteer-form-grid .volunteer-required-marker,
+.volunteer-checkbox-row .volunteer-required-marker,
+.volunteer-positions-field .volunteer-required-marker {
+  color: #b13838;
 }
 
 .volunteer-position-other {

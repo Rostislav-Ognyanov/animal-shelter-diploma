@@ -8,9 +8,9 @@
     "passwordHash": "$2b$10$ARg7hUeFFY7O72fu3WWTaugVREk7leM6m2q195EN1vY0t.Vb8JcCG",
     "role": "admin",
     "isActive": true,
-    "lastLoginAt": "2026-05-20T14:50:55.904Z",
+    "lastLoginAt": "2026-06-05T14:57:41.182Z",
     "createdAt": "2026-04-01T09:00:00.000Z",
-    "updatedAt": "2026-05-20T14:50:55.904Z"
+    "updatedAt": "2026-06-05T14:57:41.183Z"
   },
   {
     "id": "seed-employee-001",

@@ -50,7 +50,7 @@ export function AppRoutes({ homeData, role }) {
       <Route path="/za-zhivotnite/:species" element={<SpeciesInfoPage />} />
       <Route path="/istorii-za-spasyavaniya" element={<RescueStoriesPage />} />
       <Route path="/volunteers" element={<VolunteerApplicationPage />} />
-      <Route path="/donations" element={<DonationPage />} />
+      <Route path="/donations" element={<DonationPage siteName={homeData.siteName} />} />
       <Route path="/svurji-se-s-nas" element={<RescueReportPage />} />
       <Route path="/access-denied" element={<AccessDeniedPage />} />
       <Route element={<GuestOnlyRoute />}>

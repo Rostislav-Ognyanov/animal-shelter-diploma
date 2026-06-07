@@ -1,25 +1,34 @@
+import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
+
+import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
 
 const SUPPORT_OPTIONS = [
   {
     title: 'Дарение',
     description:
-      'Даренията помагат за храна, лекарства, консумативи, транспорт и спешна ветеринарна грижа. Дори малка сума може да покрие част от лечението или ежедневната грижа за животно в нужда.',
+      'С всяко дарение помагате на приюта да осигури храна, лечение, подслон и ежедневна грижа за животните в нужда. Дори малката подкрепа има значение, защото ни позволява да реагираме по-бързо в трудни ситуации и да осигурим по-добри условия за животните, които разчитат на нас.',
     actionLabel: 'Заяви дарение',
+    imageAlt: 'Дарение в подкрепа на животните в приюта',
+    imagePath: 'images/page_images/support_donation.avif',
     to: '/donations',
   },
   {
     title: 'Осиновяване',
     description:
-      'Осиновяването дава дом на конкретно животно и освобождава място за следващ случай. Така помощта е двойна: едно животно получава семейство, а приютът може да приеме друго в риск.',
+      'Осиновяването е един от най-ценните начини да помогнете, защото дава на животното сигурност, дом и шанс за ново начало. Когато осиновите животно, вие не само променяте неговия живот, но и освобождавате място за помощ към друго животно в нужда.',
     actionLabel: 'Към осиновяване',
+    imageAlt: 'Осиновяване на животно от приюта',
+    imagePath: 'images/page_images/support_adoption.webp',
     to: '/search',
   },
   {
     title: 'Доброволчество',
     description:
-      'Доброволците помагат с разходки, почистване, транспорт, събития, административна подкрепа и грижа за животните. Това спестява време на екипа и прави ежедневната работа по-стабилна.',
+      'Като доброволец можете да станете активна част от грижата за животните и ежедневната работа на приюта. С време, внимание и желание за помощ вие подкрепяте дейности като хранене, разходки, почистване, организация на събития и създаване на по-добра среда за животните.',
     actionLabel: 'Стани доброволец',
+    imageAlt: 'Доброволчество и грижа за животните',
+    imagePath: 'images/page_images/support_volunteering.jpg',
     to: '/volunteers',
   },
 ];
@@ -33,33 +42,68 @@ export function SupportPage() {
         </div>
       </section>
 
-      <section className="support-page-impact">
-        <article>
-          <strong>Десетки до стотици случаи годишно</strong>
-          <p>
-            Приютите получават сигнали за изоставени, пострадали, болни или изгубени животни през цялата година. Част
-            от тях имат нужда от бърза реакция, транспорт, преглед и временно настаняване.
-          </p>
-        </article>
-
-        <article>
-          <strong>Как приютът помага</strong>
-          <p>
-            Екипът приема сигналите, преценява спешността, организира грижа, лечение и наблюдение, а след възстановяване
-            подготвя животните за осиновяване или подходящо дългосрочно решение.
-          </p>
-        </article>
-      </section>
-
-      <section className="support-page-grid">
-        {SUPPORT_OPTIONS.map((option) => (
-          <article key={option.title} className="support-page-card">
-            <h2>{option.title}</h2>
-            <p>{option.description}</p>
-            <Link className="animals-primary-action" to={option.to}>
-              {option.actionLabel}
-            </Link>
+      <section className="support-page-story-block about-page-story-block">
+        <div className="about-page-split-inner about-page-story-row">
+          <article className="about-page-split-copy">
+            <h2>Животни в нужда от приют</h2>
+            <p>
+              Много животни попадат в приют след изоставяне, живот на улицата, лоши условия, липса на грижа или след
+              преживени травми и наранявания. Част от тях се нуждаят от спешна медицинска помощ, други — от спокойна
+              среда, време и внимание, за да възвърнат доверието си към хората. Зад всеки такъв случай стои история на
+              несигурност, страх или пренебрежение, но и възможност за ново начало, когато навременната помощ достигне
+              до животното.
+            </p>
           </article>
+
+          <figure className="about-page-split-image">
+            <img
+              src={buildPublicAssetPath('images/page_images/support_hero1.jpg')}
+              alt="Животно в нужда от грижа и приют"
+            />
+          </figure>
+        </div>
+
+        <div className="about-page-story-divider" aria-hidden="true" />
+
+        <div className="about-page-split-inner about-page-story-row about-page-story-row-reversed">
+          <figure className="about-page-split-image">
+            <img
+              src={buildPublicAssetPath('images/page_images/support_hero2.webp')}
+              alt="Грижа и подкрепа за животни в приюта"
+            />
+          </figure>
+
+          <article className="about-page-split-copy">
+            <h2>Как приютът помага</h2>
+            <p>
+              Нашият приют помага на тези животни, като им осигурява безопасно място, ежедневна грижа, храна,
+              медицинско наблюдение и подкрепа по пътя към възстановяването. Освен непосредствената помощ, ние работим
+              и за това всяко животно да получи шанс за осиновяване, социализация и по-добър живот в спокойна и любяща
+              среда. С подкрепата на доброволци, дарители и съпричастни хора можем да достигнем до повече случаи и да
+              дадем реална възможност за промяна.
+            </p>
+          </article>
+        </div>
+
+        <div className="about-page-story-divider" aria-hidden="true" />
+
+        {SUPPORT_OPTIONS.map((option, index) => (
+          <Fragment key={option.title}>
+            {index > 0 ? <div className="about-page-story-divider" aria-hidden="true" /> : null}
+            <div className="about-page-split-inner about-page-story-row support-page-action-row">
+              <article className="about-page-split-copy support-page-action-copy">
+                <h2>{option.title}</h2>
+                <p>{option.description}</p>
+                <Link className="about-page-contact-link" to={option.to}>
+                  {option.actionLabel}
+                </Link>
+              </article>
+
+              <figure className="about-page-split-image support-page-action-image">
+                <img src={buildPublicAssetPath(option.imagePath)} alt={option.imageAlt} />
+              </figure>
+            </div>
+          </Fragment>
         ))}
       </section>
     </main>

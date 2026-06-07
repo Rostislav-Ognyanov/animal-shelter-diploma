@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthProvider.jsx';
 import { createEmptyFeedback, createErrorFeedback, createSuccessFeedback } from '../../lib/feedback.js';
 import { postJson } from '../../lib/api.js';
+import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
 import {
   VOLUNTEER_POSITION_OPTIONS,
   getVolunteerDisplayName,
@@ -31,6 +32,17 @@ const EMPTY_FORM = {
 function isMinorAgeValue(value) {
   const age = Number(value);
   return Number.isInteger(age) && age > 0 && age < 18;
+}
+
+function RequiredLabel({ children }) {
+  return (
+    <span className="volunteer-field-label">
+      {children}
+      <span className="volunteer-required-marker" aria-hidden="true" title="Задължително поле">
+        *
+      </span>
+    </span>
+  );
 }
 
 function validateVolunteerForm(values) {
@@ -302,21 +314,42 @@ export function VolunteerApplicationPage() {
   }
 
   return (
-    <main className="route-shell volunteers-shell">
-      <section className="volunteers-hero">
+    <main className="route-shell volunteers-shell volunteers-page-shell">
+      <section className="volunteers-hero volunteers-page-hero">
         <div>
-          <h1>Кандидатстване за доброволец</h1>
+          <h1>Кандидатствай за доброволец</h1>
         </div>
       </section>
 
-      <div className="route-actions">
-        <Link className="animals-secondary-action" to="/search">
-          Към животните
-        </Link>
-        <Link className="animals-primary-action" to="/search">
-          Търсене
-        </Link>
-      </div>
+      <section className="about volunteers-reason-about">
+        <div className="section-container about-content">
+          <div className="about-layout volunteers-reason-layout">
+            <div className="about-text">
+              <h2>Обичаш животните и искаш да помогнеш с грижи?</h2>
+              <div className="about-copy">
+                <p>
+                  Като доброволец можеш да станеш истинска част от ежедневната грижа за животните в приюта и да
+                  помогнеш там, където има най-голяма нужда. С времето, вниманието и желанието си за помощ ще допринесеш
+                  за по-добра среда, повече спокойствие и повече шанс за възстановяване на животните, които разчитат на
+                  нас. Независимо дали участваш в пряката грижа, в организацията на дейности или в подкрепата на екипа,
+                  твоето присъствие има реално значение. Доброволчеството е възможност не само да помогнеш, но и да
+                  бъдеш част от кауза, която променя животи.
+                </p>
+              </div>
+              <a className="about-page-contact-link volunteers-reason-action" href="#volunteer-personal-info">
+                Стани доброволец
+              </a>
+            </div>
+
+            <figure className="about-image-wrap">
+              <img
+                src={buildPublicAssetPath('images/page_images/volunteering_hero.png')}
+                alt="Доброволец в подкрепа на животните в приюта"
+              />
+            </figure>
+          </div>
+        </div>
+      </section>
 
       {submitState.feedback.message ? (
         <div
@@ -335,7 +368,10 @@ export function VolunteerApplicationPage() {
             <h2>{applicantName}</h2>
           </div>
           <p>{getVolunteerStatusGuidance(submitState.submittedApplication.status)}</p>
-          <p>Ще използваме посочените контакти, ако е нужна допълнителна информация.</p>
+          <p>
+            Благодарим ти за желанието да помогнеш. Екипът ни ще прегледа кандидатурата и ще се свърже с теб при нужда
+            от допълнителна информация.
+          </p>
           <div className="route-actions volunteers-inline-actions">
             <button type="button" className="animals-primary-action" onClick={resetForm}>
               Нова кандидатура
@@ -347,59 +383,71 @@ export function VolunteerApplicationPage() {
         </section>
       ) : null}
 
-      <section className="volunteers-card">
-        <form className="volunteer-form-grid" onSubmit={handleSubmit}>
+      <section className="volunteers-card" id="volunteer-form">
+        <form className="volunteer-form-grid" id="volunteer-personal-info" onSubmit={handleSubmit} noValidate>
+          <p className="volunteer-form-intro volunteer-form-grid-wide">
+            Попълни формата по-долу, за да ни разкажеш с какво и кога би искал да помагаш.
+          </p>
+
           <label>
-            <span>Име</span>
+            <RequiredLabel>Име</RequiredLabel>
             <input
               type="text"
               value={formValues.firstName}
               onChange={(event) => handleFieldChange('firstName', event.target.value)}
               disabled={submitState.isSubmitting}
               autoComplete="given-name"
+              required
+              aria-required="true"
             />
             {formErrors.firstName ? <span>{formErrors.firstName}</span> : null}
           </label>
 
           <label>
-            <span>Фамилия</span>
+            <RequiredLabel>Фамилия</RequiredLabel>
             <input
               type="text"
               value={formValues.lastName}
               onChange={(event) => handleFieldChange('lastName', event.target.value)}
               disabled={submitState.isSubmitting}
               autoComplete="family-name"
+              required
+              aria-required="true"
             />
             {formErrors.lastName ? <span>{formErrors.lastName}</span> : null}
           </label>
 
           <label>
-            <span>Имейл</span>
+            <RequiredLabel>Имейл</RequiredLabel>
             <input
               type="email"
               value={formValues.email}
               onChange={(event) => handleFieldChange('email', event.target.value)}
               disabled={submitState.isSubmitting}
               autoComplete="email"
+              required
+              aria-required="true"
             />
             {formErrors.email ? <span>{formErrors.email}</span> : null}
           </label>
 
           <label>
-            <span>Телефон</span>
+            <RequiredLabel>Телефон</RequiredLabel>
             <input
               type="tel"
               value={formValues.phone}
               onChange={(event) => handleFieldChange('phone', event.target.value)}
               disabled={submitState.isSubmitting}
               autoComplete="tel"
+              required
+              aria-required="true"
             />
             {formErrors.phone ? <span>{formErrors.phone}</span> : null}
           </label>
 
           <section className="volunteer-context-panel volunteer-age-context-panel" aria-label="Възраст и данни за родител или настойник">
             <label className="volunteer-age-field">
-              <span>Възраст</span>
+              <RequiredLabel>Възраст</RequiredLabel>
               <input
                 type="number"
                 min="1"
@@ -407,6 +455,8 @@ export function VolunteerApplicationPage() {
                 value={formValues.age}
                 onChange={(event) => handleFieldChange('age', event.target.value)}
                 disabled={submitState.isSubmitting}
+                required
+                aria-required="true"
               />
               {formErrors.age ? <span>{formErrors.age}</span> : null}
             </label>
@@ -423,8 +473,10 @@ export function VolunteerApplicationPage() {
                     checked={Boolean(formValues.isMinorDeclaration)}
                     onChange={(event) => handleFieldChange('isMinorDeclaration', event.target.checked)}
                     disabled={submitState.isSubmitting}
+                    required={isMinor}
+                    aria-required={isMinor ? 'true' : undefined}
                   />
-                  <span>Нямам навършени 18 години</span>
+                  <RequiredLabel>Нямам навършени 18 години</RequiredLabel>
                 </label>
 
                 {showGuardianFields ? (
@@ -440,32 +492,38 @@ export function VolunteerApplicationPage() {
                         checked={Boolean(formValues.guardianConsent)}
                         onChange={(event) => handleFieldChange('guardianConsent', event.target.checked)}
                         disabled={submitState.isSubmitting}
+                        required={showGuardianFields}
+                        aria-required={showGuardianFields ? 'true' : undefined}
                       />
-                      <span>Имам съгласие от родител или настойник</span>
+                      <RequiredLabel>Имам съгласие от родител или настойник</RequiredLabel>
                     </label>
                     {formErrors.guardianConsent ? <p className="volunteer-field-error">{formErrors.guardianConsent}</p> : null}
 
                     <div className="volunteer-form-grid volunteer-form-grid-nested">
                       <label>
-                        <span>Име на родител/настойник</span>
+                        <RequiredLabel>Име на родител/настойник</RequiredLabel>
                         <input
                           type="text"
                           value={formValues.guardianName}
                           onChange={(event) => handleFieldChange('guardianName', event.target.value)}
                           disabled={submitState.isSubmitting}
                           autoComplete="name"
+                          required={showGuardianFields}
+                          aria-required={showGuardianFields ? 'true' : undefined}
                         />
                         {formErrors.guardianName ? <span>{formErrors.guardianName}</span> : null}
                       </label>
 
                       <label>
-                        <span>Телефон или имейл на родител/настойник</span>
+                        <RequiredLabel>Телефон или имейл на родител/настойник</RequiredLabel>
                         <input
                           type="text"
                           value={formValues.guardianContact}
                           onChange={(event) => handleFieldChange('guardianContact', event.target.value)}
                           disabled={submitState.isSubmitting}
                           placeholder="Например: +359 888 123 456 или parent@example.com"
+                          required={showGuardianFields}
+                          aria-required={showGuardianFields ? 'true' : undefined}
                         />
                         {formErrors.guardianContact ? <span>{formErrors.guardianContact}</span> : null}
                       </label>
@@ -479,8 +537,13 @@ export function VolunteerApplicationPage() {
           <div
             className={`volunteer-form-grid-wide volunteer-positions-field${hasOtherPosition ? ' is-highlighted' : ''}`}
           >
-            <span>Предпочитани дейности</span>
-            <div className="volunteer-position-grid" role="group" aria-label="Избор на доброволчески позиции">
+            <RequiredLabel>Предпочитани дейности</RequiredLabel>
+            <div
+              className="volunteer-position-grid"
+              role="group"
+              aria-label="Избор на доброволчески позиции"
+              aria-required="true"
+            >
               {VOLUNTEER_POSITION_OPTIONS.map((option) => (
                 <label key={option.value} className="volunteer-position-option">
                   <input
@@ -500,13 +563,15 @@ export function VolunteerApplicationPage() {
 
             {hasOtherPosition ? (
               <label className="volunteer-position-other">
-                <span>Друго</span>
+                <RequiredLabel>Друго</RequiredLabel>
                 <input
                   type="text"
                   value={formValues.otherPosition}
                   onChange={(event) => handleFieldChange('otherPosition', event.target.value)}
                   disabled={submitState.isSubmitting}
                   placeholder="Опиши с няколко думи как искаш да помагаш"
+                  required
+                  aria-required="true"
                 />
                 {formErrors.otherPosition ? <span>{formErrors.otherPosition}</span> : null}
               </label>
@@ -514,30 +579,34 @@ export function VolunteerApplicationPage() {
           </div>
 
           <label className="volunteer-form-grid-wide">
-            <span>Наличност</span>
+            <RequiredLabel>Наличност</RequiredLabel>
             <input
               type="text"
               value={formValues.availability}
               placeholder="Например: делнични дни, уикенди, 2-3 пъти месечно"
               onChange={(event) => handleFieldChange('availability', event.target.value)}
               disabled={submitState.isSubmitting}
+              required
+              aria-required="true"
             />
             {formErrors.availability ? <span>{formErrors.availability}</span> : null}
           </label>
 
           <label className="volunteer-form-grid-wide">
-            <span>Мотивация</span>
+            <RequiredLabel>Мотивация</RequiredLabel>
             <textarea
               value={formValues.motivation}
               placeholder="Разкажи накратко защо искаш да помагаш на приюта."
               onChange={(event) => handleFieldChange('motivation', event.target.value)}
               disabled={submitState.isSubmitting}
+              required
+              aria-required="true"
             />
             {formErrors.motivation ? <span>{formErrors.motivation}</span> : null}
           </label>
 
           <label className="volunteer-form-grid-wide">
-            <span>Опит</span>
+            <span>Опит (по желание)</span>
             <textarea
               value={formValues.experience}
               placeholder="Предишен опит с животни, доброволчество, транспорт, грижи и др."

@@ -2,6 +2,7 @@
 import { Link } from 'react-router-dom';
 
 import { useAuth } from '../../auth/AuthProvider.jsx';
+import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
 import { createEmptyFeedback, createErrorFeedback, createSuccessFeedback } from '../../lib/feedback.js';
 import { postJson } from '../../lib/api.js';
 import {
@@ -45,7 +46,7 @@ function validateDonationForm(values) {
   return errors;
 }
 
-export function DonationPage() {
+export function DonationPage({ siteName = 'Animal Shelter' }) {
   const { currentUser } = useAuth();
   const [formValues, setFormValues] = useState(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState({});
@@ -158,21 +159,42 @@ export function DonationPage() {
   }
 
   return (
-    <main className="route-shell donations-shell">
-      <section className="donations-hero">
+    <main className="route-shell donations-shell donations-page-shell">
+      <section className="donations-hero donations-page-hero">
         <div>
           <h1>Дарения</h1>
         </div>
       </section>
 
-      <div className="route-actions">
-        <Link className="animals-secondary-action" to="/search">
-          Към животните
-        </Link>
-        <Link className="animals-primary-action" to="/volunteers">
-          Доброволчество
-        </Link>
-      </div>
+      <section className="about donations-reason-about">
+        <div className="section-container about-content">
+          <div className="about-layout">
+            <div className="about-text">
+              <h2>Защо да дариш на {siteName}?</h2>
+              <div className="about-copy">
+                <p>
+                  Всяко дарение към {siteName} е подкрепа не само за животните, но и за ежедневните усилия на хората,
+                  които се грижат за тях с внимание, търпение и истинска отдаденост. Нашият екип работи всеки ден, за
+                  да осигури безопасност, лечение, храна и спокойна среда за животни, които са преживели изоставяне,
+                  нараняване или липса на грижа. Зад всяко спасено животно стоят много труд, време и желание то да
+                  получи шанс за възстановяване и нов живот. Когато дарявате, вие помагате тази грижа да продължи и
+                  давате възможност на приюта да достига до още повече животни в нужда.
+                </p>
+              </div>
+              <a className="about-page-contact-link donations-reason-action" href="#donation-form">
+                Дари сега
+              </a>
+            </div>
+
+            <figure className="about-image-wrap">
+              <img
+                src={buildPublicAssetPath('images/page_images/donation_hero.jpg')}
+                alt="Дарение в подкрепа на животните в приюта"
+              />
+            </figure>
+          </div>
+        </div>
+      </section>
 
       {submitState.feedback.message ? (
         <div
@@ -202,7 +224,7 @@ export function DonationPage() {
         </section>
       ) : null}
 
-      <section className="donations-card">
+      <section id="donation-form" className="donations-card">
         <form className="donation-form-grid" onSubmit={handleSubmit}>
           <div className="donation-form-grid-wide donation-amount-block">
             <div className="donation-amount-heading">
