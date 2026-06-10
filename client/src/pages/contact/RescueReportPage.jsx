@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthProvider.jsx';
 import { createEmptyFeedback, createErrorFeedback, createSuccessFeedback } from '../../lib/feedback.js';
 import { postJson } from '../../lib/api.js';
+import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
 import {
   RESCUE_REPORT_SPECIES_OPTIONS,
   RESCUE_REPORT_URGENCY_OPTIONS,
@@ -41,10 +42,10 @@ const CONTACT_TYPES = [
 ];
 
 const CONTACT_INFO = [
-  { label: 'Телефон', value: '+359 888 123 456' },
-  { label: 'Email', value: 'contact@animal-shelter.bg' },
-  { label: 'Адрес', value: 'гр. София, ул. Зелена грижа 12' },
-  { label: 'Работно време', value: 'Понеделник - събота, 09:00 - 18:00' },
+  { icon: '☎', label: 'Телефон', value: '+359 888 123 456' },
+  { icon: '@', label: 'Email', value: 'contact@animal-shelter.bg' },
+  { icon: '◷', label: 'Работно време', value: 'Понеделник - събота, 09:00 - 18:00' },
+  { icon: '⌖', label: 'Адрес', value: 'гр. София, ул. Зелена грижа 12' },
 ];
 
 const EMPTY_FORM = {
@@ -65,6 +66,17 @@ const EMPTY_FORM = {
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^[0-9+\s().-]{6,32}$/;
+
+function RequiredLabel({ children }) {
+  return (
+    <span className="contact-field-label">
+      {children}
+      <span className="volunteer-required-marker" aria-hidden="true" title="Задължително поле">
+        *
+      </span>
+    </span>
+  );
+}
 
 function buildInitialFormValues(currentUser, inquiryType = 'animal') {
   return {
@@ -95,8 +107,8 @@ function validateContactForm(values) {
     errors.email = 'Въведи валиден имейл адрес.';
   }
 
-  if (values.inquiryType === 'animal' && !phone) {
-    errors.phone = 'Телефонът е задължителен при сигнал за животно.';
+  if (!phone) {
+    errors.phone = 'Телефонът е задължителен.';
   } else if (phone && !PHONE_PATTERN.test(phone)) {
     errors.phone = 'Въведи валиден телефонен номер.';
   }
@@ -121,6 +133,36 @@ function validateContactForm(values) {
 
   if (values.inquiryType === 'general' && !String(values.subject ?? '').trim()) {
     errors.subject = 'Посочи тема на запитването.';
+  }
+
+  if (values.inquiryType === 'adoption') {
+    if (!String(values.animalName ?? '').trim()) {
+      errors.animalName = 'Посочи животното, за което се отнася запитването.';
+    }
+
+    if (!String(values.subject ?? '').trim()) {
+      errors.subject = 'Избери тип въпрос.';
+    }
+  }
+
+  if (values.inquiryType === 'volunteering') {
+    if (!String(values.availability ?? '').trim()) {
+      errors.availability = 'Посочи кога имаш възможност да помагаш.';
+    }
+
+    if (!String(values.subject ?? '').trim()) {
+      errors.subject = 'Избери дейност.';
+    }
+  }
+
+  if (values.inquiryType === 'donation') {
+    if (!String(values.donationTopic ?? '').trim()) {
+      errors.donationTopic = 'Избери вид дарение.';
+    }
+
+    if (!String(values.subject ?? '').trim()) {
+      errors.subject = 'Посочи тема.';
+    }
   }
 
   return errors;
@@ -333,31 +375,78 @@ export function RescueReportPage() {
   }
 
   return (
-    <main className="route-shell rescue-shell">
-      <section className="rescue-hero contact-intro-hero">
+    <main className="route-shell rescue-shell contact-page-shell">
+      <section className="contact-page-hero">
         <div>
-          <p className="route-meta">Свържи се с нас</p>
-          <h1>Как можем да помогнем?</h1>
-          <p>
-            Можеш да се свържеш с приюта при намерено животно в нужда, въпроси за осиновяване,
-            доброволчество, дарения или общи запитвания. Всеки сигнал и всяко съобщение се преглеждат
-            от екипа и при нужда ще се свържем обратно с теб.
-          </p>
+          <h1>Свържи се с нас</h1>
+        </div>
+      </section>
+
+      <section className="about-page-story-block contact-page-story-block">
+        <div className="about-page-split-inner about-page-story-row">
+          <article className="about-page-split-copy">
+            <h2>Помощта започва с контакт</h2>
+            <p>
+              Ако имате въпрос, нужда от съдействие или искате да подадете сигнал за животно в нужда, можете да се
+              свържете с нас по всяко време чрез тази страница. Приютът приема запитвания, свързани с животни,
+              осиновяване, доброволчество, дарения и други случаи, в които е необходима навременна реакция и
+              координация. За нас е важно всяко съобщение да достигне до правилното място, за да може помощта да бъде
+              по-бърза и по-ефективна. Когато се свържете с нас, вие правите важна стъпка към реална подкрепа за
+              животните и дейността на приюта.
+            </p>
+          </article>
+
+          <figure className="about-page-split-image">
+            <img
+              src={buildPublicAssetPath('images/page_images/contacts_hero1.jpg?v=2')}
+              alt="Контакт и съдействие за животно в нужда"
+            />
+          </figure>
         </div>
 
-        <div className="contact-info-grid" aria-label="Контактна информация">
-          {CONTACT_INFO.map((item) => (
-            <article key={item.label} className="contact-info-card">
-              <span>{item.label}</span>
-              <strong>{item.value}</strong>
-            </article>
-          ))}
+        <div className="about-page-story-divider" aria-hidden="true" />
+
+        <div className="about-page-split-inner about-page-story-row about-page-story-row-reversed">
+          <figure className="about-page-split-image">
+            <img
+              src={buildPublicAssetPath('images/page_images/contacts_hero2.jpg')}
+              alt="Начини за връзка с приюта"
+            />
+          </figure>
+
+          <article className="about-page-split-copy contact-page-details-copy">
+            <h2>Начини за връзка с приюта</h2>
+            <p>
+              Можете да се свържете с нас по телефон, имейл или чрез формата на тази страница, когато искате да подадете
+              сигнал, да зададете въпрос или да получите допълнителна информация. При необходимост от по-бърза реакция
+              е препоръчително да предоставите възможно най-точни данни за случая, за да можем да насочим запитването
+              към правилния екип. По-долу ще откриете основните ни контакти, чрез които можете да поддържате връзка с
+              приюта и неговата дейност.
+            </p>
+
+            <div className="contact-info-grid" aria-label="Контактна информация">
+              {CONTACT_INFO.map((item) => (
+                <article key={item.label} className="contact-info-card">
+                  <span className="contact-info-label">
+                    <span className="contact-info-icon" aria-hidden="true">
+                      {item.icon}
+                    </span>
+                    {item.label}
+                  </span>
+                  <strong>{item.value}</strong>
+                </article>
+              ))}
+            </div>
+          </article>
         </div>
       </section>
 
       <section className="rescue-card contact-type-section">
+        <p className="contact-type-transition">
+          Избери най-подходящия тип запитване, за да ни помогнеш да насочим информацията по-бързо към правилния екип.
+        </p>
+
         <div>
-          <p className="route-meta">Тип запитване</p>
           <h2>Избери с какво е свързана нуждата</h2>
         </div>
 
@@ -408,7 +497,10 @@ export function RescueReportPage() {
               ? getRescueReportStatusGuidance(submitState.submittedRecord.status)
               : 'Запитването е записано и очаква преглед от екипа.'}
           </p>
-          <p>Ще използваме посочените контакти, ако е необходима допълнителна информация.</p>
+          <p>
+            Благодарим ви, че се свързахте с нас. Екипът ни ще прегледа информацията и ще използва посочените контакти,
+            ако е необходимо допълнително уточнение.
+          </p>
           <div className="route-actions rescue-inline-actions">
             <button type="button" className="animals-primary-action" onClick={resetForm}>
               Ново запитване
@@ -421,52 +513,64 @@ export function RescueReportPage() {
       ) : null}
 
       <section className="rescue-card">
-        <form className="rescue-form-grid" onSubmit={handleSubmit}>
+        <form className="rescue-form-grid" onSubmit={handleSubmit} noValidate>
+          <p className="contact-form-intro rescue-form-grid-wide">
+            Попълни формата по-долу с възможно най-точна информация, за да можем да реагираме по-подходящо и навреме.
+          </p>
+
           <label>
-            <span>Име</span>
+            <RequiredLabel>Име</RequiredLabel>
             <input
               type="text"
               value={formValues.name}
               onChange={(event) => handleFieldChange('name', event.target.value)}
               disabled={submitState.isSubmitting || isReadingImage}
               autoComplete="name"
+              required
+              aria-required="true"
             />
             {formErrors.name ? <span>{formErrors.name}</span> : null}
           </label>
 
           <label>
-            <span>Email</span>
+            <RequiredLabel>Email</RequiredLabel>
             <input
               type="email"
               value={formValues.email}
               onChange={(event) => handleFieldChange('email', event.target.value)}
               disabled={submitState.isSubmitting || isReadingImage}
               autoComplete="email"
+              required
+              aria-required="true"
             />
             {formErrors.email ? <span>{formErrors.email}</span> : null}
           </label>
 
           <label>
-            <span>Телефон</span>
+            <RequiredLabel>Телефон</RequiredLabel>
             <input
               type="tel"
               value={formValues.phone}
               onChange={(event) => handleFieldChange('phone', event.target.value)}
               disabled={submitState.isSubmitting || isReadingImage}
               autoComplete="tel"
+              required
+              aria-required="true"
             />
             {formErrors.phone ? <span>{formErrors.phone}</span> : null}
           </label>
 
           {formValues.inquiryType === 'general' ? (
             <label>
-              <span>Тема</span>
+              <RequiredLabel>Тема</RequiredLabel>
               <input
                 type="text"
                 value={formValues.subject}
                 onChange={(event) => handleFieldChange('subject', event.target.value)}
                 disabled={submitState.isSubmitting || isReadingImage}
                 placeholder="Напр. въпрос към екипа"
+                required
+                aria-required="true"
               />
               {formErrors.subject ? <span>{formErrors.subject}</span> : null}
             </label>
@@ -475,23 +579,27 @@ export function RescueReportPage() {
           {formValues.inquiryType === 'animal' ? (
             <>
               <label className="rescue-form-grid-wide">
-                <span>Местоположение</span>
+                <RequiredLabel>Местоположение</RequiredLabel>
                 <input
                   type="text"
                   value={formValues.location}
                   onChange={(event) => handleFieldChange('location', event.target.value)}
                   disabled={submitState.isSubmitting || isReadingImage}
                   placeholder="Адрес, ориентир или квартал"
+                  required
+                  aria-required="true"
                 />
                 {formErrors.location ? <span>{formErrors.location}</span> : null}
               </label>
 
               <label>
-                <span>Вид животно</span>
+                <RequiredLabel>Вид животно</RequiredLabel>
                 <select
                   value={formValues.species}
                   onChange={(event) => handleFieldChange('species', event.target.value)}
                   disabled={submitState.isSubmitting || isReadingImage}
+                  required
+                  aria-required="true"
                 >
                   {RESCUE_REPORT_SPECIES_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -503,11 +611,13 @@ export function RescueReportPage() {
               </label>
 
               <label>
-                <span>Спешност</span>
+                <RequiredLabel>Спешност</RequiredLabel>
                 <select
                   value={formValues.urgency}
                   onChange={(event) => handleFieldChange('urgency', event.target.value)}
                   disabled={submitState.isSubmitting || isReadingImage}
+                  required
+                  aria-required="true"
                 >
                   {RESCUE_REPORT_URGENCY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -523,21 +633,26 @@ export function RescueReportPage() {
           {formValues.inquiryType === 'adoption' ? (
             <>
               <label>
-                <span>Животно, ако има конкретно</span>
+                <RequiredLabel>Животно</RequiredLabel>
                 <input
                   type="text"
                   value={formValues.animalName}
                   onChange={(event) => handleFieldChange('animalName', event.target.value)}
                   disabled={submitState.isSubmitting || isReadingImage}
                   placeholder="Напр. Лили, Макс..."
+                  required
+                  aria-required="true"
                 />
+                {formErrors.animalName ? <span>{formErrors.animalName}</span> : null}
               </label>
               <label>
-                <span>Тип въпрос</span>
+                <RequiredLabel>Тип въпрос</RequiredLabel>
                 <select
                   value={formValues.subject}
                   onChange={(event) => handleFieldChange('subject', event.target.value)}
                   disabled={submitState.isSubmitting || isReadingImage}
+                  required
+                  aria-required="true"
                 >
                   <option value="">Избери тема</option>
                   <option value="adoption-process">Процес на осиновяване</option>
@@ -545,6 +660,7 @@ export function RescueReportPage() {
                   <option value="submitted-request">Вече подадена заявка</option>
                   <option value="other">Друго</option>
                 </select>
+                {formErrors.subject ? <span>{formErrors.subject}</span> : null}
               </label>
             </>
           ) : null}
@@ -552,21 +668,26 @@ export function RescueReportPage() {
           {formValues.inquiryType === 'volunteering' ? (
             <>
               <label>
-                <span>Наличност</span>
+                <RequiredLabel>Наличност</RequiredLabel>
                 <input
                   type="text"
                   value={formValues.availability}
                   onChange={(event) => handleFieldChange('availability', event.target.value)}
                   disabled={submitState.isSubmitting || isReadingImage}
                   placeholder="Напр. делнични дни, уикенд..."
+                  required
+                  aria-required="true"
                 />
+                {formErrors.availability ? <span>{formErrors.availability}</span> : null}
               </label>
               <label>
-                <span>Интерес към дейност</span>
+                <RequiredLabel>Интерес към дейност</RequiredLabel>
                 <select
                   value={formValues.subject}
                   onChange={(event) => handleFieldChange('subject', event.target.value)}
                   disabled={submitState.isSubmitting || isReadingImage}
+                  required
+                  aria-required="true"
                 >
                   <option value="">Избери дейност</option>
                   <option value="animal-care">Грижа за животни</option>
@@ -575,6 +696,7 @@ export function RescueReportPage() {
                   <option value="events">Събития и кампании</option>
                   <option value="other">Друго</option>
                 </select>
+                {formErrors.subject ? <span>{formErrors.subject}</span> : null}
               </label>
             </>
           ) : null}
@@ -582,11 +704,13 @@ export function RescueReportPage() {
           {formValues.inquiryType === 'donation' ? (
             <>
               <label>
-                <span>Вид дарение</span>
+                <RequiredLabel>Вид дарение</RequiredLabel>
                 <select
                   value={formValues.donationTopic}
                   onChange={(event) => handleFieldChange('donationTopic', event.target.value)}
                   disabled={submitState.isSubmitting || isReadingImage}
+                  required
+                  aria-required="true"
                 >
                   <option value="">Избери вид</option>
                   <option value="money">Парично дарение</option>
@@ -595,26 +719,34 @@ export function RescueReportPage() {
                   <option value="materials">Материали и оборудване</option>
                   <option value="other">Друго</option>
                 </select>
+                {formErrors.donationTopic ? <span>{formErrors.donationTopic}</span> : null}
               </label>
               <label>
-                <span>Тема</span>
+                <RequiredLabel>Тема</RequiredLabel>
                 <input
                   type="text"
                   value={formValues.subject}
                   onChange={(event) => handleFieldChange('subject', event.target.value)}
                   disabled={submitState.isSubmitting || isReadingImage}
                   placeholder="Напр. храна, транспорт, медикаменти"
+                  required
+                  aria-required="true"
                 />
+                {formErrors.subject ? <span>{formErrors.subject}</span> : null}
               </label>
             </>
           ) : null}
 
           <label className="rescue-form-grid-wide">
-            <span>{formValues.inquiryType === 'animal' ? 'Описание на случая' : 'Описание / съобщение'}</span>
+            <RequiredLabel>
+              {formValues.inquiryType === 'animal' ? 'Описание на случая' : 'Описание / съобщение'}
+            </RequiredLabel>
             <textarea
               value={formValues.description}
               onChange={(event) => handleFieldChange('description', event.target.value)}
               disabled={submitState.isSubmitting || isReadingImage}
+              required
+              aria-required="true"
               placeholder={
                 formValues.inquiryType === 'animal'
                   ? 'Опиши какво се е случило, как изглежда животното и защо смяташ, че е в нужда.'
@@ -626,7 +758,7 @@ export function RescueReportPage() {
 
           {formValues.inquiryType === 'animal' ? (
             <div className="rescue-form-grid-wide rescue-photo-field">
-              <span>Снимка по желание</span>
+              <span>Снимка (по желание)</span>
               <input
                 ref={imageInputRef}
                 type="file"

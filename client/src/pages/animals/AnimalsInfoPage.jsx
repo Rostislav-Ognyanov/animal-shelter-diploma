@@ -5,7 +5,13 @@ import { SPECIES_SHOWCASE_ITEMS } from './animalAwarenessData.js';
 
 export function AnimalsInfoPage() {
   return (
-    <main className="route-shell animals-overview-shell">
+    <main className="route-shell animals-overview-shell animals-page-shell animals-info-page-shell">
+      <section className="animals-info-page-hero">
+        <div>
+          <h1>Запознай се повече с животните в приюта</h1>
+        </div>
+      </section>
+
       <section className="animals-overview-species-section" id="species-showcase-section">
         <div className="animals-overview-species-intro">
           <h1>Искаш ли да научиш повече за животните?</h1>

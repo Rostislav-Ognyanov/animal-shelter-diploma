@@ -10,8 +10,8 @@ export const SPECIES_SHOWCASE_ITEMS = [
       'Сред уличните случаи най-чести са блъскания, наранявания и дълъг период на възстановяване преди животното отново да е готово за дом.',
       'Неконтролираното размножаване и липсата на ранна кастрация водят до постоянен приток на нови случаи.',
     ],
-    imageSrc: 'images/animals/Dogs/Beagle_Lily.jpg',
-    imageAlt: 'Лили - куче от приюта',
+    imageSrc: 'images/page_images/dog_info_card.jpg',
+    imageAlt: 'Куче от приюта',
   },
   {
     value: 'cat',

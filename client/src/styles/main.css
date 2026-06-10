@@ -5302,7 +5302,29 @@ footer {
   background-repeat: no-repeat;
 }
 
+.animals-info-page-hero {
+  width: 100vw;
+  min-height: 460px;
+  margin-left: calc(50% - 50vw);
+  padding: 6rem 0;
+  display: flex;
+  align-items: center;
+  color: #ffffff;
+  background:
+    linear-gradient(90deg, rgba(28, 67, 47, 0.86), rgba(47, 111, 78, 0.34)),
+    url('/images/page_images/animal_info_page.jpg');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
 .animals-overview-page-hero > div {
+  width: min(100%, var(--content-max-width));
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.animals-info-page-hero > div {
   width: min(100%, var(--content-max-width));
   margin: 0 auto;
   padding: 0 24px;
@@ -5334,6 +5356,15 @@ footer {
 
 .animals-overview-page-hero h1 {
   width: min(100%, 720px);
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  line-height: 1;
+  text-wrap: balance;
+}
+
+.animals-info-page-hero h1 {
+  width: min(100%, 820px);
   margin: 0;
   color: #ffffff;
   font-size: clamp(2.4rem, 5vw, 4rem);
@@ -5474,6 +5505,11 @@ footer {
   margin: 0;
   color: var(--text-soft);
   line-height: 1.75;
+}
+
+.animals-info-page-shell .animals-overview-species-intro p {
+  width: 100%;
+  max-width: none;
 }
 
 .animals-overview-species-intro strong {
@@ -5654,6 +5690,38 @@ footer {
   gap: 1.25rem;
 }
 
+.species-info-detailed-shell {
+  padding-top: 0;
+}
+
+.species-info-page-hero {
+  width: 100vw;
+  min-height: 460px;
+  margin-left: calc(50% - 50vw);
+  padding: 6rem 0;
+  display: flex;
+  align-items: center;
+  color: #ffffff;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.species-info-page-hero > div {
+  width: min(100%, var(--content-max-width));
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.species-info-page-hero h1 {
+  width: min(100%, 720px);
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  line-height: 1;
+  text-wrap: balance;
+}
+
 .species-info-hero,
 .species-info-not-found {
   border: 1px solid var(--border-soft);
@@ -5710,6 +5778,111 @@ footer {
   gap: 1rem;
 }
 
+.species-info-detail-sections {
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  border-radius: 24px;
+  background: var(--surface-color);
+  box-shadow: 0 16px 32px rgba(24, 48, 34, 0.08);
+}
+
+.species-info-detail-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.95fr);
+  grid-template-areas: 'copy image';
+  gap: clamp(2rem, 4vw, 4rem);
+  align-items: center;
+  padding: 3rem;
+}
+
+.species-info-detail-row + .species-info-detail-row {
+  border-top: 1px solid var(--primary);
+}
+
+.species-info-detail-row.is-reversed {
+  grid-template-columns: minmax(300px, 0.95fr) minmax(0, 1.05fr);
+  grid-template-areas: 'image copy';
+}
+
+.species-info-detail-row.is-centered {
+  grid-template-columns: minmax(0, 900px);
+  grid-template-areas: 'copy';
+  justify-content: center;
+}
+
+.species-info-detail-row.is-centered .species-info-detail-copy {
+  width: 100%;
+  justify-self: center;
+  text-align: center;
+}
+
+.species-info-detail-row.is-centered .species-info-detail-copy h2 {
+  text-align: center;
+}
+
+.species-info-detail-row.is-centered .species-info-detail-copy ul {
+  padding-left: 0;
+  list-style-position: inside;
+}
+
+.species-info-detail-row.is-centered .species-info-detail-copy li strong {
+  color: var(--text-main);
+}
+
+.species-info-detail-copy {
+  grid-area: copy;
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.species-info-detail-copy h2 {
+  margin: 0;
+  color: var(--primary);
+  font-size: clamp(1.45rem, 2.4vw, 2rem);
+}
+
+.species-info-detail-copy p {
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.75;
+}
+
+.species-info-detail-copy ul {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding-left: 1.35rem;
+  color: var(--text-soft);
+}
+
+.species-info-detail-copy li {
+  padding-left: 0.2rem;
+  line-height: 1.65;
+}
+
+.species-info-detail-copy li::marker {
+  color: var(--primary);
+}
+
+.species-info-detail-image {
+  grid-area: image;
+  width: 100%;
+  height: 430px;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 24px;
+  background: #edf5ef;
+  box-shadow: 0 22px 46px rgba(28, 67, 47, 0.16);
+}
+
+.species-info-detail-image img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
 .species-info-chapter,
 .species-info-not-found {
   display: grid;
@@ -5739,8 +5912,18 @@ footer {
   .animals-overview-stories-grid,
   .rescue-stories-page-grid,
   .species-info-hero,
-  .species-info-chapters {
+  .species-info-chapters,
+  .species-info-detail-row,
+  .species-info-detail-row.is-reversed {
     grid-template-columns: 1fr;
+  }
+
+  .species-info-detail-row,
+  .species-info-detail-row.is-reversed {
+    grid-template-areas:
+      'copy'
+      'image';
+    padding: 2rem;
   }
 
   .animals-overview-info-card,
@@ -5774,6 +5957,10 @@ footer {
 
   .species-info-hero-image {
     min-height: 280px;
+  }
+
+  .species-info-detail-image {
+    height: 320px;
   }
 }
 
@@ -5867,6 +6054,45 @@ footer {
   gap: 1rem;
 }
 
+.contact-page-shell {
+  padding-top: 0;
+}
+
+.contact-page-hero {
+  width: 100vw;
+  min-height: 460px;
+  margin-left: calc(50% - 50vw);
+  padding: 6rem 0;
+  display: flex;
+  align-items: center;
+  color: #ffffff;
+  background:
+    linear-gradient(90deg, rgba(28, 67, 47, 0.86), rgba(47, 111, 78, 0.34)),
+    url('/images/page_images/contacts_page.jpg?v=2');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.contact-page-hero > div {
+  width: min(100%, var(--content-max-width));
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.contact-page-hero h1 {
+  width: min(100%, 720px);
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  line-height: 1;
+  text-wrap: balance;
+}
+
+.contact-page-details-copy {
+  align-content: center;
+}
+
 .rescue-hero,
 .rescue-card,
 .rescue-filters-card,
@@ -5904,23 +6130,42 @@ footer {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
+  margin-top: 0.5rem;
 }
 
 .contact-info-card {
   display: grid;
   gap: 0.35rem;
-  padding: 1rem;
+  padding: 0.85rem;
   border: 1px solid rgba(47, 111, 78, 0.12);
   border-radius: 20px;
   background: #f8fbf9;
 }
 
-.contact-info-card span {
+.contact-info-card > .contact-info-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   color: var(--text-soft);
   font-size: 0.82rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.contact-info-icon {
+  width: 1.45rem;
+  height: 1.45rem;
+  display: inline-flex;
+  flex: 0 0 1.45rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(47, 111, 78, 0.1);
+  color: var(--primary);
+  font-size: 0.88rem;
+  font-weight: 900;
+  letter-spacing: 0;
 }
 
 .contact-info-card strong {
@@ -5930,6 +6175,15 @@ footer {
 
 .contact-type-section {
   gap: 1rem;
+}
+
+.contact-type-transition,
+.contact-form-intro {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.7;
 }
 
 .contact-type-grid {
@@ -6035,6 +6289,12 @@ footer {
 .rescue-form-grid label span,
 .rescue-card .profile-form-grid label span {
   color: var(--text-main);
+}
+
+.rescue-form-grid .volunteer-required-marker {
+  margin-left: 0.25rem;
+  color: #b13838;
+  font-weight: 900;
 }
 
 .rescue-form-grid label > span + span,

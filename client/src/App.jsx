@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthProvider.jsx';
 import { Footer } from './components/layout/Footer.jsx';
 import { Header } from './components/layout/Header.jsx';
+import { ScrollToTop } from './components/layout/ScrollToTop.jsx';
 import { FavoritesProvider } from './favorites/FavoritesProvider.jsx';
 import { fetchJson } from './lib/api.js';
 import { AppRoutes } from './routes/AppRoutes.jsx';
@@ -99,6 +100,7 @@ function AppLayout() {
 export default function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <AuthProvider>
         <FavoritesProvider>
           <AppLayout />
