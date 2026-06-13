@@ -23,7 +23,7 @@ function SpeciesDetailSection({ index, section }) {
       }
 
       const copyHeight = copyRef.current.getBoundingClientRect().height;
-      setImageHeight(Math.min(430, Math.round(copyHeight * 1.5)));
+      setImageHeight(Math.min(430, Math.round(copyHeight * 2)));
     }
 
     updateImageHeight();

@@ -5613,6 +5613,38 @@ footer {
 .rescue-stories-page-shell {
   display: grid;
   gap: 1.25rem;
+  padding-top: 0;
+}
+
+.rescue-stories-page-hero {
+  width: 100vw;
+  min-height: 460px;
+  margin-left: calc(50% - 50vw);
+  padding: 6rem 0;
+  display: flex;
+  align-items: center;
+  color: #ffffff;
+  background:
+    linear-gradient(90deg, rgba(28, 67, 47, 0.86), rgba(47, 111, 78, 0.34)),
+    url('/images/page_images/stories_page.jpg');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.rescue-stories-page-hero > div {
+  width: min(100%, var(--content-max-width));
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.rescue-stories-page-hero h1 {
+  width: min(100%, 820px);
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  line-height: 1;
+  text-wrap: balance;
 }
 
 .rescue-stories-page-heading {
@@ -5627,6 +5659,43 @@ footer {
   grid-template-columns: 1fr;
   gap: 1rem;
   padding: 1.35rem;
+}
+
+.rescue-stories-page-list-title {
+  margin: 0 0 0.35rem;
+  color: var(--primary);
+  font-size: clamp(1.55rem, 2.4vw, 2.15rem);
+  font-weight: 800;
+}
+
+.rescue-stories-page-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(190px, 280px)) auto;
+  gap: 0.85rem;
+  align-items: end;
+  padding: 1rem 0 1.25rem;
+  border-bottom: 1px solid rgba(47, 111, 78, 0.14);
+}
+
+.rescue-stories-page-filters label {
+  display: grid;
+  gap: 0.45rem;
+  color: #355240;
+  font-weight: 700;
+}
+
+.rescue-stories-page-filters select {
+  min-height: 52px;
+  padding: 0.85rem 1rem;
+  border: 1px solid #d1dfd5;
+  border-radius: 8px;
+  background: #f8fbf9;
+  color: var(--text-main);
+  font: inherit;
+}
+
+.rescue-stories-page-filters .animals-secondary-action {
+  width: fit-content;
 }
 
 .rescue-stories-page-card {
@@ -5652,6 +5721,47 @@ footer {
   color: var(--text-soft);
   font-size: 0.82rem;
   font-weight: 700;
+}
+
+.rescue-stories-page-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem 0.8rem;
+}
+
+.rescue-story-animal {
+  color: var(--text-main);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.rescue-story-status {
+  width: fit-content;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.rescue-story-status.is-adopted {
+  border-color: rgba(39, 110, 68, 0.24);
+  background: #e8f5ec;
+  color: #245f3c;
+}
+
+.rescue-story-status.is-recovered {
+  border-color: rgba(42, 91, 141, 0.24);
+  background: #eaf2fa;
+  color: #27577f;
+}
+
+.rescue-story-status.is-released {
+  border-color: rgba(154, 101, 24, 0.26);
+  background: #fff4dc;
+  color: #795016;
 }
 
 .rescue-stories-page-card-copy h2 {
@@ -5683,6 +5793,39 @@ footer {
   height: 100%;
   display: block;
   object-fit: cover;
+}
+
+.rescue-stories-page-empty {
+  margin: 0;
+  padding: 2rem;
+  color: var(--text-soft);
+  line-height: 1.7;
+  text-align: center;
+}
+
+.rescue-stories-page-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  margin-top: 0.35rem;
+  padding: 1.5rem 0 0.25rem;
+  border-top: 1px solid rgba(47, 111, 78, 0.14);
+  text-align: center;
+}
+
+.rescue-stories-page-cta h2 {
+  margin: 0;
+  color: var(--primary);
+  font-size: 1.1rem;
+  line-height: 1.4;
+}
+
+.rescue-stories-page-cta .about-page-contact-link {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 0;
 }
 
 .species-info-shell {
@@ -5916,6 +6059,14 @@ footer {
   .species-info-detail-row,
   .species-info-detail-row.is-reversed {
     grid-template-columns: 1fr;
+  }
+
+  .rescue-stories-page-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .rescue-stories-page-filters .animals-secondary-action {
+    width: 100%;
   }
 
   .species-info-detail-row,

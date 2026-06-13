@@ -24,8 +24,8 @@ export const SPECIES_SHOWCASE_ITEMS = [
       'Котките на улицата са изложени на инфекции, отравяния, сблъсъци с автомобили и липса на постоянна храна.',
       'Без контрол върху размножаването броят на котките без сигурна среда се увеличава много бързо.',
     ],
-    imageSrc: 'images/animals/Cats/Domestic_Shorthair_Ginger_Garfield.jpeg',
-    imageAlt: 'Гарфийлд - котка от приюта',
+    imageSrc: 'images/info_pages/Cat/cat_main.jpg',
+    imageAlt: 'Котка от приюта',
   },
   {
     value: 'rabbit',
@@ -38,7 +38,7 @@ export const SPECIES_SHOWCASE_ITEMS = [
       'При домашно зайче, оставено навън, рискът от травми, хищници и заболявания е много висок.',
       'Без подходяща среда и ветеринарно наблюдение състоянието им може да се влоши бързо и почти без външни признаци.',
     ],
-    imageSrc: 'images/animals/Rabbits/Holland_Lop_Minny.jpg',
+    imageSrc: 'images/info_pages/Rabbit/rabbit_main.jpg',
     imageAlt: 'Мини - зайче от приюта',
   },
   {
@@ -52,7 +52,7 @@ export const SPECIES_SHOWCASE_ITEMS = [
       'При недостиг на безопасни пространства се увеличават рисковете от глад, стрес и опасни срещи с хора и машини.',
       'Свиването на спокойните местообитания прави възстановяването и правилното настаняване значително по-трудни.',
     ],
-    imageSrc: 'images/animals/Foxes/Sidney.webp',
+    imageSrc: 'images/info_pages/Fox/fox_main.webp',
     imageAlt: 'Сидни - лисица от приюта',
   },
   {
@@ -66,7 +66,7 @@ export const SPECIES_SHOWCASE_ITEMS = [
       'Неподходящата среда може да доведе до стрес, отказ от храна и здравословни усложнения.',
       'При изоставяне или неправилно преместване рискът за тях е висок, защото са силно зависими от контролирани условия.',
     ],
-    imageSrc: 'images/animals/Lizards/Sirocco.jpg',
+    imageSrc: 'images/info_pages/Lizard/lizard_main.jpg',
     imageAlt: 'Сироко - гущер от приюта',
   },
   {
@@ -80,7 +80,7 @@ export const SPECIES_SHOWCASE_ITEMS = [
       'Младите или отслабени птици могат да се окажат в риск при липса на храна и спокойна среда.',
       'Неправилното докосване или преместване може да увеличи стреса и да забави възстановяването.',
     ],
-    imageSrc: 'images/animals/Owls/Sydney.webp',
+    imageSrc: 'images/page_images/owl_info_card.webp',
     imageAlt: 'Сидни - сова от приюта',
   },
   {
@@ -94,7 +94,7 @@ export const SPECIES_SHOWCASE_ITEMS = [
       'Преместването без подготовка и липсата на спокойна среда често създават силен стрес.',
       'Осиновяването или поемането на грижа за кон трябва да бъде добре обмислено и дългосрочно.',
     ],
-    imageSrc: 'images/animals/Horses/Oden.png',
+    imageSrc: 'images/info_pages/Horse/horse_main.webp',
     imageAlt: 'Оден - кон от приюта',
   },
   {
@@ -108,7 +108,7 @@ export const SPECIES_SHOWCASE_ITEMS = [
       'Малките таралежи могат да се изтощят бързо, ако останат без храна, топлина или защита.',
       'При намиране на пострадал таралеж е важно да се потърси помощ, вместо да се оставя без наблюдение.',
     ],
-    imageSrc: 'images/animals/Hedgehogs/Ashley.jpg',
+    imageSrc: 'images/info_pages/Hedgehog/hedgehog_main.jpg',
     imageAlt: 'Ашли - таралеж от приюта',
   },
 ];
