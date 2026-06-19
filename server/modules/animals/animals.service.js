@@ -227,6 +227,20 @@ function normalizeDateOutput(value) {
   return value;
 }
 
+function normalizeHealthCareItems(items) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .map((item) => ({
+      label: normalizeDisplayText(item?.label),
+      value: normalizeDisplayText(item?.value),
+      description: normalizeDisplayText(item?.description),
+    }))
+    .filter((item) => item.label && item.value && item.description);
+}
+
 function normalizeLookupAnimalId(animalId) {
   return String(animalId ?? '').trim().toLowerCase();
 }
@@ -350,9 +364,14 @@ function serializeAnimal(animal) {
     isActive: Boolean(animal.isActive),
     intakeDate: normalizeDateOutput(animal.intakeDate),
     healthStatus: animal.healthStatus,
+    healthCareItems: normalizeHealthCareItems(animal.healthCareItems),
     vaccinated: Boolean(animal.vaccinated),
     neutered: Boolean(animal.neutered),
     description,
+    story: animal.story ?? '',
+    historyAndCharacter: animal.historyAndCharacter ?? '',
+    details: animal.details ?? '',
+    careConditions: animal.careConditions ?? '',
     imageUrls,
     imageUrl: primaryImageUrl,
     createdAt: normalizeDateOutput(animal.createdAt),
@@ -360,7 +379,7 @@ function serializeAnimal(animal) {
     ageYears: age,
     shortDescription: description,
     image: primaryImageUrl,
-    facts: `${ANIMAL_SPECIES_LABELS[species] ?? species} | ${ageText} | ${ANIMAL_GENDER_LABELS[gender] ?? gender}`,
+    facts: animal.facts ?? `${ANIMAL_SPECIES_LABELS[species] ?? species} | ${ageText} | ${ANIMAL_GENDER_LABELS[gender] ?? gender}`,
   };
 }
 
@@ -692,6 +711,11 @@ function normalizeAnimalWritePayload(payload, options = {}) {
     hasExplicitChanges = true;
   }
 
+  if (payload.healthCareItems !== undefined) {
+    normalizedPayload.healthCareItems = normalizeHealthCareItems(payload.healthCareItems);
+    hasExplicitChanges = true;
+  }
+
   if (!partial || payload.vaccinated !== undefined) {
     normalizedPayload.vaccinated =
       payload.vaccinated !== undefined
@@ -719,6 +743,26 @@ function normalizeAnimalWritePayload(payload, options = {}) {
     }
 
     normalizedPayload.description = description;
+    hasExplicitChanges = true;
+  }
+
+  if (payload.story !== undefined) {
+    normalizedPayload.story = normalizeDisplayText(payload.story);
+    hasExplicitChanges = true;
+  }
+
+  if (payload.historyAndCharacter !== undefined) {
+    normalizedPayload.historyAndCharacter = normalizeDisplayText(payload.historyAndCharacter);
+    hasExplicitChanges = true;
+  }
+
+  if (payload.details !== undefined) {
+    normalizedPayload.details = normalizeDisplayText(payload.details);
+    hasExplicitChanges = true;
+  }
+
+  if (payload.careConditions !== undefined) {
+    normalizedPayload.careConditions = normalizeDisplayText(payload.careConditions);
     hasExplicitChanges = true;
   }
 

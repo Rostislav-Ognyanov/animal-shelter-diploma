@@ -26,7 +26,20 @@ function readAnimalListFilters(query = {}) {
   };
 }
 
+function canViewAnimalPolicy(roleCandidate) {
+  return roleCandidate === 'employee' || roleCandidate === 'admin';
+}
+
+function stripInternalAnimalFields(animal) {
+  const { createdAt, isActive, policy, slug, updatedAt, ...publicAnimal } = animal;
+  return publicAnimal;
+}
+
 function buildAnimalResponseData(animal, roleCandidate) {
+  if (!canViewAnimalPolicy(roleCandidate)) {
+    return stripInternalAnimalFields(animal);
+  }
+
   return {
     ...animal,
     policy: getAnimalModulePolicy(roleCandidate),
@@ -42,9 +55,11 @@ export async function listAnimals(req, res, next) {
       message: 'Списъкът с животни е зареден успешно.',
       items: animalCollection.items,
       total: animalCollection.total,
-      data: {
-        policy: getAnimalModulePolicy(req.user?.role ?? 'guest'),
-      },
+      data: canViewAnimalPolicy(req.user?.role)
+        ? {
+            policy: getAnimalModulePolicy(req.user.role),
+          }
+        : {},
       meta: {
         pagination: animalCollection.pagination,
         sort: animalCollection.sort,

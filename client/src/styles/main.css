@@ -1848,6 +1848,7 @@ footer {
   padding: 1.1rem 1.15rem;
   border-radius: 24px;
   background: linear-gradient(180deg, #f4faf6, #edf5ef);
+  scroll-margin-top: calc(var(--header-height) + 24px);
 }
 
 .animal-details-cta-card h2,
@@ -1881,16 +1882,138 @@ footer {
 
 .animal-details-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 1rem;
+  align-items: stretch;
 }
 
 .animal-details-card {
+  grid-column: 1 / -1;
   padding: 1.35rem;
+}
+
+.animal-details-description-card {
+  grid-column: span 5;
+}
+
+.animal-details-history-card {
+  grid-column: span 7;
+}
+
+.animal-details-basic-card {
+  grid-column: span 7;
+}
+
+.animal-details-care-card {
+  grid-column: span 5;
+}
+
+.animal-details-medical-card {
+  grid-column: 1 / -1;
+  border-color: rgba(47, 111, 78, 0.2);
+  background: linear-gradient(135deg, #f5fbf7 0%, #ffffff 58%, #eef7f1 100%);
+  box-shadow: 0 18px 36px rgba(24, 48, 34, 0.11);
+}
+
+.animal-details-medical-card .animal-details-card-heading {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(47, 111, 78, 0.13);
+}
+
+.animal-details-medical-card .animal-details-card-heading h2 {
+  font-size: 1.45rem;
 }
 
 .animal-details-card-heading {
   margin-bottom: 1rem;
+}
+
+.animal-details-card-text {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0;
+  color: var(--text-main);
+  line-height: 1.8;
+}
+
+.animal-details-text-paragraph,
+.animal-details-text-heading {
+  margin: 0;
+}
+
+.animal-details-text-heading {
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.animal-details-structured-list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.animal-details-structured-list li {
+  padding-left: 0.1rem;
+  color: var(--text-main);
+  line-height: 1.75;
+}
+
+.animal-details-structured-list strong {
+  color: var(--text-main);
+  font-weight: 800;
+}
+
+.animal-details-card-lead {
+  margin-bottom: 0;
+  color: var(--text-soft);
+}
+
+.animal-healthcare-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.animal-healthcare-item {
+  display: grid;
+  gap: 0.55rem;
+  padding: 1rem;
+  border: 1px solid rgba(47, 111, 78, 0.12);
+  border-radius: 16px;
+  background: #f8fbf9;
+}
+
+.animal-healthcare-item-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.animal-healthcare-item h3 {
+  margin: 0;
+  color: var(--primary);
+  font-size: 1rem;
+}
+
+.animal-healthcare-item span {
+  flex: 0 0 auto;
+  max-width: 100%;
+  padding: 0.32rem 0.65rem;
+  border-radius: 999px;
+  background: #edf5ef;
+  color: var(--primary-deep);
+  font-size: 0.84rem;
+  font-weight: 800;
+  text-align: left;
+}
+
+.animal-healthcare-item p {
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.65;
 }
 
 .animal-details-info-list {
@@ -1942,10 +2065,59 @@ footer {
   font-weight: 700;
 }
 
+.animal-details-help-card {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1.35rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 24px;
+  background: linear-gradient(180deg, #ffffff, #f4faf6);
+  box-shadow: 0 16px 32px rgba(24, 48, 34, 0.08);
+}
+
+.animal-details-help-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.animal-details-help-row + .animal-details-help-row {
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(47, 111, 78, 0.12);
+}
+
+.animal-details-help-row h2 {
+  margin: 0;
+  color: var(--primary);
+  font-size: 1.05rem;
+  line-height: 1.4;
+}
+
+.animal-details-help-row .about-page-contact-link {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 0;
+}
+
 @media (max-width: 1080px) {
-  .animal-details-hero,
+  .animal-details-hero {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
   .animal-details-grid {
     grid-template-columns: 1fr;
+  }
+
+  .animal-details-description-card,
+  .animal-details-history-card,
+  .animal-details-basic-card,
+  .animal-details-care-card,
+  .animal-details-medical-card {
+    grid-column: 1 / -1;
   }
 }
 
@@ -1965,6 +2137,20 @@ footer {
 
   .animal-details-info-list {
     grid-template-columns: 1fr;
+  }
+
+  .animal-healthcare-list {
+    grid-template-columns: 1fr;
+  }
+
+  .animal-healthcare-item-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .animal-healthcare-item span {
+    max-width: 100%;
+    text-align: left;
   }
 
   .animal-details-action {

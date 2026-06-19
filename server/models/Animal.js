@@ -72,6 +72,26 @@ const animalSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    healthCareItems: {
+      type: [
+        {
+          _id: false,
+          label: {
+            type: String,
+            trim: true,
+          },
+          value: {
+            type: String,
+            trim: true,
+          },
+          description: {
+            type: String,
+            trim: true,
+          },
+        },
+      ],
+      default: [],
+    },
     vaccinated: {
       type: Boolean,
       default: false,
@@ -83,6 +103,22 @@ const animalSchema = new mongoose.Schema(
     description: {
       type: String,
       required: true,
+      trim: true,
+    },
+    story: {
+      type: String,
+      trim: true,
+    },
+    historyAndCharacter: {
+      type: String,
+      trim: true,
+    },
+    details: {
+      type: String,
+      trim: true,
+    },
+    careConditions: {
+      type: String,
       trim: true,
     },
     imageUrls: {

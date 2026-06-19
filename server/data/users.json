@@ -8,9 +8,9 @@
     "passwordHash": "$2b$10$ARg7hUeFFY7O72fu3WWTaugVREk7leM6m2q195EN1vY0t.Vb8JcCG",
     "role": "admin",
     "isActive": true,
-    "lastLoginAt": "2026-06-05T14:57:41.182Z",
+    "lastLoginAt": "2026-06-16T14:54:11.114Z",
     "createdAt": "2026-04-01T09:00:00.000Z",
-    "updatedAt": "2026-06-05T14:57:41.183Z"
+    "updatedAt": "2026-06-16T14:54:11.116Z"
   },
   {
     "id": "seed-employee-001",
@@ -34,9 +34,9 @@
     "passwordHash": "$2b$10$9bgScoVw.SJ5Nl/C41VIBe.0zLUfGkqWKiJOxZJaHbaOXjRcG4jW2",
     "role": "client",
     "isActive": true,
-    "lastLoginAt": "2026-05-21T13:03:30.031Z",
+    "lastLoginAt": "2026-06-16T15:40:16.560Z",
     "createdAt": "2026-04-01T09:10:00.000Z",
-    "updatedAt": "2026-05-21T13:03:30.031Z"
+    "updatedAt": "2026-06-16T15:40:16.561Z"
   },
   {
     "id": "seed-client-002",
