@@ -1,8 +1,10 @@
 ﻿import {
+  ANIMAL_FILTER_GENDER_OPTIONS,
   ANIMAL_FILTER_SIZE_OPTIONS,
   ANIMAL_FILTER_SPECIES_OPTIONS,
   ANIMAL_FILTER_STATUS_OPTIONS,
   normalizeAnimalStatusValue,
+  normalizeGenderValue,
   normalizeSizeValue,
   normalizeSpeciesValue,
 } from './animalUi.js';
@@ -13,6 +15,7 @@ export const DEFAULT_SORT = 'name-asc';
 export const DEFAULT_FILTERS = {
   query: '',
   species: '',
+  gender: '',
   size: '',
   status: '',
   sort: DEFAULT_SORT,
@@ -20,6 +23,7 @@ export const DEFAULT_FILTERS = {
 };
 
 export const SPECIES_OPTIONS = ANIMAL_FILTER_SPECIES_OPTIONS;
+export const GENDER_OPTIONS = ANIMAL_FILTER_GENDER_OPTIONS;
 export const SIZE_OPTIONS = ANIMAL_FILTER_SIZE_OPTIONS;
 export const STATUS_OPTIONS = ANIMAL_FILTER_STATUS_OPTIONS;
 
@@ -62,6 +66,10 @@ export function normalizeSizeFilterValue(value) {
   return normalizeSizeValue(value);
 }
 
+export function normalizeGenderFilterValue(value) {
+  return normalizeGenderValue(value);
+}
+
 function normalizeStatusFilterValue(value) {
   return normalizeAnimalStatusValue(value);
 }
@@ -70,6 +78,7 @@ export function normalizeAnimalsFilters(filters = {}) {
   return {
     query: String(filters.query ?? '').trim(),
     species: normalizeSpeciesFilterValue(filters.species ?? filters.type),
+    gender: normalizeGenderFilterValue(filters.gender),
     size: normalizeSizeFilterValue(filters.size),
     status: normalizeStatusFilterValue(filters.status),
     sort: normalizeSortFilterValue(filters.sort),
@@ -81,6 +90,7 @@ export function readFiltersFromParams(searchParams) {
   return normalizeAnimalsFilters({
     query: readTextParam(searchParams, 'query'),
     species: readTextParam(searchParams, 'species') || readTextParam(searchParams, 'type'),
+    gender: readTextParam(searchParams, 'gender'),
     size: readTextParam(searchParams, 'size'),
     status: readTextParam(searchParams, 'status'),
     sort: readTextParam(searchParams, 'sort', DEFAULT_SORT) || DEFAULT_SORT,
@@ -114,6 +124,10 @@ export function serializeAnimalsParams(filters, options = {}) {
 
   if (normalizedFilters.species) {
     params.set('species', normalizedFilters.species);
+  }
+
+  if (normalizedFilters.gender) {
+    params.set('gender', normalizedFilters.gender);
   }
 
   if (normalizedFilters.size) {
@@ -167,6 +181,10 @@ export function buildResultsSummary(total, filters, pagination) {
 
   if (normalizedFilters.species) {
     parts.push(`вид ${findOptionLabel(SPECIES_OPTIONS, normalizedFilters.species)}`);
+  }
+
+  if (normalizedFilters.gender) {
+    parts.push(`пол ${findOptionLabel(GENDER_OPTIONS, normalizedFilters.gender)}`);
   }
 
   if (normalizedFilters.size) {

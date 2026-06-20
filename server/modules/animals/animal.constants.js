@@ -3,6 +3,9 @@
   'reserved',
   'adopted',
   'medical-care',
+  'under-care',
+  'protected-care',
+  'released',
   'inactive',
   'archived',
 ];
@@ -38,11 +41,14 @@ export const ANIMAL_SORT_VALUES = [
 ];
 
 export const ANIMAL_STATUS_TRANSITIONS = {
-  available: ['reserved', 'medical-care', 'inactive', 'archived'],
-  reserved: ['available', 'adopted', 'medical-care', 'inactive', 'archived'],
+  available: ['reserved', 'medical-care', 'under-care', 'protected-care', 'inactive', 'archived'],
+  reserved: ['available', 'adopted', 'medical-care', 'under-care', 'protected-care', 'inactive', 'archived'],
   adopted: ['archived'],
-  'medical-care': ['available', 'inactive', 'archived'],
-  inactive: ['available', 'medical-care', 'archived'],
+  'medical-care': ['available', 'under-care', 'protected-care', 'released', 'inactive', 'archived'],
+  'under-care': ['available', 'medical-care', 'protected-care', 'released', 'inactive', 'archived'],
+  'protected-care': ['under-care', 'medical-care', 'released', 'inactive', 'archived'],
+  released: ['protected-care', 'medical-care', 'archived'],
+  inactive: ['available', 'medical-care', 'under-care', 'protected-care', 'archived'],
   archived: [],
 };
 
@@ -51,6 +57,9 @@ export const ANIMAL_STATUS_LABELS = {
   reserved: 'Резервирано',
   adopted: 'Осиновено',
   'medical-care': 'Медицинска грижа',
+  'under-care': 'Под грижа',
+  'protected-care': 'Защитена грижа',
+  released: 'Върнато в природата',
   inactive: 'Неактивно',
   archived: 'Архивирано',
 };

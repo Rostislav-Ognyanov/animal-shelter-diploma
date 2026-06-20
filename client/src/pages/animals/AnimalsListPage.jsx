@@ -14,6 +14,7 @@ import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
 import {
   DEFAULT_FILTERS,
   DEFAULT_SORT,
+  GENDER_OPTIONS,
   PAGE_SIZE,
   SIZE_OPTIONS,
   SORT_OPTIONS,
@@ -81,6 +82,7 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
   const [formValues, setFormValues] = useState(() => ({
     query: routeFilters.query,
     species: routeFilters.species,
+    gender: routeFilters.gender,
     size: routeFilters.size,
     status: routeFilters.status,
   }));
@@ -108,10 +110,11 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
     setFormValues({
       query: routeFilters.query,
       species: routeFilters.species,
+      gender: routeFilters.gender,
       size: routeFilters.size,
       status: routeFilters.status,
     });
-  }, [routeFilters.query, routeFilters.species, routeFilters.size, routeFilters.status]);
+  }, [routeFilters.query, routeFilters.species, routeFilters.gender, routeFilters.size, routeFilters.status]);
 
   useEffect(() => {
     let isMounted = true;
@@ -174,7 +177,7 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
   const roleDescription = getRoleDescription(role);
   const roleUiActions = getRoleUiActions(role);
   const hasAppliedFilters = Boolean(
-    routeFilters.query || routeFilters.species || routeFilters.size || routeFilters.status
+    routeFilters.query || routeFilters.species || routeFilters.gender || routeFilters.size || routeFilters.status
   );
   const showInitialLoading = animalsState.isLoading && animalsState.items.length === 0;
   const showRefreshingState = animalsState.isLoading && animalsState.items.length > 0;
@@ -207,6 +210,7 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
         {
           query: formValues.query,
           species: formValues.species,
+          gender: formValues.gender,
           size: formValues.size,
           status: usesAvailableOnly ? '' : formValues.status,
         },
@@ -219,6 +223,7 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
     setFormValues({
       query: '',
       species: '',
+      gender: '',
       size: '',
       status: '',
     });
@@ -346,6 +351,17 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
               >
                 {SPECIES_OPTIONS.map((option) => (
                   <option key={option.value || 'all-species'} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Пол</span>
+              <select value={formValues.gender} onChange={(event) => handleFieldChange('gender', event.target.value)}>
+                {GENDER_OPTIONS.map((option) => (
+                  <option key={option.value || 'all-genders'} value={option.value}>
                     {option.label}
                   </option>
                 ))}

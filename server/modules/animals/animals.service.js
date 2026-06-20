@@ -22,6 +22,88 @@ import { getAllowedAnimalActions } from '../shared/rolePolicies.js';
 
 const ANIMALS_DATA_PATH = 'data/animals.json';
 const INACTIVE_ANIMAL_STATUSES = new Set(['inactive', 'archived']);
+const PROTECTED_CARE_SPECIES = new Set(['fox', 'owl', 'hedgehog']);
+const SEARCH_ALIASES = {
+  species: {
+    dog: ['dog', 'куче', 'кучета'],
+    cat: ['cat', 'котка', 'котки', 'котарак'],
+    rabbit: ['rabbit', 'заек', 'зайче', 'зайци'],
+    fox: ['fox', 'лисица', 'лисици', 'дива лисица'],
+    lizard: ['lizard', 'гущер', 'гущери', 'влечуго'],
+    owl: ['owl', 'сова', 'сови', 'птица'],
+    horse: ['horse', 'кон', 'коне', 'пони'],
+    hedgehog: ['hedgehog', 'таралеж', 'таралежи'],
+  },
+  breeds: {
+    dog: {
+      dachshund: ['dachshund', 'дакел'],
+      'irish wolfhound': ['irish wolfhound', 'ирландски вълкодав', 'вълкодав'],
+      beagle: ['beagle', 'бийгъл', 'бигъл'],
+      'american pitbull': ['american pitbull', 'pitbull', 'питбул', 'американски питбул'],
+      'golden retriever': ['golden retriever', 'голдън ретривър', 'голдън', 'ретривър'],
+    },
+    cat: {
+      munchkin: ['munchkin', 'манчкин', 'мънчкин'],
+      'domestic shorthair tuxedo': [
+        'domestic shorthair tuxedo',
+        'domestic shorthair',
+        'късокосместа котка',
+        'домашна късокосместа',
+        'тукседо',
+        'черно-бяла котка',
+      ],
+      'domestic shorthair ginger': [
+        'domestic shorthair ginger',
+        'domestic shorthair',
+        'късокосместа котка',
+        'домашна късокосместа',
+        'джинджър',
+        'рижава котка',
+        'оранжева котка',
+      ],
+      'domestic longhair': ['domestic longhair', 'дългокосместа котка', 'домашна дългокосместа'],
+      'maine coon': ['maine coon', 'мейн кун', 'мейн', 'мейн куун'],
+    },
+    rabbit: {
+      'holland lop': ['holland lop', 'холандски лоп', 'холандско клепоухо', 'клепоухо зайче'],
+      'english spot': ['english spot', 'английски спот', 'английско петнисто зайче', 'петнисто зайче'],
+      'english angora': ['english angora', 'английска ангора', 'ангора', 'ангорско зайче'],
+      'new zealand white': ['new zealand white', 'новозеландско бяло', 'новозеландски бял заек', 'бял заек'],
+      'flemish giant': ['flemish giant', 'фламандски гигант', 'фламандски заек', 'гигантски заек'],
+    },
+    fox: {
+      wild: ['wild', 'див', 'дива', 'диво', 'диво животно', 'дива лисица', 'лисица'],
+    },
+    lizard: {
+      'crested gecko': ['crested gecko', 'крестат гекон', 'гребенест гекон', 'гекон'],
+      'leopard gecko': ['leopard gecko', 'леопардов гекон', 'гекон'],
+      'panther chameleon': ['panther chameleon', 'пантеров хамелеон', 'хамелеон'],
+      'green iguana': ['green iguana', 'зелена игуана', 'игуана'],
+    },
+    owl: {
+      'northern hawk owl': ['northern hawk owl', 'северна ястребова сова', 'ястребова сова', 'сова'],
+      'burrowing owl': ['burrowing owl', 'земна сова', 'ровеща сова', 'сова'],
+      'barn owl': ['barn owl', 'забулена сова', 'хамбарна сова', 'сова'],
+      'snowy owl': ['snowy owl', 'снежна сова', 'бяла сова', 'сова'],
+    },
+    horse: {
+      'shetland pony': ['shetland pony', 'шетландско пони', 'шетландско', 'пони'],
+      'thoroughbred domestic': [
+        'thoroughbred domestic',
+        'thoroughbred',
+        'чистокръвен кон',
+        'английски чистокръвен',
+        'домашен кон',
+      ],
+      'paso fino': ['paso fino', 'пасо фино'],
+      friesian: ['friesian', 'фризийски кон', 'фризиец'],
+      clydesdale: ['clydesdale', 'клайдсдейл', 'клайдсдейлски кон'],
+    },
+    hedgehog: {
+      wild: ['wild', 'див', 'дива', 'диво', 'див таралеж', 'таралеж', 'диво животно'],
+    },
+  },
+};
 const ANIMAL_SORT_VALUE_BY_NORMALIZED_VALUE = ANIMAL_SORT_VALUES.reduce((sortMap, sortValue) => {
   sortMap[sortValue.toLowerCase()] = sortValue;
   return sortMap;
@@ -279,6 +361,176 @@ function normalizeGender(value) {
   return GENDER_ALIASES[normalizedValue] ?? normalizedValue;
 }
 
+function getSearchTerms(value) {
+  const normalizedValue = normalizeText(value);
+
+  if (!normalizedValue) {
+    return [];
+  }
+
+  const transliteratedValue = normalizeText(transliterateToLatin(normalizedValue));
+  return [...new Set([normalizedValue, transliteratedValue].filter(Boolean))];
+}
+
+function searchTermsMatchValue(value, searchTerms) {
+  const valueTerms = getSearchTerms(value);
+
+  return valueTerms.some((valueTerm) =>
+    searchTerms.some((searchTerm) => valueTerm.includes(searchTerm))
+  );
+}
+
+function searchAliasesMatch(aliasValues, searchTerms) {
+  return aliasValues.some((aliasValue) => searchTermsMatchValue(aliasValue, searchTerms));
+}
+
+function getSpeciesSearchAliases(species) {
+  const normalizedSpecies = normalizeSpecies(species);
+  return SEARCH_ALIASES.species[normalizedSpecies] ?? [];
+}
+
+function getBreedSearchAliases(species, breed) {
+  const normalizedSpecies = normalizeSpecies(species);
+  const normalizedBreed = normalizeText(breed);
+  return SEARCH_ALIASES.breeds[normalizedSpecies]?.[normalizedBreed] ?? [];
+}
+
+function getAnimalSearchAliasValues(animal) {
+  const species = normalizeSpecies(animal.species ?? animal.type);
+
+  return [
+    ...getSpeciesSearchAliases(species),
+    ...getBreedSearchAliases(species, animal.breed),
+  ];
+}
+
+function getSpeciesValuesMatchingAliasSearch(searchTerms) {
+  return ANIMAL_SPECIES_VALUES.filter((species) =>
+    searchAliasesMatch(getSpeciesSearchAliases(species), searchTerms)
+  );
+}
+
+function getBreedValuesMatchingAliasSearch(searchTerms) {
+  const matches = [];
+
+  Object.entries(SEARCH_ALIASES.breeds).forEach(([species, breedAliases]) => {
+    Object.entries(breedAliases).forEach(([breed, aliases]) => {
+      if (searchAliasesMatch(aliases, searchTerms)) {
+        matches.push({ species, breed });
+      }
+    });
+  });
+
+  return matches;
+}
+
+function searchTermsMatchEnumValue(enumValue, enumLabel, searchTerms) {
+  const enumValueTerms = getSearchTerms(enumValue);
+  const enumLabelTerms = getSearchTerms(enumLabel);
+  const matchesCanonicalValue = enumValueTerms.some((enumValueTerm) =>
+    searchTerms.includes(enumValueTerm)
+  );
+  const matchesVisibleLabel = enumLabelTerms.some((enumLabelTerm) =>
+    searchTerms.some((searchTerm) => enumLabelTerm.includes(searchTerm))
+  );
+
+  return matchesCanonicalValue || matchesVisibleLabel;
+}
+
+function getEnumValuesMatchingSearch(searchTerms, enumValues, enumLabels) {
+  return enumValues.filter((enumValue) =>
+    searchTermsMatchEnumValue(enumValue, enumLabels[enumValue], searchTerms)
+  );
+}
+
+function getAnimalTextSearchValues(animal) {
+  const species = normalizeSpecies(animal.species ?? animal.type);
+
+  return [
+    animal.name,
+    animal.displayName,
+    animal.localizedName,
+    getDisplayName(animal),
+    species,
+    ANIMAL_SPECIES_LABELS[species],
+    animal.slug,
+    animal.breed,
+    ...getAnimalSearchAliasValues(animal),
+  ];
+}
+
+function animalMatchesEnumSearch(animal, searchTerms) {
+  const species = normalizeSpecies(animal.species ?? animal.type);
+  const size = normalizeSize(animal.size);
+  const gender = normalizeGender(animal.gender);
+  const status = normalizeText(animal.status);
+  const speciesValues = getEnumValuesMatchingSearch(searchTerms, ANIMAL_SPECIES_VALUES, ANIMAL_SPECIES_LABELS);
+  const genderValues = getEnumValuesMatchingSearch(searchTerms, ANIMAL_GENDER_VALUES, ANIMAL_GENDER_LABELS);
+  const sizeValues = getEnumValuesMatchingSearch(searchTerms, ANIMAL_SIZE_VALUES, ANIMAL_SIZE_LABELS);
+  const statusValues = getEnumValuesMatchingSearch(searchTerms, ANIMAL_STATUS_VALUES, ANIMAL_STATUS_LABELS);
+
+  return (
+    speciesValues.includes(species) ||
+    genderValues.includes(gender) ||
+    sizeValues.includes(size) ||
+    statusValues.includes(status)
+  );
+}
+
+function animalMatchesSearch(animal, searchTerms) {
+  if (searchTerms.length === 0) {
+    return true;
+  }
+
+  return (
+    getAnimalTextSearchValues(animal).some((value) => searchTermsMatchValue(value, searchTerms)) ||
+    animalMatchesEnumSearch(animal, searchTerms)
+  );
+}
+
+function buildMongoSearchConditions(searchTerms) {
+  const regexValues = searchTerms.map((searchTerm) => new RegExp(escapeRegex(searchTerm), 'i'));
+  const searchableTextFields = ['name', 'displayName', 'slug', 'breed'];
+  const searchConditions = regexValues.flatMap((regex) =>
+    searchableTextFields.map((field) => ({ [field]: regex }))
+  );
+  const speciesValues = [
+    ...new Set([
+      ...getEnumValuesMatchingSearch(searchTerms, ANIMAL_SPECIES_VALUES, ANIMAL_SPECIES_LABELS),
+      ...getSpeciesValuesMatchingAliasSearch(searchTerms),
+    ]),
+  ];
+  const breedValues = getBreedValuesMatchingAliasSearch(searchTerms);
+  const genderValues = getEnumValuesMatchingSearch(searchTerms, ANIMAL_GENDER_VALUES, ANIMAL_GENDER_LABELS);
+  const sizeValues = getEnumValuesMatchingSearch(searchTerms, ANIMAL_SIZE_VALUES, ANIMAL_SIZE_LABELS);
+  const statusValues = getEnumValuesMatchingSearch(searchTerms, ANIMAL_STATUS_VALUES, ANIMAL_STATUS_LABELS);
+
+  if (speciesValues.length > 0) {
+    searchConditions.push({ species: { $in: speciesValues } });
+  }
+
+  breedValues.forEach(({ species, breed }) => {
+    searchConditions.push({
+      species,
+      breed: new RegExp(`^${escapeRegex(breed)}$`, 'i'),
+    });
+  });
+
+  if (genderValues.length > 0) {
+    searchConditions.push({ gender: { $in: genderValues } });
+  }
+
+  if (sizeValues.length > 0) {
+    searchConditions.push({ size: { $in: sizeValues } });
+  }
+
+  if (statusValues.length > 0) {
+    searchConditions.push({ status: { $in: statusValues } });
+  }
+
+  return searchConditions;
+}
+
 function formatAnimalAge(ageValue) {
   const numericAge = Number(ageValue ?? 0);
 
@@ -331,6 +583,10 @@ function getDisplayName(animal) {
   );
 }
 
+function canUseStandardAdoptionFlow(species, status) {
+  return status === 'available' && !PROTECTED_CARE_SPECIES.has(species);
+}
+
 function serializeAnimal(animal) {
   const species = normalizeSpecies(animal.species ?? animal.type);
   const size = normalizeSize(animal.size);
@@ -361,6 +617,7 @@ function serializeAnimal(animal) {
     sizeLabel: ANIMAL_SIZE_LABELS[size] ?? size,
     status: animal.status,
     statusLabel: ANIMAL_STATUS_LABELS[animal.status] ?? animal.status,
+    standardAdoptionEligible: canUseStandardAdoptionFlow(species, animal.status),
     isActive: Boolean(animal.isActive),
     intakeDate: normalizeDateOutput(animal.intakeDate),
     healthStatus: animal.healthStatus,
@@ -954,44 +1211,47 @@ function buildPaginatedResult(items, options) {
 }
 
 function applyLocalFilters(animals, filters) {
-  const query = normalizeText(filters.query);
+  const searchTerms = getSearchTerms(filters.query);
   const species = normalizeSpecies(filters.species);
+  const gender = normalizeGender(filters.gender);
   const size = normalizeSize(filters.size);
   const status = normalizeText(filters.status);
 
   return animals.filter((animal) => {
     const normalizedSpecies = normalizeSpecies(animal.species ?? animal.type);
+    const normalizedGender = normalizeGender(animal.gender);
     const normalizedSize = normalizeSize(animal.size);
     const normalizedStatus = normalizeText(animal.status);
 
-    const matchesQuery =
-      !query ||
-      normalizeText(animal.name).includes(query) ||
-      normalizedSpecies.includes(query) ||
-      normalizeText(animal.breed).includes(query);
+    const matchesQuery = animalMatchesSearch(animal, searchTerms);
 
     const matchesSpecies = !species || normalizedSpecies === species;
+    const matchesGender = !gender || normalizedGender === gender;
     const matchesSize = !size || normalizedSize === size;
     const matchesStatus = !status || normalizedStatus === status;
 
-    return matchesQuery && matchesSpecies && matchesSize && matchesStatus;
+    return matchesQuery && matchesSpecies && matchesGender && matchesSize && matchesStatus;
   });
 }
 
 function buildMongoFilters(filters) {
-  const query = normalizeText(filters.query);
+  const searchTerms = getSearchTerms(filters.query);
   const species = normalizeSpecies(filters.species);
+  const gender = normalizeGender(filters.gender);
   const size = normalizeSize(filters.size);
   const status = normalizeText(filters.status);
   const mongoFilters = {};
 
-  if (query) {
-    const regex = new RegExp(escapeRegex(query), 'i');
-    mongoFilters.$or = [{ name: regex }, { species: regex }, { breed: regex }];
+  if (searchTerms.length > 0) {
+    mongoFilters.$or = buildMongoSearchConditions(searchTerms);
   }
 
   if (species) {
     mongoFilters.species = species;
+  }
+
+  if (gender) {
+    mongoFilters.gender = gender;
   }
 
   if (size) {

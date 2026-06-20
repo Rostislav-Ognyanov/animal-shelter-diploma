@@ -14,6 +14,7 @@ import { AnimalStatusBadge } from '../../components/animals/AnimalStatusBadge.js
 import { ConfirmDialog } from '../../components/common/ConfirmDialog.jsx';
 import { FavoriteToggleButton } from '../../components/animals/FavoriteToggleButton.jsx';
 import { fetchJson, patchJson } from '../../lib/api.js';
+import { canUseStandardAdoptionFlow, isProtectedCareSpecies } from './animalUi.js';
 
 const ACTION_LABELS = {
   list: 'Преглед на списък',
@@ -47,6 +48,18 @@ function formatDate(value) {
 function buildUnavailableClientMessage(animal) {
   const statusLabel = animal.statusLabel ?? getAnimalStatusLabel(animal.status);
 
+  if (isProtectedCareSpecies(animal.species) || animal.status === 'protected-care') {
+    return 'Животното е част от защитена или специализирана грижа и не приема стандартна заявка за осиновяване. Можете да се свържете с екипа, ако искате да помогнете или да получите повече информация.';
+  }
+
+  if (animal.status === 'under-care') {
+    return 'Животното е под грижа на приюта и в момента не участва в стандартния процес по осиновяване.';
+  }
+
+  if (animal.status === 'released') {
+    return 'Животното е върнато в природата и профилът му остава като част от дейността и спасителната работа на приюта.';
+  }
+
   if (animal.status === 'reserved') {
     return `Животното вече е резервирано и в момента не приема нови заявки за осиновяване.`;
   }
@@ -66,8 +79,32 @@ function buildUnavailableClientMessage(animal) {
   return `Животното е със статус „${statusLabel}“ и в момента не може да приеме нова заявка.`;
 }
 
+function usesSpecialCareFlow(animal) {
+  return (
+    isProtectedCareSpecies(animal.species) ||
+    ['under-care', 'protected-care', 'released'].includes(animal.status)
+  );
+}
+
 function buildActionConfig(role, animal) {
+  const isStandardAdoptionCandidate = canUseStandardAdoptionFlow(animal);
+  const isSpecialCareAnimal = usesSpecialCareFlow(animal);
+
   if (role === 'guest') {
+    if (!isStandardAdoptionCandidate) {
+      return isSpecialCareAnimal
+        ? {
+            label: 'Свържи се с нас',
+            to: '/svurji-se-s-nas',
+            helper: buildUnavailableClientMessage(animal),
+          }
+        : {
+            label: 'В момента няма налично действие',
+            helper: buildUnavailableClientMessage(animal),
+            disabled: true,
+          };
+    }
+
     return {
       label: 'Влез в профила си',
       to: '/login',
@@ -79,7 +116,7 @@ function buildActionConfig(role, animal) {
   }
 
   if (role === 'client') {
-    if (animal.status === 'available') {
+    if (isStandardAdoptionCandidate) {
       return {
         label: 'Подай заявка за осиновяване',
         to: `/animals/${animal.id}/adopt`,
@@ -88,11 +125,17 @@ function buildActionConfig(role, animal) {
       };
     }
 
-    return {
-      label: 'В момента няма налично действие',
-      helper: buildUnavailableClientMessage(animal),
-      disabled: true,
-    };
+    return isSpecialCareAnimal
+      ? {
+          label: 'Свържи се с нас',
+          to: '/svurji-se-s-nas',
+          helper: buildUnavailableClientMessage(animal),
+        }
+      : {
+          label: 'В момента няма налично действие',
+          helper: buildUnavailableClientMessage(animal),
+          disabled: true,
+        };
   }
 
   if (canManageAnimals(role)) {
@@ -625,6 +668,8 @@ export function AnimalDetailsPage() {
   const animalHistoryBlock = publicInfoBlocks.find((block) => block.title === 'История и характер');
   const animalCareBlock = publicInfoBlocks.find((block) => block.title === 'Подходящи условия за отглеждане');
   const visibleActionConfig = hasManagementAccess ? null : actionConfig;
+  const canUseStandardAdoptionAction = canUseStandardAdoptionFlow(animal);
+  const showPublicHelpCard = Boolean(visibleActionConfig && !visibleActionConfig.disabled);
   const healthCareItems = buildHealthCareItems(animal);
 
   return (
@@ -849,21 +894,41 @@ export function AnimalDetailsPage() {
         ) : null}
       </section>
 
-      {visibleActionConfig ? (
+      {showPublicHelpCard ? (
         <section className="animal-details-help-card">
-          <div className="animal-details-help-row">
-            <h2>Искаш да помогнеш на {visibleName}?</h2>
-            <a className="about-page-contact-link" href="#animal-adoption-action">
-              Осинови
-            </a>
-          </div>
+          {canUseStandardAdoptionAction ? (
+            <>
+              <div className="animal-details-help-row">
+                <h2>Искаш да помогнеш на {visibleName}?</h2>
+                <a className="about-page-contact-link" href="#animal-adoption-action">
+                  Осинови
+                </a>
+              </div>
 
-          <div className="animal-details-help-row">
-            <h2>Имаш въпроси към нас за животното?</h2>
-            <Link className="about-page-contact-link" to="/svurji-se-s-nas">
-              Свържи се с нас
-            </Link>
-          </div>
+              <div className="animal-details-help-row">
+                <h2>Имаш въпроси към нас за животното?</h2>
+                <Link className="about-page-contact-link" to="/svurji-se-s-nas">
+                  Свържи се с нас
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="animal-details-help-row">
+                <h2>Искаш да помогнеш на {visibleName}?</h2>
+                <Link className="about-page-contact-link" to="/svurji-se-s-nas">
+                  Свържи се с нас
+                </Link>
+              </div>
+
+              <div className="animal-details-help-row">
+                <h2>Искаш да подкрепиш грижата за животните?</h2>
+                <Link className="about-page-contact-link" to="/podkrepa">
+                  Виж как
+                </Link>
+              </div>
+            </>
+          )}
         </section>
       ) : null}
 

@@ -188,7 +188,12 @@ export function RegisterPage() {
               checked={formState.acceptTerms}
               onChange={(event) => updateField('acceptTerms', event.target.checked)}
             />
-            <span>Приемам условията за ползване</span>
+            <span>
+              Приемам{' '}
+              <Link to="/terms" target="_blank" rel="noreferrer">
+                условията за ползване
+              </Link>
+            </span>
           </label>
         </div>
 

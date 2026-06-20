@@ -27,6 +27,7 @@ import { DonationPage } from '../pages/donations/DonationPage.jsx';
 import { DonationsManagementPage } from '../pages/donations/DonationsManagementPage.jsx';
 import { FavoriteAnimalsPage } from '../pages/favorites/FavoriteAnimalsPage.jsx';
 import { HomePage } from '../pages/home/HomePage.jsx';
+import { LegalPage } from '../pages/legal/LegalPage.jsx';
 import { AccessDeniedPage } from '../pages/not-found/AccessDeniedPage.jsx';
 import { NotFoundPage } from '../pages/not-found/NotFoundPage.jsx';
 import { SearchResultsPage } from '../pages/search/SearchResultsPage.jsx';
@@ -52,6 +53,10 @@ export function AppRoutes({ homeData, role }) {
       <Route path="/volunteers" element={<VolunteerApplicationPage />} />
       <Route path="/donations" element={<DonationPage siteName={homeData.siteName} />} />
       <Route path="/svurji-se-s-nas" element={<RescueReportPage />} />
+      <Route path="/privacy" element={<LegalPage type="privacy" />} />
+      <Route path="/politika-za-poveritelnost" element={<LegalPage type="privacy" />} />
+      <Route path="/terms" element={<LegalPage type="terms" />} />
+      <Route path="/obshti-uslovia" element={<LegalPage type="terms" />} />
       <Route path="/access-denied" element={<AccessDeniedPage />} />
       <Route element={<GuestOnlyRoute />}>
         <Route path="/login" element={<LoginPage />} />

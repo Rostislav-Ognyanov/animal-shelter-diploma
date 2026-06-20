@@ -24,6 +24,7 @@ const ADOPTION_REQUEST_ID_PATTERN =
   /^[0-9a-f]{24}$|^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PHONE_PATTERN = /^[0-9+\s().-]{6,32}$/;
 const RESERVED_ANIMAL_ADOPTION_STATUSES = ['under-review', 'approved'];
+const PROTECTED_CARE_SPECIES = new Set(['fox', 'owl', 'hedgehog']);
 const ADOPTION_REQUEST_STATUS_TRANSITIONS = {
   pending: ['under-review', 'approved', 'rejected', 'cancelled'],
   'under-review': ['approved', 'rejected', 'cancelled'],
@@ -518,6 +519,14 @@ async function assertNoCompetingReservedRequest(adoptionRequest) {
   }
 }
 
+function isProtectedCareSpeciesValue(species) {
+  return PROTECTED_CARE_SPECIES.has(normalizeLookupText(species));
+}
+
+function getReturnedAnimalStatusAfterCancelledRequest(animal) {
+  return isProtectedCareSpeciesValue(animal.species) ? 'protected-care' : 'available';
+}
+
 async function synchronizeAnimalForAdoptionStatus(adoptionRequest, nextStatus) {
   const currentStatus = adoptionRequest.status;
 
@@ -535,6 +544,13 @@ async function synchronizeAnimalForAdoptionStatus(adoptionRequest, nextStatus) {
       return animal;
     }
 
+    if (isProtectedCareSpeciesValue(animal.species)) {
+      throw createHttpError(
+        409,
+        'Това животно е част от защитена или специализирана грижа и не може да бъде резервирано по стандартна заявка за осиновяване.'
+      );
+    }
+
     if (animal.status !== 'available') {
       throw createHttpError(
         409,
@@ -550,6 +566,13 @@ async function synchronizeAnimalForAdoptionStatus(adoptionRequest, nextStatus) {
 
     if (animal.status === 'adopted') {
       return animal;
+    }
+
+    if (isProtectedCareSpeciesValue(animal.species)) {
+      throw createHttpError(
+        409,
+        'Това животно е част от защитена или специализирана грижа и не може да бъде финализирано като стандартно осиновяване.'
+      );
     }
 
     if (animal.status !== 'reserved') {
@@ -578,7 +601,7 @@ async function synchronizeAnimalForAdoptionStatus(adoptionRequest, nextStatus) {
       return animal;
     }
 
-    return updateAnimalStatus(animalId, { status: 'available' });
+    return updateAnimalStatus(animalId, { status: getReturnedAnimalStatusAfterCancelledRequest(animal) });
   }
 
   return null;
@@ -687,6 +710,26 @@ export function getAdoptionRequestModulePolicy(roleCandidate) {
   };
 }
 
+function canUseStandardAdoptionFlow(animalContext) {
+  const species = normalizeLookupText(animalContext.snapshot.species ?? animalContext.record.species);
+
+  return (
+    animalContext.snapshot.status === 'available' &&
+    animalContext.record.isActive !== false &&
+    !PROTECTED_CARE_SPECIES.has(species)
+  );
+}
+
+function buildUnavailableAdoptionMessage(animalContext) {
+  const species = normalizeLookupText(animalContext.snapshot.species ?? animalContext.record.species);
+
+  if (PROTECTED_CARE_SPECIES.has(species)) {
+    return 'Това животно е част от защитена или специализирана грижа и не приема стандартни заявки за осиновяване.';
+  }
+
+  return 'Заявка за осиновяване може да се подаде само за животно със статус "available".';
+}
+
 export async function createAdoptionRequest(payload, currentUser) {
   assertClientCanCreate(currentUser);
   const normalizedPayload = normalizeCreatePayload(payload);
@@ -696,10 +739,10 @@ export async function createAdoptionRequest(payload, currentUser) {
     throw createHttpError(404, 'Животното не беше намерено.');
   }
 
-  if (animalContext.snapshot.status !== 'available' || animalContext.record.isActive === false) {
+  if (!canUseStandardAdoptionFlow(animalContext)) {
     throw createHttpError(
       409,
-      'Заявка за осиновяване може да се подаде само за животно със статус "available".'
+      buildUnavailableAdoptionMessage(animalContext)
     );
   }
 

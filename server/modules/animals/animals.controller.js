@@ -18,6 +18,7 @@ function readAnimalListFilters(query = {}) {
   return {
     query: query.query,
     species: query.species ?? query.type,
+    gender: query.gender,
     size: query.size,
     status: query.status,
     page: query.page,
@@ -31,7 +32,7 @@ function canViewAnimalPolicy(roleCandidate) {
 }
 
 function stripInternalAnimalFields(animal) {
-  const { createdAt, isActive, policy, slug, updatedAt, ...publicAnimal } = animal;
+  const { createdAt, isActive, policy, updatedAt, ...publicAnimal } = animal;
   return publicAnimal;
 }
 

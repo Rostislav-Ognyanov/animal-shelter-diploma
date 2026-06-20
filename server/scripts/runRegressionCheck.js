@@ -525,6 +525,27 @@ try {
     expectStatus(searchResponse, 200, 'animals search');
     expect(extractItems(searchResponse).length === 1, 'search should find the Maine Coon record');
 
+    const breedAliasResponse = await guestSession.get(`/api/animals?query=${encodeURIComponent('бийгъл')}`);
+    expectStatus(breedAliasResponse, 200, 'animals breed alias search');
+    expect(
+      extractItems(breedAliasResponse)[0]?.slug === 'alpha-beagle-dog',
+      'search should find Beagle by controlled Bulgarian alias'
+    );
+
+    const maineAliasResponse = await guestSession.get(`/api/animals?query=${encodeURIComponent('мейн кун')}`);
+    expectStatus(maineAliasResponse, 200, 'animals Maine Coon alias search');
+    expect(
+      extractItems(maineAliasResponse)[0]?.slug === 'beta-maine-coon-cat',
+      'search should find Maine Coon by controlled Bulgarian alias'
+    );
+
+    const rabbitAliasResponse = await guestSession.get(`/api/animals?query=${encodeURIComponent('клепоухо зайче')}`);
+    expectStatus(rabbitAliasResponse, 200, 'animals rabbit alias search');
+    expect(
+      extractItems(rabbitAliasResponse)[0]?.slug === 'gamma-holland-lop-rabbit',
+      'search should find Holland Lop by controlled Bulgarian alias'
+    );
+
     const sortResponse = await guestSession.get('/api/animals?sort=age-desc');
     expectStatus(sortResponse, 200, 'animals sort');
     expect(extractItems(sortResponse)[0]?.slug === 'beta-maine-coon-cat', 'age-desc sort should place the oldest animal first');

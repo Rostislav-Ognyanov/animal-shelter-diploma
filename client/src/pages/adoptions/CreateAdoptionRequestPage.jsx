@@ -6,6 +6,7 @@ import { AnimalImage } from '../../components/animals/AnimalImage.jsx';
 import { AnimalStatusBadge } from '../../components/animals/AnimalStatusBadge.jsx';
 import { useAuth } from '../../auth/AuthProvider.jsx';
 import { fetchJson, postJson } from '../../lib/api.js';
+import { canUseStandardAdoptionFlow, isProtectedCareSpecies } from '../animals/animalUi.js';
 import { getAnimalDisplayName } from './adoptionUi.js';
 
 const INITIAL_FORM_VALUES = {
@@ -30,6 +31,10 @@ function validateForm(values) {
 function buildUnavailableMessage(animal) {
   const statusLabel = getAnimalStatusLabel(animal?.status);
 
+  if (isProtectedCareSpecies(animal?.species) || animal?.status === 'protected-care') {
+    return 'Това животно е част от защитена или специализирана грижа и не приема стандартни заявки за осиновяване.';
+  }
+
   switch (animal?.status) {
     case 'reserved':
       return 'Животното вече е резервирано и в момента не приема нови заявки.';
@@ -37,6 +42,10 @@ function buildUnavailableMessage(animal) {
       return 'Животното вече е осиновено и не може да бъде заявено отново.';
     case 'medical-care':
       return 'Животното е под медицинска грижа и временно е извадено от процеса по осиновяване.';
+    case 'under-care':
+      return 'Животното е под грижа на приюта и в момента не участва в стандартния процес по осиновяване.';
+    case 'released':
+      return 'Животното е върнато в природата и не може да бъде заявено за осиновяване.';
     case 'inactive':
     case 'archived':
       return `Животното е със статус „${statusLabel}“ и не участва в активните осиновявания.`;
@@ -105,7 +114,7 @@ export function CreateAdoptionRequestPage() {
   }, [animalId]);
 
   const animalName = useMemo(() => getAnimalDisplayName(animalState.item), [animalState.item]);
-  const isAnimalAvailable = animalState.item?.status === 'available';
+  const isAnimalAvailable = canUseStandardAdoptionFlow(animalState.item);
 
   function handleFieldChange(field, value) {
     setFormValues((currentValue) => ({
@@ -259,43 +268,45 @@ export function CreateAdoptionRequestPage() {
           </div>
         ) : null}
 
-        <form className="adoption-form" onSubmit={handleSubmit}>
-          <label>
-            Телефон за връзка
-            <input
-              type="tel"
-              value={formValues.contactPhone}
-              placeholder="+359 888 123 456"
-              disabled={!isAnimalAvailable || submitState.isSubmitting || Boolean(submitState.createdRequest)}
-              onChange={(event) => handleFieldChange('contactPhone', event.target.value)}
-            />
-            {formErrors.contactPhone ? <span>{formErrors.contactPhone}</span> : null}
-          </label>
+        {isAnimalAvailable ? (
+          <form className="adoption-form" onSubmit={handleSubmit}>
+            <label>
+              Телефон за връзка
+              <input
+                type="tel"
+                value={formValues.contactPhone}
+                placeholder="+359 888 123 456"
+                disabled={submitState.isSubmitting || Boolean(submitState.createdRequest)}
+                onChange={(event) => handleFieldChange('contactPhone', event.target.value)}
+              />
+              {formErrors.contactPhone ? <span>{formErrors.contactPhone}</span> : null}
+            </label>
 
-          <label>
-            Защо искаш да осиновиш {animalName}?
-            <textarea
-              value={formValues.motivation}
-              placeholder={`Разкажи накратко за условията, грижата и мотивацията си за ${animalName}.`}
-              disabled={!isAnimalAvailable || submitState.isSubmitting || Boolean(submitState.createdRequest)}
-              onChange={(event) => handleFieldChange('motivation', event.target.value)}
-            />
-            {formErrors.motivation ? <span>{formErrors.motivation}</span> : null}
-          </label>
+            <label>
+              Защо искаш да осиновиш {animalName}?
+              <textarea
+                value={formValues.motivation}
+                placeholder={`Разкажи накратко за условията, грижата и мотивацията си за ${animalName}.`}
+                disabled={submitState.isSubmitting || Boolean(submitState.createdRequest)}
+                onChange={(event) => handleFieldChange('motivation', event.target.value)}
+              />
+              {formErrors.motivation ? <span>{formErrors.motivation}</span> : null}
+            </label>
 
-          <div className="adoption-form-actions">
-            <button
-              type="submit"
-              className="animals-primary-action"
-              disabled={!isAnimalAvailable || submitState.isSubmitting || Boolean(submitState.createdRequest)}
-            >
-              {submitState.isSubmitting ? 'Изпращане...' : 'Изпрати заявка'}
-            </button>
-            <Link className="animals-secondary-action" to={`/animals/${animalId}`}>
-              Отказ
-            </Link>
-          </div>
-        </form>
+            <div className="adoption-form-actions">
+              <button
+                type="submit"
+                className="animals-primary-action"
+                disabled={submitState.isSubmitting || Boolean(submitState.createdRequest)}
+              >
+                {submitState.isSubmitting ? 'Изпращане...' : 'Изпрати заявка'}
+              </button>
+              <Link className="animals-secondary-action" to={`/animals/${animalId}`}>
+                Отказ
+              </Link>
+            </div>
+          </form>
+        ) : null}
 
 
       </section>

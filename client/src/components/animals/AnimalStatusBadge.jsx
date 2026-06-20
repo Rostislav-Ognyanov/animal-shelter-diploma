@@ -5,6 +5,9 @@ const STATUS_CLASS_BY_VALUE = {
   reserved: 'is-reserved',
   adopted: 'is-adopted',
   'medical-care': 'is-medical-care',
+  'under-care': 'is-under-care',
+  'protected-care': 'is-protected-care',
+  released: 'is-released',
   inactive: 'is-inactive',
   archived: 'is-archived',
 };

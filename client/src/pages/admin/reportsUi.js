@@ -17,6 +17,9 @@ const ANIMAL_STATUS_LABELS = {
   reserved: 'Резервирани',
   adopted: 'Осиновени',
   'medical-care': 'Медицинска грижа',
+  'under-care': 'Под грижа',
+  'protected-care': 'Защитена грижа',
+  released: 'Върнати в природата',
   inactive: 'Неактивни',
   archived: 'Архивирани',
 };

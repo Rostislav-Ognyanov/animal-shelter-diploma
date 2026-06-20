@@ -4,6 +4,12 @@ import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
 import { getMainNavigation } from '../../navigation/appNavigation.js';
 
 function renderFooterLink(item) {
+  const target = item.href ?? item.to;
+
+  if (target?.startsWith('/') && !target.startsWith('/#')) {
+    return <Link to={target}>{item.label}</Link>;
+  }
+
   if (item.href || item.to?.startsWith('/#') || item.to?.startsWith('#')) {
     return <a href={item.href ?? item.to}>{item.label}</a>;
   }
@@ -40,9 +46,7 @@ export function Footer({ footer, siteName }) {
 
         <div className="footer-links">
           {footer.links.map((link) => (
-            <a key={link.href} href={link.href}>
-              {link.label}
-            </a>
+            <span key={link.href ?? link.to ?? link.label}>{renderFooterLink(link)}</span>
           ))}
         </div>
       </div>
