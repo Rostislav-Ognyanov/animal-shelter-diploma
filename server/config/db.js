@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
 
+export const DEFAULT_MONGO_URI = 'mongodb://127.0.0.1:27017/animal_shelter';
+
 function normalizeBooleanEnv(value, defaultValue = false) {
   if (value === undefined || value === null || value === '') {
     return defaultValue;
@@ -39,8 +41,24 @@ export function describeAnimalsPersistenceMode() {
   return 'MongoDB required (mock fallback disabled)';
 }
 
+export function getConfiguredMongoUri() {
+  if (process.env.DB_URL !== undefined) {
+    return process.env.DB_URL.trim();
+  }
+
+  if (process.env.MONGO_URI !== undefined) {
+    return process.env.MONGO_URI.trim();
+  }
+
+  if (process.env.MONGODB_URI !== undefined) {
+    return process.env.MONGODB_URI.trim();
+  }
+
+  return DEFAULT_MONGO_URI;
+}
+
 export async function connectToDatabase() {
-  const mongoUri = process.env.DB_URL || process.env.MONGO_URI;
+  const mongoUri = getConfiguredMongoUri();
 
   if (!mongoUri) {
     if (isAnimalsMockFallbackEnabled()) {

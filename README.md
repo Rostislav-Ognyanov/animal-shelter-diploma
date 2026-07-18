@@ -14,7 +14,7 @@
 - React + Vite
 - MongoDB + Mongoose
 - JWT + bcrypt
-- JSON fallback за локална разработка и smoke/regression проверки
+- JSON fallback само за smoke/regression проверки и аварийна локална разработка
 
 ## Роли
 
@@ -95,18 +95,18 @@
 
 ```env
 PORT=5000
-DB_URL=your_mongodb_connection_string_here
+DB_URL=mongodb://127.0.0.1:27017/animal_shelter
 JWT_SECRET=your_jwt_secret_here
 ANIMALS_ALLOW_MOCK_FALLBACK=false
 VITE_DEV_SERVER_PORT=5173
-VITE_DEV_API_TARGET=your_local_backend_origin_here
+VITE_DEV_API_TARGET=http://localhost:5000
 ```
 
 Бележки:
 
-- `DB_URL` е нужен за реален MongoDB режим.
+- `DB_URL` е основният MongoDB connection string. Ако липсва напълно, backend-ът пробва локално `mongodb://127.0.0.1:27017/animal_shelter`.
 - `JWT_SECRET` е задължителен за предвидим локален auth.
-- `ANIMALS_ALLOW_MOCK_FALLBACK=true` позволява локален fallback режим, когато MongoDB не е налична.
+- `ANIMALS_ALLOW_MOCK_FALLBACK=false` е нормалният режим за проекта. При липса на MongoDB API модулите, които изискват база, не трябва да минават тихо към JSON файлове.
 - `VITE_DEV_API_TARGET` се попълва локално в `.env`, за да проксира `/api` заявките от Vite към backend-а.
 
 ## Стартиране на проекта
@@ -123,10 +123,24 @@ npm ci
 npm install
 ```
 
+Еднократна подготовка на локална MongoDB с Docker и demo данни:
+
+```bash
+npm run setup:mongo
+```
+
+Това стартира MongoDB контейнер от `docker-compose.yml`, изчаква базата да приеме връзка и изпълнява `npm run seed:demo`, за да зареди примерни профили, животни и заявки в MongoDB.
+
 Разработка:
 
 ```bash
 npm run dev
+```
+
+Алтернативно, ако искаш в една команда да стартираш MongoDB и dev средата:
+
+```bash
+npm run dev:mongo
 ```
 
 Production build:
@@ -154,7 +168,21 @@ npm run check:regression
 npm run seed:demo
 ```
 
-Скриптът подготвя JSON fallback данните и, ако има активна MongoDB връзка, upsert-ва същите demo записи и в базата. Ако demo-то е без MongoDB, включи `ANIMALS_ALLOW_MOCK_FALLBACK=true` в `.env`.
+Скриптът подготвя JSON fallback данните и, ако има активна MongoDB връзка, upsert-ва същите demo записи и в базата. За нормалния MongoDB-first режим първо стартирай базата с `npm run db:up` или използвай `npm run setup:mongo`.
+
+## MongoDB команди
+
+```bash
+npm run db:up
+npm run db:wait
+npm run db:logs
+npm run db:down
+```
+
+- `db:up` стартира локалния MongoDB контейнер.
+- `db:wait` проверява кога `DB_URL` приема връзка.
+- `db:logs` показва логовете на MongoDB контейнера.
+- `db:down` спира контейнера. Данните остават в Docker volume `mongodb-data`.
 
 ## Полезни файлове
 
