@@ -19,7 +19,7 @@
 Проектът следва **клиент-сървърна архитектура** с ясна модулна структура:
 - **Frontend слой**: React приложение за визуализация, navigation, forms, guards и state за текущия потребител.
 - **Backend слой**: Express приложение с route, controller, service и policy логика.
-- **Data слой**: MongoDB чрез Mongoose модели, плюс JSON fallback за локална разработка и regression тестове.
+- **Data слой**: MongoDB чрез Mongoose модели.
 
 ### 2.2 Слоеве в backend-а
 
@@ -47,7 +47,6 @@ flowchart LR
     SV --> POL["Role Policies"]
 
     RP --> MDB["MongoDB / Mongoose"]
-    RP --> JSON["JSON Fallback (dev / regression)"]
 
     SV --> AGG["Reports Aggregation"]
     AGG --> MDB
@@ -71,7 +70,6 @@ flowchart LR
 - CSS
 
 ### 3.3 Допълнителни елементи
-- JSON fallback режим за локална разработка
 - regression / smoke script за основните сценарии
 - `.env.example` за конфигурация
 
@@ -460,7 +458,6 @@ Frontend route guard-ите са синхронизирани с backend authori
 PORT=5000
 DB_URL=mongodb://localhost:27017/animal-shelter
 JWT_SECRET=your_jwt_secret_here
-ANIMALS_ALLOW_MOCK_FALLBACK=false
 ```
 
 ### 12.2 Стъпки за стартиране

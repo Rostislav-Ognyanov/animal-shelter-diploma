@@ -7,9 +7,9 @@ import { getConfiguredMongoUri } from '../config/db.js';
 const DEFAULT_ATTEMPTS = 30;
 const DEFAULT_DELAY_MS = 1000;
 
-function parsePositiveInteger(value, fallback) {
+function parsePositiveInteger(value, defaultValue) {
   const parsedValue = Number(value);
-  return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : fallback;
+  return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : defaultValue;
 }
 
 function wait(delayMs) {

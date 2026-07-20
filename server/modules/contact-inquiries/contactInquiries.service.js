@@ -1,12 +1,6 @@
-import crypto from 'node:crypto';
-
-import { isDatabaseConnected } from '../../config/db.js';
 import ContactInquiry from '../../models/ContactInquiry.js';
 import { createHttpError } from '../../utils/httpError.js';
-import { loadJsonFile } from '../../utils/loadJsonFile.js';
-import { saveJsonFile } from '../../utils/saveJsonFile.js';
 
-const CONTACT_INQUIRIES_DATA_PATH = 'data/contact-inquiries.json';
 const CONTACT_INQUIRY_TYPES = ['adoption', 'volunteering', 'donation', 'general'];
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^[0-9+\s().-]{6,32}$/;
@@ -178,33 +172,7 @@ function serializeContactInquiry(inquiry) {
   };
 }
 
-async function readMockContactInquiries() {
-  return loadJsonFile(CONTACT_INQUIRIES_DATA_PATH);
-}
-
-async function writeMockContactInquiries(inquiries) {
-  return saveJsonFile(CONTACT_INQUIRIES_DATA_PATH, inquiries);
-}
-
 export async function createContactInquiry(payload) {
-  const normalizedPayload = normalizeCreatePayload(payload);
-
-  if (isDatabaseConnected()) {
-    const createdInquiry = await ContactInquiry.create(normalizedPayload);
-    return serializeContactInquiry(createdInquiry.toObject());
-  }
-
-  const inquiries = await readMockContactInquiries();
-  const now = new Date().toISOString();
-  const inquiryRecord = {
-    id: crypto.randomUUID(),
-    ...normalizedPayload,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  inquiries.push(inquiryRecord);
-  await writeMockContactInquiries(inquiries);
-
-  return serializeContactInquiry(inquiryRecord);
+  const createdInquiry = await ContactInquiry.create(normalizeCreatePayload(payload));
+  return serializeContactInquiry(createdInquiry.toObject());
 }

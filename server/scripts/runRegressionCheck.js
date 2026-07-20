@@ -1,23 +1,15 @@
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const projectRoot = path.resolve(__dirname, '..', '..');
-const dataFiles = {
-  users: path.join(projectRoot, 'server', 'data', 'users.json'),
-  animals: path.join(projectRoot, 'server', 'data', 'animals.json'),
-  adoptions: path.join(projectRoot, 'server', 'data', 'adoption-requests.json'),
-  favorites: path.join(projectRoot, 'server', 'data', 'favorites.json'),
-};
-
-process.env.DB_URL = '';
-process.env.ANIMALS_ALLOW_MOCK_FALLBACK = 'true';
+process.env.DB_URL =
+  process.env.REGRESSION_DB_URL || 'mongodb://127.0.0.1:27017/animal_shelter_regression';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'regression-test-secret';
 
+const { connectToDatabase } = await import('../config/db.js');
 const { hashPassword } = await import('../modules/auth/auth.security.js');
 const { ANIMAL_SPECIES_VALUES } = await import('../modules/animals/animal.constants.js');
+const { default: AdoptionRequest } = await import('../models/AdoptionRequest.js');
+const { default: Animal } = await import('../models/Animal.js');
+const { default: Favorite } = await import('../models/Favorite.js');
+const { default: User } = await import('../models/User.js');
+const { default: mongoose } = await import('mongoose');
 const { default: app } = await import('../app.js');
 
 function iso(dateValue) {
@@ -45,14 +37,6 @@ function extractItem(response) {
   return response.body?.data ?? null;
 }
 
-async function readTextFile(filePath) {
-  return fs.readFile(filePath, 'utf8');
-}
-
-async function writeJson(filePath, value) {
-  await fs.writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
-}
-
 async function createFixtures() {
   const adminPasswordHash = await hashPassword('Admin1234');
   const employeePasswordHash = await hashPassword('Employee1234');
@@ -61,7 +45,7 @@ async function createFixtures() {
   return {
     users: [
       {
-        id: 'seed-admin-001',
+        demoId: 'seed-admin-001',
         firstName: 'System',
         lastName: 'Admin',
         username: 'admin',
@@ -74,7 +58,7 @@ async function createFixtures() {
         updatedAt: iso('2026-04-01T09:00:00Z'),
       },
       {
-        id: 'seed-employee-001',
+        demoId: 'seed-employee-001',
         firstName: 'Eva',
         lastName: 'Employee',
         username: 'employee',
@@ -87,7 +71,7 @@ async function createFixtures() {
         updatedAt: iso('2026-04-01T09:05:00Z'),
       },
       {
-        id: 'seed-client-001',
+        demoId: 'seed-client-001',
         firstName: 'Chris',
         lastName: 'Client',
         username: 'client',
@@ -161,8 +145,49 @@ async function createFixtures() {
         createdAt: iso('2026-03-01T10:00:00Z'),
         updatedAt: iso('2026-03-01T10:00:00Z'),
       },
-    ],    adoptions: [],
+    ],
+    adoptions: [],
     favorites: [],
+  };
+}
+
+async function clearRegressionCollections() {
+  await Promise.all([
+    AdoptionRequest.deleteMany({}),
+    Animal.deleteMany({}),
+    Favorite.deleteMany({}),
+    User.deleteMany({}),
+  ]);
+}
+
+async function seedMongoFixtures(fixtures) {
+  await clearRegressionCollections();
+
+  const usersByDemoId = new Map();
+  const animalsBySlug = new Map();
+
+  for (const fixtureUser of fixtures.users) {
+    const { demoId, ...userDocument } = fixtureUser;
+    const createdUser = await User.create(userDocument);
+    usersByDemoId.set(demoId, createdUser);
+  }
+
+  for (const fixtureAnimal of fixtures.animals) {
+    const createdAnimal = await Animal.create(fixtureAnimal);
+    animalsBySlug.set(createdAnimal.slug, createdAnimal);
+  }
+
+  if (fixtures.adoptions.length > 0) {
+    await AdoptionRequest.insertMany(fixtures.adoptions);
+  }
+
+  if (fixtures.favorites.length > 0) {
+    await Favorite.insertMany(fixtures.favorites);
+  }
+
+  return {
+    usersByDemoId,
+    animalsBySlug,
   };
 }
 
@@ -258,7 +283,6 @@ class ApiSession {
   }
 }
 
-const backups = new Map();
 let server = null;
 const results = [];
 
@@ -275,15 +299,10 @@ async function recordStep(name, action) {
 }
 
 try {
-  for (const filePath of Object.values(dataFiles)) {
-    backups.set(filePath, await readTextFile(filePath));
-  }
-
+  await connectToDatabase();
   const fixtures = await createFixtures();
-  await writeJson(dataFiles.users, fixtures.users);
-  await writeJson(dataFiles.animals, fixtures.animals);
-  await writeJson(dataFiles.adoptions, fixtures.adoptions);
-  await writeJson(dataFiles.favorites, fixtures.favorites);
+  const seededFixtures = await seedMongoFixtures(fixtures);
+  const employeeUserId = String(seededFixtures.usersByDemoId.get('seed-employee-001')._id);
 
   server = await new Promise((resolve) => {
     const instance = app.listen(0, () => resolve(instance));
@@ -441,7 +460,7 @@ try {
   });
 
   await recordStep('Users: deactivated employee loses access', async () => {
-    const deactivateResponse = await adminSession.patch('/api/users/seed-employee-001/status', {
+    const deactivateResponse = await adminSession.patch(`/api/users/${employeeUserId}/status`, {
       isActive: false,
     });
     expectStatus(deactivateResponse, 200, 'admin deactivate employee');
@@ -491,7 +510,7 @@ try {
       'deactivated employee login should explain that the profile is inactive'
     );
 
-    const reactivateResponse = await adminSession.patch('/api/users/seed-employee-001/status', {
+    const reactivateResponse = await adminSession.patch(`/api/users/${employeeUserId}/status`, {
       isActive: true,
     });
     expectStatus(reactivateResponse, 200, 'admin reactivate employee');
@@ -720,13 +739,9 @@ try {
     });
   }
 
-  for (const [filePath, content] of backups.entries()) {
-    await fs.writeFile(filePath, content, 'utf8');
+  if (mongoose.connection.readyState !== 0) {
+    await clearRegressionCollections();
+    await mongoose.disconnect();
   }
 }
-
-
-
-
-
 

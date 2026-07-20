@@ -1,10 +1,7 @@
 ﻿import mongoose from 'mongoose';
 
-import { isAnimalsMockFallbackEnabled, isDatabaseConnected } from '../../config/db.js';
 import Animal from '../../models/Animal.js';
 import { createHttpError } from '../../utils/httpError.js';
-import { loadJsonFile } from '../../utils/loadJsonFile.js';
-import { saveJsonFile } from '../../utils/saveJsonFile.js';
 import {
   ANIMAL_GENDER_LABELS,
   ANIMAL_GENDER_VALUES,
@@ -20,7 +17,6 @@ import {
 } from './animal.constants.js';
 import { getAllowedAnimalActions } from '../shared/rolePolicies.js';
 
-const ANIMALS_DATA_PATH = 'data/animals.json';
 const INACTIVE_ANIMAL_STATUSES = new Set(['inactive', 'archived']);
 const PROTECTED_CARE_SPECIES = new Set(['fox', 'owl', 'hedgehog']);
 const SEARCH_ALIASES = {
@@ -729,81 +725,21 @@ function buildLookupQuery(animalId) {
   return { $or: lookupQuery };
 }
 
-function canUseAnimalsMockFallback() {
-  return !isDatabaseConnected() && isAnimalsMockFallbackEnabled();
-}
-
-function assertAnimalsDataSourceAvailable() {
-  if (isDatabaseConnected() || canUseAnimalsMockFallback()) {
-    return;
-  }
-
-  throw createHttpError(
-    503,
-    'Модулът за животни не е достъпен, защото няма активна връзка с MongoDB и mock fallback режимът е изключен.'
-  );
-}
-
-function assertAnimalsMockFallbackAllowed() {
-  assertAnimalsDataSourceAvailable();
-
-  if (!canUseAnimalsMockFallback()) {
-    throw createHttpError(
-      503,
-      'Mock fallback режимът за Animals модула не е активиран в текущата среда.'
-    );
-  }
-}
-
-async function readMockAnimals() {
-  assertAnimalsMockFallbackAllowed();
-  return loadJsonFile(ANIMALS_DATA_PATH);
-}
-
-async function writeMockAnimals(animals) {
-  assertAnimalsMockFallbackAllowed();
-  return saveJsonFile(ANIMALS_DATA_PATH, animals);
-}
-
-function findMockAnimalIndex(animals, animalId) {
-  const normalizedAnimalId = assertValidAnimalId(animalId);
-  return animals.findIndex((entry) => entry.slug === normalizedAnimalId);
-}
-
 async function findAnimalRecordById(animalId) {
   const normalizedAnimalId = assertValidAnimalId(animalId);
-
-  if (isDatabaseConnected()) {
-    return Animal.findOne(buildLookupQuery(normalizedAnimalId)).lean();
-  }
-
-  const animals = await readMockAnimals();
-  return animals.find((entry) => entry.slug === normalizedAnimalId) ?? null;
+  return Animal.findOne(buildLookupQuery(normalizedAnimalId)).lean();
 }
 
 async function ensureUniqueSlug(slug, currentAnimal = null) {
-  if (isDatabaseConnected()) {
-    const query = { slug };
+  const query = { slug };
 
-    if (currentAnimal?._id) {
-      query._id = { $ne: currentAnimal._id };
-    }
-
-    const existingAnimal = await Animal.findOne(query).lean();
-
-    if (existingAnimal) {
-      throw createHttpError(409, 'Вече съществува животно със същия slug.');
-    }
-
-    return;
+  if (currentAnimal?._id) {
+    query._id = { $ne: currentAnimal._id };
   }
 
-  const animals = await readMockAnimals();
-  const isDuplicate = animals.some(
-    (entry) => entry.slug === slug && entry.slug !== currentAnimal?.slug
-  );
+  const existingAnimal = await Animal.findOne(query).lean();
 
-  if (isDuplicate) {
+  if (existingAnimal) {
     throw createHttpError(409, 'Вече съществува животно със същия slug.');
   }
 }
@@ -1129,44 +1065,6 @@ function resolveSortDefinition(sortValue) {
   };
 }
 
-function comparePrimitiveValues(leftValue, rightValue) {
-  if (leftValue === rightValue) {
-    return 0;
-  }
-
-  if (leftValue === undefined || leftValue === null) {
-    return 1;
-  }
-
-  if (rightValue === undefined || rightValue === null) {
-    return -1;
-  }
-
-  if (typeof leftValue === 'string' || typeof rightValue === 'string') {
-    return String(leftValue).localeCompare(String(rightValue), 'bg', { sensitivity: 'base' });
-  }
-
-  if (leftValue < rightValue) {
-    return -1;
-  }
-
-  return 1;
-}
-
-function sortAnimals(animals, sortDefinition) {
-  return [...animals].sort((leftAnimal, rightAnimal) => {
-    const fieldComparison =
-      comparePrimitiveValues(leftAnimal[sortDefinition.field], rightAnimal[sortDefinition.field]) *
-      sortDefinition.direction;
-
-    if (fieldComparison !== 0) {
-      return fieldComparison;
-    }
-
-    return comparePrimitiveValues(leftAnimal.name, rightAnimal.name);
-  });
-}
-
 function normalizeAnimalListOptions(filters = {}) {
   const hasExplicitPagination =
     filters.page !== undefined ||
@@ -1185,53 +1083,6 @@ function normalizeAnimalListOptions(filters = {}) {
     sortDefinition,
     hasExplicitPagination,
   };
-}
-
-function buildPaginatedResult(items, options) {
-  const total = items.length;
-  const effectiveLimit = (options.limit ?? total) || 1;
-  const totalPages = total === 0 ? 0 : Math.ceil(total / effectiveLimit);
-  const safePage = totalPages === 0 ? 1 : Math.min(options.page, totalPages);
-  const startIndex = options.limit ? (safePage - 1) * options.limit : 0;
-  const pagedItems = options.limit ? items.slice(startIndex, startIndex + options.limit) : items;
-
-  return {
-    items: pagedItems,
-    total,
-    pagination: {
-      page: safePage,
-      limit: effectiveLimit,
-      total,
-      totalPages,
-      hasNextPage: totalPages > 0 && safePage < totalPages,
-      hasPreviousPage: totalPages > 0 && safePage > 1,
-    },
-    sort: options.sort,
-  };
-}
-
-function applyLocalFilters(animals, filters) {
-  const searchTerms = getSearchTerms(filters.query);
-  const species = normalizeSpecies(filters.species);
-  const gender = normalizeGender(filters.gender);
-  const size = normalizeSize(filters.size);
-  const status = normalizeText(filters.status);
-
-  return animals.filter((animal) => {
-    const normalizedSpecies = normalizeSpecies(animal.species ?? animal.type);
-    const normalizedGender = normalizeGender(animal.gender);
-    const normalizedSize = normalizeSize(animal.size);
-    const normalizedStatus = normalizeText(animal.status);
-
-    const matchesQuery = animalMatchesSearch(animal, searchTerms);
-
-    const matchesSpecies = !species || normalizedSpecies === species;
-    const matchesGender = !gender || normalizedGender === gender;
-    const matchesSize = !size || normalizedSize === size;
-    const matchesStatus = !status || normalizedStatus === status;
-
-    return matchesQuery && matchesSpecies && matchesGender && matchesSize && matchesStatus;
-  });
 }
 
 function buildMongoFilters(filters) {
@@ -1274,41 +1125,33 @@ export function getAnimalModulePolicy(roleCandidate) {
 
 export async function getAnimalsCollection(filters = {}) {
   const listOptions = normalizeAnimalListOptions(filters);
+  const mongoFilters = buildMongoFilters(filters);
+  const total = await Animal.countDocuments(mongoFilters);
+  const effectiveLimit = (listOptions.limit ?? total) || 1;
+  const totalPages = total === 0 ? 0 : Math.ceil(total / effectiveLimit);
+  const safePage = totalPages === 0 ? 1 : Math.min(listOptions.page, totalPages);
+  const query = Animal.find(mongoFilters).sort(listOptions.sortDefinition.mongo);
 
-  if (isDatabaseConnected()) {
-    const mongoFilters = buildMongoFilters(filters);
-    const total = await Animal.countDocuments(mongoFilters);
-    const effectiveLimit = (listOptions.limit ?? total) || 1;
-    const totalPages = total === 0 ? 0 : Math.ceil(total / effectiveLimit);
-    const safePage = totalPages === 0 ? 1 : Math.min(listOptions.page, totalPages);
-    const query = Animal.find(mongoFilters).sort(listOptions.sortDefinition.mongo);
-
-    if (listOptions.limit) {
-      query.skip((safePage - 1) * listOptions.limit).limit(listOptions.limit);
-    }
-
-    const animals = await query.lean();
-    const items = animals.map(serializeAnimal);
-
-    return {
-      items,
-      total,
-      pagination: {
-        page: safePage,
-        limit: effectiveLimit,
-        total,
-        totalPages,
-        hasNextPage: totalPages > 0 && safePage < totalPages,
-        hasPreviousPage: totalPages > 0 && safePage > 1,
-      },
-      sort: listOptions.sort,
-    };
+  if (listOptions.limit) {
+    query.skip((safePage - 1) * listOptions.limit).limit(listOptions.limit);
   }
 
-  const mockAnimals = await readMockAnimals();
-  const filteredAnimals = applyLocalFilters(mockAnimals, filters).map(serializeAnimal);
-  const sortedAnimals = sortAnimals(filteredAnimals, listOptions.sortDefinition);
-  return buildPaginatedResult(sortedAnimals, listOptions);
+  const animals = await query.lean();
+  const items = animals.map(serializeAnimal);
+
+  return {
+    items,
+    total,
+    pagination: {
+      page: safePage,
+      limit: effectiveLimit,
+      total,
+      totalPages,
+      hasNextPage: totalPages > 0 && safePage < totalPages,
+      hasPreviousPage: totalPages > 0 && safePage > 1,
+    },
+    sort: listOptions.sort,
+  };
 }
 
 export async function getAnimalById(animalId) {
@@ -1319,24 +1162,8 @@ export async function getAnimalById(animalId) {
 export async function createAnimal(payload) {
   const normalizedPayload = normalizeAnimalWritePayload(payload);
   await ensureUniqueSlug(normalizedPayload.slug);
-
-  if (isDatabaseConnected()) {
-    const createdAnimal = await Animal.create(normalizedPayload);
-    return serializeAnimal(createdAnimal.toObject());
-  }
-
-  const animals = await readMockAnimals();
-  const now = new Date().toISOString();
-  const animalRecord = {
-    ...normalizedPayload,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  animals.push(animalRecord);
-  await writeMockAnimals(animals);
-
-  return serializeAnimal(animalRecord);
+  const createdAnimal = await Animal.create(normalizedPayload);
+  return serializeAnimal(createdAnimal.toObject());
 }
 
 export async function updateAnimal(animalId, payload) {
@@ -1355,34 +1182,14 @@ export async function updateAnimal(animalId, payload) {
     await ensureUniqueSlug(normalizedPayload.slug, currentAnimal);
   }
 
-  if (isDatabaseConnected()) {
-    const updatedAnimal = await Animal.findOneAndUpdate(buildLookupQuery(animalId), normalizedPayload, {
-      new: true,
-      runValidators: true,
-    }).lean();
+  const updatedAnimal = await Animal.findOneAndUpdate(buildLookupQuery(animalId), normalizedPayload, {
+    new: true,
+    runValidators: true,
+  }).lean();
 
-    if (!updatedAnimal) {
-      throw createHttpError(404, 'Животното не беше намерено.');
-    }
-
-    return serializeAnimal(updatedAnimal);
-  }
-
-  const animals = await readMockAnimals();
-  const animalIndex = findMockAnimalIndex(animals, animalId);
-
-  if (animalIndex === -1) {
+  if (!updatedAnimal) {
     throw createHttpError(404, 'Животното не беше намерено.');
   }
-
-  const updatedAnimal = {
-    ...animals[animalIndex],
-    ...normalizedPayload,
-    updatedAt: new Date().toISOString(),
-  };
-
-  animals[animalIndex] = updatedAnimal;
-  await writeMockAnimals(animals);
 
   return serializeAnimal(updatedAnimal);
 }
@@ -1396,34 +1203,14 @@ export async function updateAnimalStatus(animalId, payload) {
 
   const normalizedPayload = normalizeStatusUpdatePayload(payload, currentAnimal);
 
-  if (isDatabaseConnected()) {
-    const updatedAnimal = await Animal.findOneAndUpdate(buildLookupQuery(animalId), normalizedPayload, {
-      new: true,
-      runValidators: true,
-    }).lean();
+  const updatedAnimal = await Animal.findOneAndUpdate(buildLookupQuery(animalId), normalizedPayload, {
+    new: true,
+    runValidators: true,
+  }).lean();
 
-    if (!updatedAnimal) {
-      throw createHttpError(404, 'Животното не беше намерено.');
-    }
-
-    return serializeAnimal(updatedAnimal);
-  }
-
-  const animals = await readMockAnimals();
-  const animalIndex = findMockAnimalIndex(animals, animalId);
-
-  if (animalIndex === -1) {
+  if (!updatedAnimal) {
     throw createHttpError(404, 'Животното не беше намерено.');
   }
-
-  const updatedAnimal = {
-    ...animals[animalIndex],
-    ...normalizedPayload,
-    updatedAt: new Date().toISOString(),
-  };
-
-  animals[animalIndex] = updatedAnimal;
-  await writeMockAnimals(animals);
 
   return serializeAnimal(updatedAnimal);
 }
@@ -1437,34 +1224,14 @@ export async function deactivateAnimal(animalId, payload = {}) {
 
   const normalizedPayload = normalizeDeactivatePayload(payload, currentAnimal);
 
-  if (isDatabaseConnected()) {
-    const updatedAnimal = await Animal.findOneAndUpdate(buildLookupQuery(animalId), normalizedPayload, {
-      new: true,
-      runValidators: true,
-    }).lean();
+  const updatedAnimal = await Animal.findOneAndUpdate(buildLookupQuery(animalId), normalizedPayload, {
+    new: true,
+    runValidators: true,
+  }).lean();
 
-    if (!updatedAnimal) {
-      throw createHttpError(404, 'Животното не беше намерено.');
-    }
-
-    return serializeAnimal(updatedAnimal);
-  }
-
-  const animals = await readMockAnimals();
-  const animalIndex = findMockAnimalIndex(animals, animalId);
-
-  if (animalIndex === -1) {
+  if (!updatedAnimal) {
     throw createHttpError(404, 'Животното не беше намерено.');
   }
-
-  const updatedAnimal = {
-    ...animals[animalIndex],
-    ...normalizedPayload,
-    updatedAt: new Date().toISOString(),
-  };
-
-  animals[animalIndex] = updatedAnimal;
-  await writeMockAnimals(animals);
 
   return serializeAnimal(updatedAnimal);
 }

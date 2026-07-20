@@ -173,8 +173,6 @@ export function getReportsSourceLabel(source) {
   switch (source?.mode) {
     case 'mongodb':
       return 'MongoDB е активният източник на данни.';
-    case 'mock-fallback':
-      return 'Работи се в mock fallback режим за разработка.';
     default:
       return source?.label || 'Няма данни за източника.';
   }

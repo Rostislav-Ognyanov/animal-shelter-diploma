@@ -2,9 +2,9 @@ import 'dotenv/config';
 
 import mongoose from 'mongoose';
 
-import { connectToDatabase, isDatabaseConnected } from '../config/db.js';
+import { connectToDatabase } from '../config/db.js';
 import Animal from '../models/Animal.js';
-import { loadJsonFile } from '../utils/loadJsonFile.js';
+import { DEMO_ANIMALS } from '../seeds/demoAnimals.js';
 
 const INACTIVE_STATUSES = new Set(['inactive', 'archived']);
 
@@ -48,15 +48,10 @@ function normalizeSeedAnimal(entry) {
 async function seedAnimals() {
   await connectToDatabase();
 
-  if (!isDatabaseConnected()) {
-    throw new Error('MongoDB connection is required to seed animals. Configure DB_URL first.');
-  }
-
-  const mockAnimals = await loadJsonFile('data/animals.json');
   let insertedCount = 0;
   let updatedCount = 0;
 
-  for (const entry of mockAnimals) {
+  for (const entry of DEMO_ANIMALS) {
     const normalizedAnimal = normalizeSeedAnimal(entry);
     const existingAnimal = await Animal.findOne({ slug: normalizedAnimal.slug }).lean();
 

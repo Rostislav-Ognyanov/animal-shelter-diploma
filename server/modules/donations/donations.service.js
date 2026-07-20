@@ -1,17 +1,10 @@
-﻿import crypto from 'node:crypto';
-
 import mongoose from 'mongoose';
 
-import { isDatabaseConnected } from '../../config/db.js';
 import Donation from '../../models/Donation.js';
 import { createHttpError } from '../../utils/httpError.js';
-import { loadJsonFile } from '../../utils/loadJsonFile.js';
-import { saveJsonFile } from '../../utils/saveJsonFile.js';
 import { getAllowedDonationActions, hasPermission } from '../shared/rolePolicies.js';
 
-const DONATIONS_DATA_PATH = 'data/donations.json';
-const DONATION_ID_PATTERN =
-  /^[0-9a-f]{24}$|^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const DONATION_ID_PATTERN = /^[0-9a-f]{24}$/i;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^[0-9+\s().-]{6,32}$/;
 const MAX_DONATION_AMOUNT = 100000;
@@ -167,14 +160,6 @@ function serializeDonation(donation) {
   };
 }
 
-async function readMockDonations() {
-  return loadJsonFile(DONATIONS_DATA_PATH);
-}
-
-async function writeMockDonations(donations) {
-  return saveJsonFile(DONATIONS_DATA_PATH, donations);
-}
-
 function buildDonationQuery(filters = {}) {
   const search = normalizeLookupText(filters.search);
 
@@ -188,41 +173,14 @@ function buildDonationQuery(filters = {}) {
   };
 }
 
-function applyDonationFilters(donations, filters = {}) {
-  const search = normalizeLookupText(filters.search);
-
-  return donations.filter((donation) => {
-    if (!search) {
-      return true;
-    }
-
-    return [donation.name, donation.email, donation.phone, donation.message]
-      .map((entry) => normalizeLookupText(entry))
-      .some((entry) => entry.includes(search));
-  });
-}
-
-function sortDonationsByNewest(donations) {
-  return [...donations].sort((leftDonation, rightDonation) => {
-    const leftCreatedAt = new Date(leftDonation.createdAt ?? 0).getTime();
-    const rightCreatedAt = new Date(rightDonation.createdAt ?? 0).getTime();
-    return rightCreatedAt - leftCreatedAt;
-  });
-}
-
 async function findDonationRecordById(donationId) {
   const normalizedId = assertValidDonationId(donationId);
 
-  if (isDatabaseConnected()) {
-    if (!mongoose.isValidObjectId(normalizedId)) {
-      return null;
-    }
-
-    return Donation.findById(normalizedId).lean();
+  if (!mongoose.isValidObjectId(normalizedId)) {
+    return null;
   }
 
-  const donations = await readMockDonations();
-  return donations.find((entry) => entry.id === normalizedId) ?? null;
+  return Donation.findById(normalizedId).lean();
 }
 
 export function getDonationModulePolicy(roleCandidate) {
@@ -233,38 +191,15 @@ export function getDonationModulePolicy(roleCandidate) {
 }
 
 export async function createDonation(payload) {
-  const normalizedPayload = normalizeCreatePayload(payload);
-
-  if (isDatabaseConnected()) {
-    const createdDonation = await Donation.create(normalizedPayload);
-    return serializeDonation(createdDonation.toObject());
-  }
-
-  const donations = await readMockDonations();
-  const now = new Date().toISOString();
-  const donationRecord = {
-    id: crypto.randomUUID(),
-    ...normalizedPayload,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  donations.push(donationRecord);
-  await writeMockDonations(donations);
-
-  return serializeDonation(donationRecord);
+  const createdDonation = await Donation.create(normalizeCreatePayload(payload));
+  return serializeDonation(createdDonation.toObject());
 }
 
 export async function getDonationCollection(currentUser, filters = {}) {
   assertStaffPermission(currentUser, 'view-all');
+  const donations = await Donation.find(buildDonationQuery(filters)).sort({ createdAt: -1 }).lean();
 
-  if (isDatabaseConnected()) {
-    const donations = await Donation.find(buildDonationQuery(filters)).sort({ createdAt: -1 }).lean();
-    return donations.map(serializeDonation);
-  }
-
-  const donations = await readMockDonations();
-  return sortDonationsByNewest(applyDonationFilters(donations, filters)).map(serializeDonation);
+  return donations.map(serializeDonation);
 }
 
 export async function getDonationById(donationId, currentUser) {

@@ -1,12 +1,7 @@
-﻿import crypto from 'node:crypto';
-
 import mongoose from 'mongoose';
 
-import { isDatabaseConnected } from '../../config/db.js';
 import RescueReport from '../../models/RescueReport.js';
 import { createHttpError } from '../../utils/httpError.js';
-import { loadJsonFile } from '../../utils/loadJsonFile.js';
-import { saveJsonFile } from '../../utils/saveJsonFile.js';
 import {
   getAllowedRescueReportActions,
   hasPermission,
@@ -20,9 +15,7 @@ import {
   RESCUE_REPORT_URGENCY_VALUES,
 } from './rescueReport.constants.js';
 
-const RESCUE_REPORTS_DATA_PATH = 'data/rescue-reports.json';
-const RESCUE_REPORT_ID_PATTERN =
-  /^[0-9a-f]{24}$|^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const RESCUE_REPORT_ID_PATTERN = /^[0-9a-f]{24}$/i;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^[0-9+\s().-]{6,32}$/;
 
@@ -252,14 +245,6 @@ function serializeRescueReport(report) {
   };
 }
 
-async function readMockRescueReports() {
-  return loadJsonFile(RESCUE_REPORTS_DATA_PATH);
-}
-
-async function writeMockRescueReports(reports) {
-  return saveJsonFile(RESCUE_REPORTS_DATA_PATH, reports);
-}
-
 function buildRescueReportQuery(filters = {}) {
   const query = {};
   const status = normalizeOptionalReportStatus(filters.status);
@@ -282,43 +267,14 @@ function buildRescueReportQuery(filters = {}) {
   return query;
 }
 
-function applyRescueReportFilters(reports, filters = {}) {
-  const status = normalizeOptionalReportStatus(filters.status);
-  const search = normalizeLookupText(filters.search);
-
-  return reports.filter((report) => {
-    const matchesStatus = !status || report.status === status;
-    const matchesSearch =
-      !search ||
-      [report.name, report.phone, report.location, report.description]
-        .map((entry) => normalizeLookupText(entry))
-        .some((entry) => entry.includes(search));
-
-    return matchesStatus && matchesSearch;
-  });
-}
-
-function sortReportsByNewest(reports) {
-  return [...reports].sort((leftReport, rightReport) => {
-    const leftCreatedAt = new Date(leftReport.createdAt ?? 0).getTime();
-    const rightCreatedAt = new Date(rightReport.createdAt ?? 0).getTime();
-    return rightCreatedAt - leftCreatedAt;
-  });
-}
-
 async function findRescueReportRecordById(reportId) {
   const normalizedId = assertValidRescueReportId(reportId);
 
-  if (isDatabaseConnected()) {
-    if (!mongoose.isValidObjectId(normalizedId)) {
-      return null;
-    }
-
-    return RescueReport.findById(normalizedId).lean();
+  if (!mongoose.isValidObjectId(normalizedId)) {
+    return null;
   }
 
-  const reports = await readMockRescueReports();
-  return reports.find((entry) => entry.id === normalizedId) ?? null;
+  return RescueReport.findById(normalizedId).lean();
 }
 
 export function getRescueReportModulePolicy(roleCandidate) {
@@ -333,47 +289,22 @@ export function getRescueReportModulePolicy(roleCandidate) {
 
 export async function createRescueReport(payload) {
   const normalizedPayload = normalizeCreatePayload(payload);
-
-  if (isDatabaseConnected()) {
-    const createdReport = await RescueReport.create({
-      ...normalizedPayload,
-      status: 'pending',
-      notes: '',
-    });
-
-    return serializeRescueReport(createdReport.toObject());
-  }
-
-  const reports = await readMockRescueReports();
-  const now = new Date().toISOString();
-  const reportRecord = {
-    id: crypto.randomUUID(),
+  const createdReport = await RescueReport.create({
     ...normalizedPayload,
     status: 'pending',
     notes: '',
-    createdAt: now,
-    updatedAt: now,
-  };
+  });
 
-  reports.push(reportRecord);
-  await writeMockRescueReports(reports);
-
-  return serializeRescueReport(reportRecord);
+  return serializeRescueReport(createdReport.toObject());
 }
 
 export async function getRescueReportCollection(currentUser, filters = {}) {
   assertStaffPermission(currentUser, 'view-all');
+  const reports = await RescueReport.find(buildRescueReportQuery(filters))
+    .sort({ createdAt: -1 })
+    .lean();
 
-  if (isDatabaseConnected()) {
-    const reports = await RescueReport.find(buildRescueReportQuery(filters))
-      .sort({ createdAt: -1 })
-      .lean();
-
-    return reports.map(serializeRescueReport);
-  }
-
-  const reports = await readMockRescueReports();
-  return sortReportsByNewest(applyRescueReportFilters(reports, filters)).map(serializeRescueReport);
+  return reports.map(serializeRescueReport);
 }
 
 export async function getRescueReportById(reportId, currentUser) {
@@ -391,43 +322,21 @@ export async function updateRescueReportStatus(reportId, payload, currentUser) {
   assertStaffPermission(currentUser, 'update-status');
   const normalizedId = assertValidRescueReportId(reportId);
   const normalizedPayload = normalizeStatusUpdatePayload(payload);
-
-  if (isDatabaseConnected()) {
-    const updatedReport = await RescueReport.findByIdAndUpdate(
-      normalizedId,
-      {
-        status: normalizedPayload.status,
-        notes: normalizedPayload.notes,
-      },
-      {
-        new: true,
-        runValidators: true,
-      }
-    ).lean();
-
-    if (!updatedReport) {
-      throw createHttpError(404, 'Сигналът не беше намерен.');
+  const updatedReport = await RescueReport.findByIdAndUpdate(
+    normalizedId,
+    {
+      status: normalizedPayload.status,
+      notes: normalizedPayload.notes,
+    },
+    {
+      new: true,
+      runValidators: true,
     }
+  ).lean();
 
-    return serializeRescueReport(updatedReport);
-  }
-
-  const reports = await readMockRescueReports();
-  const reportIndex = reports.findIndex((entry) => entry.id === normalizedId);
-
-  if (reportIndex === -1) {
+  if (!updatedReport) {
     throw createHttpError(404, 'Сигналът не беше намерен.');
   }
-
-  const updatedReport = {
-    ...reports[reportIndex],
-    status: normalizedPayload.status,
-    notes: normalizedPayload.notes,
-    updatedAt: new Date().toISOString(),
-  };
-
-  reports[reportIndex] = updatedReport;
-  await writeMockRescueReports(reports);
 
   return serializeRescueReport(updatedReport);
 }

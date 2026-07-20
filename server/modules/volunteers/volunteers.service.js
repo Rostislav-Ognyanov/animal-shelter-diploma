@@ -1,12 +1,7 @@
-﻿import crypto from 'node:crypto';
-
 import mongoose from 'mongoose';
 
-import { isDatabaseConnected } from '../../config/db.js';
 import VolunteerApplication from '../../models/VolunteerApplication.js';
 import { createHttpError } from '../../utils/httpError.js';
-import { loadJsonFile } from '../../utils/loadJsonFile.js';
-import { saveJsonFile } from '../../utils/saveJsonFile.js';
 import {
   getAllowedVolunteerApplicationActions,
   hasPermission,
@@ -18,9 +13,7 @@ import {
   VOLUNTEER_POSITION_VALUES,
 } from './volunteer.constants.js';
 
-const VOLUNTEER_APPLICATIONS_DATA_PATH = 'data/volunteer-applications.json';
-const VOLUNTEER_APPLICATION_ID_PATTERN =
-  /^[0-9a-f]{24}$|^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const VOLUNTEER_APPLICATION_ID_PATTERN = /^[0-9a-f]{24}$/i;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^[0-9+\s().-]{6,32}$/;
 
@@ -330,14 +323,6 @@ function serializeVolunteerApplication(application) {
   };
 }
 
-async function readMockVolunteerApplications() {
-  return loadJsonFile(VOLUNTEER_APPLICATIONS_DATA_PATH);
-}
-
-async function writeMockVolunteerApplications(applications) {
-  return saveJsonFile(VOLUNTEER_APPLICATIONS_DATA_PATH, applications);
-}
-
 function buildVolunteerQuery(filters = {}) {
   const query = {};
   const status = normalizeOptionalVolunteerStatus(filters.status);
@@ -363,51 +348,14 @@ function buildVolunteerQuery(filters = {}) {
   return query;
 }
 
-function applyVolunteerFilters(applications, filters = {}) {
-  const status = normalizeOptionalVolunteerStatus(filters.status);
-  const search = normalizeLookupText(filters.search);
-
-  return applications.filter((application) => {
-    const matchesStatus = !status || application.status === status;
-    const matchesSearch =
-      !search ||
-      [
-        application.firstName,
-        application.lastName,
-        application.email,
-        application.phone,
-        application.guardianName,
-        application.guardianContact,
-        application.otherPosition,
-      ]
-        .map((entry) => normalizeLookupText(entry))
-        .some((entry) => entry.includes(search));
-
-    return matchesStatus && matchesSearch;
-  });
-}
-
-function sortApplicationsByNewest(applications) {
-  return [...applications].sort((leftApplication, rightApplication) => {
-    const leftCreatedAt = new Date(leftApplication.createdAt ?? 0).getTime();
-    const rightCreatedAt = new Date(rightApplication.createdAt ?? 0).getTime();
-    return rightCreatedAt - leftCreatedAt;
-  });
-}
-
 async function findVolunteerApplicationRecordById(applicationId) {
   const normalizedId = assertValidVolunteerApplicationId(applicationId);
 
-  if (isDatabaseConnected()) {
-    if (!mongoose.isValidObjectId(normalizedId)) {
-      return null;
-    }
-
-    return VolunteerApplication.findById(normalizedId).lean();
+  if (!mongoose.isValidObjectId(normalizedId)) {
+    return null;
   }
 
-  const applications = await readMockVolunteerApplications();
-  return applications.find((entry) => entry.id === normalizedId) ?? null;
+  return VolunteerApplication.findById(normalizedId).lean();
 }
 
 export function getVolunteerApplicationModulePolicy(roleCandidate) {
@@ -420,49 +368,22 @@ export function getVolunteerApplicationModulePolicy(roleCandidate) {
 
 export async function createVolunteerApplication(payload) {
   const normalizedPayload = normalizeCreatePayload(payload);
-
-  if (isDatabaseConnected()) {
-    const createdApplication = await VolunteerApplication.create({
-      ...normalizedPayload,
-      status: 'pending',
-      notes: '',
-    });
-
-    return serializeVolunteerApplication(createdApplication.toObject());
-  }
-
-  const applications = await readMockVolunteerApplications();
-  const now = new Date().toISOString();
-  const applicationRecord = {
-    id: crypto.randomUUID(),
+  const createdApplication = await VolunteerApplication.create({
     ...normalizedPayload,
     status: 'pending',
     notes: '',
-    createdAt: now,
-    updatedAt: now,
-  };
+  });
 
-  applications.push(applicationRecord);
-  await writeMockVolunteerApplications(applications);
-
-  return serializeVolunteerApplication(applicationRecord);
+  return serializeVolunteerApplication(createdApplication.toObject());
 }
 
 export async function getVolunteerApplicationCollection(currentUser, filters = {}) {
   assertStaffPermission(currentUser, 'view-all');
+  const applications = await VolunteerApplication.find(buildVolunteerQuery(filters))
+    .sort({ createdAt: -1 })
+    .lean();
 
-  if (isDatabaseConnected()) {
-    const applications = await VolunteerApplication.find(buildVolunteerQuery(filters))
-      .sort({ createdAt: -1 })
-      .lean();
-
-    return applications.map(serializeVolunteerApplication);
-  }
-
-  const applications = await readMockVolunteerApplications();
-  return sortApplicationsByNewest(applyVolunteerFilters(applications, filters)).map(
-    serializeVolunteerApplication
-  );
+  return applications.map(serializeVolunteerApplication);
 }
 
 export async function getVolunteerApplicationById(applicationId, currentUser) {
@@ -480,43 +401,21 @@ export async function updateVolunteerApplicationStatus(applicationId, payload, c
   assertStaffPermission(currentUser, 'update-status');
   const normalizedId = assertValidVolunteerApplicationId(applicationId);
   const normalizedPayload = normalizeStatusUpdatePayload(payload);
-
-  if (isDatabaseConnected()) {
-    const updatedApplication = await VolunteerApplication.findByIdAndUpdate(
-      normalizedId,
-      {
-        status: normalizedPayload.status,
-        notes: normalizedPayload.notes,
-      },
-      {
-        new: true,
-        runValidators: true,
-      }
-    ).lean();
-
-    if (!updatedApplication) {
-      throw createHttpError(404, 'Кандидатурата не беше намерена.');
+  const updatedApplication = await VolunteerApplication.findByIdAndUpdate(
+    normalizedId,
+    {
+      status: normalizedPayload.status,
+      notes: normalizedPayload.notes,
+    },
+    {
+      new: true,
+      runValidators: true,
     }
+  ).lean();
 
-    return serializeVolunteerApplication(updatedApplication);
-  }
-
-  const applications = await readMockVolunteerApplications();
-  const applicationIndex = applications.findIndex((entry) => entry.id === normalizedId);
-
-  if (applicationIndex === -1) {
+  if (!updatedApplication) {
     throw createHttpError(404, 'Кандидатурата не беше намерена.');
   }
-
-  const updatedApplication = {
-    ...applications[applicationIndex],
-    status: normalizedPayload.status,
-    notes: normalizedPayload.notes,
-    updatedAt: new Date().toISOString(),
-  };
-
-  applications[applicationIndex] = updatedApplication;
-  await writeMockVolunteerApplications(applications);
 
   return serializeVolunteerApplication(updatedApplication);
 }

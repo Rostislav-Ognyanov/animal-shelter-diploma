@@ -1,14 +1,7 @@
-﻿import crypto from 'node:crypto';
-
 import mongoose from 'mongoose';
 
-import { isDatabaseConnected } from '../../config/db.js';
 import User from '../../models/User.js';
 import { createHttpError } from '../../utils/httpError.js';
-import { loadJsonFile } from '../../utils/loadJsonFile.js';
-import { saveJsonFile } from '../../utils/saveJsonFile.js';
-
-const USERS_DATA_PATH = 'data/users.json';
 
 function normalizeText(value) {
   return String(value ?? '').trim();
@@ -85,16 +78,6 @@ function buildPagination(total, options) {
   };
 }
 
-function buildPaginatedResult(items, total, paginationOptions) {
-  const pagination = buildPagination(total, paginationOptions);
-
-  return {
-    items,
-    total,
-    pagination,
-  };
-}
-
 export function serializePublicUser(user) {
   return {
     id: serializeId(user),
@@ -110,31 +93,14 @@ export function serializePublicUser(user) {
   };
 }
 
-async function readMockUsers() {
-  return loadJsonFile(USERS_DATA_PATH);
-}
-
-async function writeMockUsers(users) {
-  return saveJsonFile(USERS_DATA_PATH, users);
-}
-
 export async function findUserById(userId) {
   const normalizedUserId = normalizeText(userId);
 
-  if (!normalizedUserId) {
+  if (!normalizedUserId || !mongoose.isValidObjectId(normalizedUserId)) {
     return null;
   }
 
-  if (isDatabaseConnected()) {
-    if (!mongoose.isValidObjectId(normalizedUserId)) {
-      return null;
-    }
-
-    return User.findById(normalizedUserId).lean();
-  }
-
-  const users = await readMockUsers();
-  return users.find((entry) => entry.id === normalizedUserId) ?? null;
+  return User.findById(normalizedUserId).lean();
 }
 
 export async function findUserByUsername(username) {
@@ -144,12 +110,7 @@ export async function findUserByUsername(username) {
     return null;
   }
 
-  if (isDatabaseConnected()) {
-    return User.findOne({ username: normalizedUsername }).lean();
-  }
-
-  const users = await readMockUsers();
-  return users.find((entry) => normalizeLookupValue(entry.username) === normalizedUsername) ?? null;
+  return User.findOne({ username: normalizedUsername }).lean();
 }
 
 export async function findUserByEmail(email) {
@@ -159,12 +120,7 @@ export async function findUserByEmail(email) {
     return null;
   }
 
-  if (isDatabaseConnected()) {
-    return User.findOne({ email: normalizedEmail }).lean();
-  }
-
-  const users = await readMockUsers();
-  return users.find((entry) => normalizeLookupValue(entry.email) === normalizedEmail) ?? null;
+  return User.findOne({ email: normalizedEmail }).lean();
 }
 
 export async function findUserByIdentifier(identifier) {
@@ -174,20 +130,9 @@ export async function findUserByIdentifier(identifier) {
     return null;
   }
 
-  if (isDatabaseConnected()) {
-    return User.findOne({
-      $or: [{ username: normalizedIdentifier }, { email: normalizedIdentifier }],
-    }).lean();
-  }
-
-  const users = await readMockUsers();
-  return (
-    users.find((entry) => {
-      const username = normalizeLookupValue(entry.username);
-      const email = normalizeLookupValue(entry.email);
-      return username === normalizedIdentifier || email === normalizedIdentifier;
-    }) ?? null
-  );
+  return User.findOne({
+    $or: [{ username: normalizedIdentifier }, { email: normalizedIdentifier }],
+  }).lean();
 }
 
 export async function createUser(userPayload) {
@@ -196,90 +141,22 @@ export async function createUser(userPayload) {
     username: normalizeLookupValue(userPayload.username),
     email: normalizeLookupValue(userPayload.email),
   };
+  const createdUser = await User.create(normalizedPayload);
 
-  if (isDatabaseConnected()) {
-    const createdUser = await User.create(normalizedPayload);
-    return createdUser.toObject();
-  }
-
-  const users = await readMockUsers();
-  const now = new Date().toISOString();
-  const userRecord = {
-    id: crypto.randomUUID(),
-    firstName: normalizedPayload.firstName,
-    lastName: normalizedPayload.lastName,
-    username: normalizedPayload.username,
-    email: normalizedPayload.email,
-    passwordHash: normalizedPayload.passwordHash,
-    role: normalizedPayload.role,
-    isActive: normalizedPayload.isActive ?? true,
-    lastLoginAt: normalizedPayload.lastLoginAt ?? null,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  users.push(userRecord);
-  await writeMockUsers(users);
-
-  return userRecord;
+  return createdUser.toObject();
 }
 
 export async function updateUserById(userId, changes) {
   const normalizedUserId = normalizeText(userId);
 
-  if (!normalizedUserId) {
+  if (!normalizedUserId || !mongoose.isValidObjectId(normalizedUserId)) {
     return null;
   }
 
-  if (isDatabaseConnected()) {
-    if (!mongoose.isValidObjectId(normalizedUserId)) {
-      return null;
-    }
-
-    return User.findByIdAndUpdate(normalizedUserId, changes, {
-      new: true,
-      runValidators: true,
-    }).lean();
-  }
-
-  const users = await readMockUsers();
-  const userIndex = users.findIndex((entry) => entry.id === normalizedUserId);
-
-  if (userIndex === -1) {
-    return null;
-  }
-
-  const updatedUser = {
-    ...users[userIndex],
-    ...changes,
-    updatedAt: new Date().toISOString(),
-  };
-
-  users[userIndex] = updatedUser;
-  await writeMockUsers(users);
-
-  return updatedUser;
-}
-
-function applyUserFilters(users, filters = {}) {
-  const requestedRole = normalizeLookupValue(filters.role);
-  const requestedStatus = normalizeLookupValue(filters.status);
-  const searchTerm = normalizeLookupValue(filters.search);
-
-  return users.filter((user) => {
-    const matchesRole = !requestedRole || user.role === requestedRole;
-    const matchesStatus =
-      !requestedStatus ||
-      (requestedStatus === 'active' && user.isActive) ||
-      (requestedStatus === 'inactive' && !user.isActive);
-    const matchesSearch =
-      !searchTerm ||
-      [user.firstName, user.lastName, user.username, user.email]
-        .map((value) => normalizeLookupValue(value))
-        .some((value) => value.includes(searchTerm));
-
-    return matchesRole && matchesStatus && matchesSearch;
-  });
+  return User.findByIdAndUpdate(normalizedUserId, changes, {
+    new: true,
+    runValidators: true,
+  }).lean();
 }
 
 function buildMongoUserQuery(filters = {}) {
@@ -311,44 +188,20 @@ function buildMongoUserQuery(filters = {}) {
   return query;
 }
 
-function sortUsers(users) {
-  return [...users].sort((leftUser, rightUser) => {
-    const lastNameComparison = leftUser.lastName.localeCompare(rightUser.lastName, 'bg');
-
-    if (lastNameComparison !== 0) {
-      return lastNameComparison;
-    }
-
-    return leftUser.firstName.localeCompare(rightUser.firstName, 'bg');
-  });
-}
-
 export async function listUsers(filters = {}) {
   const paginationOptions = normalizePaginationOptions(filters);
-
-  if (isDatabaseConnected()) {
-    const query = buildMongoUserQuery(filters);
-    const total = await User.countDocuments(query);
-    const pagination = buildPagination(total, paginationOptions);
-    const users = await User.find(query)
-      .sort({ lastName: 1, firstName: 1 })
-      .skip((pagination.page - 1) * pagination.limit)
-      .limit(pagination.limit)
-      .lean();
-
-    return {
-      items: users,
-      total,
-      pagination,
-    };
-  }
-
-  const users = await readMockUsers();
-  const filteredUsers = sortUsers(applyUserFilters(users, filters));
-  const total = filteredUsers.length;
+  const query = buildMongoUserQuery(filters);
+  const total = await User.countDocuments(query);
   const pagination = buildPagination(total, paginationOptions);
-  const startIndex = (pagination.page - 1) * pagination.limit;
-  const paginatedUsers = filteredUsers.slice(startIndex, startIndex + pagination.limit);
+  const users = await User.find(query)
+    .sort({ lastName: 1, firstName: 1 })
+    .skip((pagination.page - 1) * pagination.limit)
+    .limit(pagination.limit)
+    .lean();
 
-  return buildPaginatedResult(paginatedUsers, total, paginationOptions);
+  return {
+    items: users,
+    total,
+    pagination,
+  };
 }

@@ -1,13 +1,8 @@
-import crypto from 'node:crypto';
-
 import mongoose from 'mongoose';
 
-import { isAnimalsMockFallbackEnabled, isDatabaseConnected } from '../../config/db.js';
 import AdoptionRequest from '../../models/AdoptionRequest.js';
 import Animal from '../../models/Animal.js';
 import { createHttpError } from '../../utils/httpError.js';
-import { loadJsonFile } from '../../utils/loadJsonFile.js';
-import { saveJsonFile } from '../../utils/saveJsonFile.js';
 import { ANIMAL_ID_SLUG_PATTERN } from '../animals/animal.constants.js';
 import { getAnimalById, updateAnimalStatus } from '../animals/animals.service.js';
 import {
@@ -17,11 +12,9 @@ import {
   normalizeRole,
 } from '../shared/rolePolicies.js';
 
-const ADOPTIONS_DATA_PATH = 'data/adoption-requests.json';
 const ACTIVE_ADOPTION_REQUEST_STATUSES = ['pending', 'under-review', 'approved'];
 const STAFF_ROLES = new Set(['employee', 'admin']);
-const ADOPTION_REQUEST_ID_PATTERN =
-  /^[0-9a-f]{24}$|^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ADOPTION_REQUEST_ID_PATTERN = /^[0-9a-f]{24}$/i;
 const PHONE_PATTERN = /^[0-9+\s().-]{6,32}$/;
 const RESERVED_ANIMAL_ADOPTION_STATUSES = ['under-review', 'approved'];
 const PROTECTED_CARE_SPECIES = new Set(['fox', 'owl', 'hedgehog']);
@@ -301,31 +294,6 @@ function buildInternalNote(text, currentUser) {
   };
 }
 
-function canUseMockFallback() {
-  return !isDatabaseConnected() && isAnimalsMockFallbackEnabled();
-}
-
-function assertAdoptionsDataSourceAvailable() {
-  if (isDatabaseConnected() || canUseMockFallback()) {
-    return;
-  }
-
-  throw createHttpError(
-    503,
-    'Модулът за заявки за осиновяване не е достъпен, защото няма активна връзка с MongoDB и mock fallback режимът е изключен.'
-  );
-}
-
-async function readMockAdoptionRequests() {
-  assertAdoptionsDataSourceAvailable();
-  return loadJsonFile(ADOPTIONS_DATA_PATH);
-}
-
-async function writeMockAdoptionRequests(adoptionRequests) {
-  assertAdoptionsDataSourceAvailable();
-  return saveJsonFile(ADOPTIONS_DATA_PATH, adoptionRequests);
-}
-
 function getPrimaryImageUrl(animal) {
   if (Array.isArray(animal.imageUrls) && animal.imageUrls.length > 0) {
     return animal.imageUrls[0];
@@ -419,14 +387,6 @@ function buildRequestQuery(filters = {}) {
   return status ? { status } : {};
 }
 
-function sortRequestsByNewest(requests) {
-  return [...requests].sort((leftRequest, rightRequest) => {
-    const leftCreatedAt = new Date(leftRequest.createdAt ?? 0).getTime();
-    const rightCreatedAt = new Date(rightRequest.createdAt ?? 0).getTime();
-    return rightCreatedAt - leftCreatedAt;
-  });
-}
-
 function getRequestOwnerId(adoptionRequest) {
   return serializeId(adoptionRequest.user ?? adoptionRequest.userId);
 }
@@ -476,36 +436,19 @@ async function getCurrentAnimalForRequest(adoptionRequest) {
 
 async function hasCompetingReservedRequest(adoptionRequest) {
   const currentRequestId = serializeId(adoptionRequest);
+  const animalStorageId = getRequestAnimalStorageId(adoptionRequest);
 
-  if (isDatabaseConnected()) {
-    const animalStorageId = getRequestAnimalStorageId(adoptionRequest);
-
-    if (!mongoose.isValidObjectId(animalStorageId)) {
-      return false;
-    }
-
-    const competingRequest = await AdoptionRequest.findOne({
-      _id: { $ne: currentRequestId },
-      animal: animalStorageId,
-      status: { $in: RESERVED_ANIMAL_ADOPTION_STATUSES },
-    }).lean();
-
-    return Boolean(competingRequest);
+  if (!mongoose.isValidObjectId(animalStorageId)) {
+    return false;
   }
 
-  const animalLookupId = getRequestAnimalLookupId(adoptionRequest);
-  const adoptionRequests = await readMockAdoptionRequests();
+  const competingRequest = await AdoptionRequest.findOne({
+    _id: { $ne: currentRequestId },
+    animal: animalStorageId,
+    status: { $in: RESERVED_ANIMAL_ADOPTION_STATUSES },
+  }).lean();
 
-  return adoptionRequests.some((entry) => {
-    if (entry.id === currentRequestId) {
-      return false;
-    }
-
-    return (
-      getRequestAnimalLookupId(entry) === animalLookupId &&
-      RESERVED_ANIMAL_ADOPTION_STATUSES.includes(entry.status)
-    );
-  });
+  return Boolean(competingRequest);
 }
 
 async function assertNoCompetingReservedRequest(adoptionRequest) {
@@ -609,63 +552,26 @@ async function synchronizeAnimalForAdoptionStatus(adoptionRequest, nextStatus) {
 
 async function findAnimalForRequest(animalId) {
   const normalizedAnimalId = assertValidAnimalId(animalId);
-
-  if (isDatabaseConnected()) {
-    const { query } = buildAnimalLookupQuery(normalizedAnimalId);
-    const animal = await Animal.findOne(query).lean();
-
-    if (!animal) {
-      return null;
-    }
-
-    return {
-      storageId: animal._id,
-      snapshot: serializeAnimalSnapshot(animal),
-      record: animal,
-    };
-  }
-
-  const animal = await getAnimalById(normalizedAnimalId);
+  const { query } = buildAnimalLookupQuery(normalizedAnimalId);
+  const animal = await Animal.findOne(query).lean();
 
   if (!animal) {
     return null;
   }
 
   return {
-    storageId: animal.id,
+    storageId: animal._id,
     snapshot: serializeAnimalSnapshot(animal),
     record: animal,
   };
 }
 
 async function assertNoActiveDuplicate(currentUser, animalContext) {
-  if (isDatabaseConnected()) {
-    const existingRequest = await AdoptionRequest.findOne({
-      user: currentUser.id,
-      animal: animalContext.storageId,
-      status: { $in: ACTIVE_ADOPTION_REQUEST_STATUSES },
-    }).lean();
-
-    if (existingRequest) {
-      throw createHttpError(
-        409,
-        'Вече имаш активна заявка за осиновяване на това животно.'
-      );
-    }
-
-    return;
-  }
-
-  const adoptionRequests = await readMockAdoptionRequests();
-  const existingRequest = adoptionRequests.find((entry) => {
-    const requestUserId = getRequestOwnerId(entry);
-    const requestAnimalId = serializeAnimalSnapshot(entry.animal ?? entry.animalId).id;
-    return (
-      requestUserId === currentUser.id &&
-      requestAnimalId === animalContext.snapshot.id &&
-      ACTIVE_ADOPTION_REQUEST_STATUSES.includes(entry.status)
-    );
-  });
+  const existingRequest = await AdoptionRequest.findOne({
+    user: currentUser.id,
+    animal: animalContext.storageId,
+    status: { $in: ACTIVE_ADOPTION_REQUEST_STATUSES },
+  }).lean();
 
   if (existingRequest) {
     throw createHttpError(409, 'Вече имаш активна заявка за осиновяване на това животно.');
@@ -675,26 +581,17 @@ async function assertNoActiveDuplicate(currentUser, animalContext) {
 async function findAdoptionRequestById(requestId) {
   const normalizedRequestId = assertValidRequestId(requestId);
 
-  if (isDatabaseConnected()) {
-    if (!mongoose.isValidObjectId(normalizedRequestId)) {
-      return null;
-    }
-
-    return AdoptionRequest.findById(normalizedRequestId)
-      .populate('user', 'firstName lastName username email role')
-      .populate('animal', 'slug name displayName species breed status imageUrls')
-      .lean();
+  if (!mongoose.isValidObjectId(normalizedRequestId)) {
+    return null;
   }
 
-  const adoptionRequests = await readMockAdoptionRequests();
-  return adoptionRequests.find((entry) => entry.id === normalizedRequestId) ?? null;
+  return AdoptionRequest.findById(normalizedRequestId)
+    .populate('user', 'firstName lastName username email role')
+    .populate('animal', 'slug name displayName species breed status imageUrls')
+    .lean();
 }
 
 async function getPopulatedAdoptionRequest(requestId) {
-  if (!isDatabaseConnected()) {
-    return findAdoptionRequestById(requestId);
-  }
-
   return AdoptionRequest.findById(requestId)
     .populate('user', 'firstName lastName username email role')
     .populate('animal', 'slug name displayName species breed status imageUrls')
@@ -748,84 +645,44 @@ export async function createAdoptionRequest(payload, currentUser) {
 
   await assertNoActiveDuplicate(currentUser, animalContext);
 
-  if (isDatabaseConnected()) {
-    const createdRequest = await AdoptionRequest.create({
-      user: currentUser.id,
-      animal: animalContext.storageId,
-      status: 'pending',
-      motivation: normalizedPayload.motivation,
-      contactPhone: normalizedPayload.contactPhone,
-    });
-    const populatedRequest = await getPopulatedAdoptionRequest(createdRequest._id);
-
-    return serializeAdoptionRequest(populatedRequest, currentUser);
-  }
-
-  const adoptionRequests = await readMockAdoptionRequests();
-  const now = new Date().toISOString();
-  const adoptionRequest = {
-    id: crypto.randomUUID(),
-    userId: currentUser.id,
-    user: serializeUserSnapshot(currentUser),
-    animalId: animalContext.snapshot.id,
-    animal: animalContext.snapshot,
+  const createdRequest = await AdoptionRequest.create({
+    user: currentUser.id,
+    animal: animalContext.storageId,
     status: 'pending',
     motivation: normalizedPayload.motivation,
     contactPhone: normalizedPayload.contactPhone,
-    internalNotes: [],
-    createdAt: now,
-    updatedAt: now,
-  };
+  });
+  const populatedRequest = await getPopulatedAdoptionRequest(createdRequest._id);
 
-  adoptionRequests.push(adoptionRequest);
-  await writeMockAdoptionRequests(adoptionRequests);
-
-  return serializeAdoptionRequest(adoptionRequest, currentUser);
+  return serializeAdoptionRequest(populatedRequest, currentUser);
 }
 
 export async function getOwnAdoptionRequestCollection(currentUser, filters = {}) {
   assertPermission(currentUser, 'list-own');
   const query = buildRequestQuery(filters);
+  const requests = await AdoptionRequest.find({
+    user: currentUser.id,
+    ...query,
+  })
+    .sort({ createdAt: -1 })
+    .populate('user', 'firstName lastName username email role')
+    .populate('animal', 'slug name displayName species breed status imageUrls')
+    .lean();
 
-  if (isDatabaseConnected()) {
-    const requests = await AdoptionRequest.find({
-      user: currentUser.id,
-      ...query,
-    })
-      .sort({ createdAt: -1 })
-      .populate('user', 'firstName lastName username email role')
-      .populate('animal', 'slug name displayName species breed status imageUrls')
-      .lean();
-
-    return requests.map((entry) => serializeAdoptionRequest(entry, currentUser));
-  }
-
-  const adoptionRequests = await readMockAdoptionRequests();
-  return sortRequestsByNewest(adoptionRequests)
-    .filter((entry) => getRequestOwnerId(entry) === currentUser.id)
-    .filter((entry) => !query.status || entry.status === query.status)
-    .map((entry) => serializeAdoptionRequest(entry, currentUser));
+  return requests.map((entry) => serializeAdoptionRequest(entry, currentUser));
 }
 
 export async function getAllAdoptionRequestCollection(currentUser, filters = {}) {
   assertPermission(currentUser, 'view-all');
   assertStaffCanManage(currentUser);
   const query = buildRequestQuery(filters);
+  const requests = await AdoptionRequest.find(query)
+    .sort({ createdAt: -1 })
+    .populate('user', 'firstName lastName username email role')
+    .populate('animal', 'slug name displayName species breed status imageUrls')
+    .lean();
 
-  if (isDatabaseConnected()) {
-    const requests = await AdoptionRequest.find(query)
-      .sort({ createdAt: -1 })
-      .populate('user', 'firstName lastName username email role')
-      .populate('animal', 'slug name displayName species breed status imageUrls')
-      .lean();
-
-    return requests.map((entry) => serializeAdoptionRequest(entry, currentUser));
-  }
-
-  const adoptionRequests = await readMockAdoptionRequests();
-  return sortRequestsByNewest(adoptionRequests)
-    .filter((entry) => !query.status || entry.status === query.status)
-    .map((entry) => serializeAdoptionRequest(entry, currentUser));
+  return requests.map((entry) => serializeAdoptionRequest(entry, currentUser));
 }
 
 export async function getAdoptionRequestById(requestId, currentUser) {
@@ -852,63 +709,33 @@ export async function updateAdoptionRequestStatus(requestId, payload, currentUse
 
   assertAllowedStatusTransition(existingRequest.status, normalizedPayload.status);
   const internalNote = buildInternalNote(normalizedPayload.internalNote, currentUser);
-  const synchronizedAnimal = await synchronizeAnimalForAdoptionStatus(
+  await synchronizeAnimalForAdoptionStatus(
     existingRequest,
     normalizedPayload.status
   );
-
-  if (isDatabaseConnected()) {
-    const updateOperation = {
-      $set: {
-        status: normalizedPayload.status,
-      },
-    };
-
-    if (internalNote) {
-      updateOperation.$push = {
-        internalNotes: internalNote,
-      };
-    }
-
-    const updatedRequest = await AdoptionRequest.findByIdAndUpdate(
-      normalizedRequestId,
-      updateOperation,
-      {
-        new: true,
-        runValidators: true,
-      }
-    )
-      .populate('user', 'firstName lastName username email role')
-      .populate('animal', 'slug name displayName species breed status imageUrls')
-      .lean();
-
-    return serializeAdoptionRequest(updatedRequest, currentUser);
-  }
-
-  const adoptionRequests = await readMockAdoptionRequests();
-  const requestIndex = adoptionRequests.findIndex((entry) => entry.id === normalizedRequestId);
-
-  if (requestIndex === -1) {
-    throw createHttpError(404, 'Заявката за осиновяване не беше намерена.');
-  }
-
-  const updatedRequest = {
-    ...adoptionRequests[requestIndex],
-    animal: synchronizedAnimal
-      ? serializeAnimalSnapshot(synchronizedAnimal)
-      : adoptionRequests[requestIndex].animal,
-    animalId: synchronizedAnimal
-      ? serializeAnimalSnapshot(synchronizedAnimal).id
-      : adoptionRequests[requestIndex].animalId,
-    status: normalizedPayload.status,
-    internalNotes: internalNote
-      ? [...(adoptionRequests[requestIndex].internalNotes ?? []), internalNote]
-      : adoptionRequests[requestIndex].internalNotes ?? [],
-    updatedAt: new Date().toISOString(),
+  const updateOperation = {
+    $set: {
+      status: normalizedPayload.status,
+    },
   };
 
-  adoptionRequests[requestIndex] = updatedRequest;
-  await writeMockAdoptionRequests(adoptionRequests);
+  if (internalNote) {
+    updateOperation.$push = {
+      internalNotes: internalNote,
+    };
+  }
+
+  const updatedRequest = await AdoptionRequest.findByIdAndUpdate(
+    normalizedRequestId,
+    updateOperation,
+    {
+      new: true,
+      runValidators: true,
+    }
+  )
+    .populate('user', 'firstName lastName username email role')
+    .populate('animal', 'slug name displayName species breed status imageUrls')
+    .lean();
 
   return serializeAdoptionRequest(updatedRequest, currentUser);
 }
@@ -931,39 +758,19 @@ export async function cancelAdoptionRequest(requestId, payload, currentUser) {
     throw createHttpError(409, 'Може да бъде отменена само заявка със статус "pending".');
   }
 
-  if (isDatabaseConnected()) {
-    const updatedRequest = await AdoptionRequest.findByIdAndUpdate(
-      normalizedRequestId,
-      {
-        status: 'cancelled',
-      },
-      {
-        new: true,
-        runValidators: true,
-      }
-    )
-      .populate('user', 'firstName lastName username email role')
-      .populate('animal', 'slug name displayName species breed status imageUrls')
-      .lean();
-
-    return serializeAdoptionRequest(updatedRequest, currentUser);
-  }
-
-  const adoptionRequests = await readMockAdoptionRequests();
-  const requestIndex = adoptionRequests.findIndex((entry) => entry.id === normalizedRequestId);
-
-  if (requestIndex === -1) {
-    throw createHttpError(404, 'Заявката за осиновяване не беше намерена.');
-  }
-
-  const updatedRequest = {
-    ...adoptionRequests[requestIndex],
-    status: 'cancelled',
-    updatedAt: new Date().toISOString(),
-  };
-
-  adoptionRequests[requestIndex] = updatedRequest;
-  await writeMockAdoptionRequests(adoptionRequests);
+  const updatedRequest = await AdoptionRequest.findByIdAndUpdate(
+    normalizedRequestId,
+    {
+      status: 'cancelled',
+    },
+    {
+      new: true,
+      runValidators: true,
+    }
+  )
+    .populate('user', 'firstName lastName username email role')
+    .populate('animal', 'slug name displayName species breed status imageUrls')
+    .lean();
 
   return serializeAdoptionRequest(updatedRequest, currentUser);
 }

@@ -2,18 +2,13 @@
 
 import mongoose from 'mongoose';
 
-import { connectToDatabase, isDatabaseConnected } from '../config/db.js';
+import { connectToDatabase } from '../config/db.js';
 import AdoptionRequest from '../models/AdoptionRequest.js';
 import Animal from '../models/Animal.js';
 import User from '../models/User.js';
 import { hashPassword } from '../modules/auth/auth.security.js';
-import { loadJsonFile } from '../utils/loadJsonFile.js';
-import { saveJsonFile } from '../utils/saveJsonFile.js';
+import { DEMO_ANIMALS } from '../seeds/demoAnimals.js';
 
-const USERS_DATA_PATH = 'data/users.json';
-const ANIMALS_DATA_PATH = 'data/animals.json';
-const ADOPTIONS_DATA_PATH = 'data/adoption-requests.json';
-const JSON_ONLY = process.argv.includes('--json-only');
 const DEMO_NOW = '2026-04-23T09:00:00.000Z';
 const INACTIVE_ANIMAL_STATUSES = new Set(['inactive', 'archived']);
 
@@ -246,21 +241,6 @@ async function buildDemoUsers() {
   return users;
 }
 
-function mergeDemoUsers(existingUsers, demoUsers) {
-  const demoIds = new Set(demoUsers.map((user) => user.id));
-  const demoUsernames = new Set(demoUsers.map((user) => normalizeLookup(user.username)));
-  const demoEmails = new Set(demoUsers.map((user) => normalizeLookup(user.email)));
-  const preservedUsers = existingUsers.filter((user) => {
-    return (
-      !demoIds.has(user.id) &&
-      !demoUsernames.has(normalizeLookup(user.username)) &&
-      !demoEmails.has(normalizeLookup(user.email))
-    );
-  });
-
-  return [...demoUsers, ...preservedUsers];
-}
-
 function createAdoptionRequests(demoUsers, demoAnimals) {
   const usersById = new Map(demoUsers.map((user) => [user.id, user]));
   const animalsBySlug = new Map(demoAnimals.map((animal) => [animal.slug, animal]));
@@ -287,24 +267,6 @@ function createAdoptionRequests(demoUsers, demoAnimals) {
       updatedAt: blueprint.updatedAt,
     };
   });
-}
-
-async function seedJsonDemoData() {
-  const existingUsers = await loadJsonFile(USERS_DATA_PATH);
-  const existingAnimals = await loadJsonFile(ANIMALS_DATA_PATH);
-  const demoUsers = await buildDemoUsers();
-  const demoAnimals = existingAnimals.map(normalizeSeedAnimal);
-  const demoAdoptions = createAdoptionRequests(demoUsers, demoAnimals);
-
-  await saveJsonFile(USERS_DATA_PATH, mergeDemoUsers(existingUsers, demoUsers));
-  await saveJsonFile(ANIMALS_DATA_PATH, demoAnimals);
-  await saveJsonFile(ADOPTIONS_DATA_PATH, demoAdoptions);
-
-  return {
-    demoUsers,
-    demoAnimals,
-    demoAdoptions,
-  };
 }
 
 async function upsertMongoDemoUsers(demoUsers) {
@@ -383,21 +345,7 @@ async function upsertMongoDemoAnimals(demoAnimals) {
 }
 
 async function seedMongoDemoData(demoUsers, demoAnimals, demoAdoptions) {
-  if (JSON_ONLY) {
-    return {
-      skipped: true,
-      reason: 'json-only',
-    };
-  }
-
   await connectToDatabase();
-
-  if (!isDatabaseConnected()) {
-    return {
-      skipped: true,
-      reason: 'no-database-connection',
-    };
-  }
 
   const userDocumentsByDemoId = await upsertMongoDemoUsers(demoUsers);
   const animalDocumentsBySlug = await upsertMongoDemoAnimals(demoAnimals);
@@ -439,7 +387,6 @@ async function seedMongoDemoData(demoUsers, demoAnimals, demoAdoptions) {
   );
 
   return {
-    skipped: false,
     users: userDocumentsByDemoId.size,
     animals: animalDocumentsBySlug.size,
     adoptions: demoAdoptions.length,
@@ -457,20 +404,14 @@ function printCredentials() {
 }
 
 async function seedDemoData() {
-  const { demoUsers, demoAnimals, demoAdoptions } = await seedJsonDemoData();
+  const demoUsers = await buildDemoUsers();
+  const demoAnimals = DEMO_ANIMALS.map(normalizeSeedAnimal);
+  const demoAdoptions = createAdoptionRequests(demoUsers, demoAnimals);
   const mongoResult = await seedMongoDemoData(demoUsers, demoAnimals, demoAdoptions);
 
   console.log(
-    `JSON demo seed complete. Demo users: ${demoUsers.length}, animals: ${demoAnimals.length}, adoption requests: ${demoAdoptions.length}.`
+    `MongoDB demo seed complete. Users: ${mongoResult.users}, animals: ${mongoResult.animals}, adoption requests: ${mongoResult.adoptions}.`
   );
-
-  if (mongoResult.skipped) {
-    console.log(`MongoDB demo seed skipped (${mongoResult.reason}). JSON fallback data is ready.`);
-  } else {
-    console.log(
-      `MongoDB demo seed complete. Users: ${mongoResult.users}, animals: ${mongoResult.animals}, adoption requests: ${mongoResult.adoptions}.`
-    );
-  }
 
   printCredentials();
 }

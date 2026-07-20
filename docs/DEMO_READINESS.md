@@ -4,7 +4,7 @@
 
 ## Подготовка
 
-1. Създай `.env` по `.env.example`. Ако demo-то е без MongoDB, задай `ANIMALS_ALLOW_MOCK_FALLBACK=true`.
+1. Създай `.env` по `.env.example` и се увери, че MongoDB е стартирана.
 2. Инсталирай зависимостите с `npm ci` или `npm install`.
 3. Подготви demo данните:
 
@@ -12,18 +12,12 @@
 npm run seed:demo
 ```
 
-Ако искаш да подготвиш само JSON fallback данните, без опит за MongoDB seed:
-
-```bash
-node server/scripts/seedDemoData.js --json-only
-```
-
 Скриптът:
 
 - подготвя demo профили за всички роли
 - обновява примерните животни с подходящи статуси
 - създава примерни заявки за осиновяване с различни статуси
-- ако има активна MongoDB връзка, upsert-ва същите demo данни и в базата
+- записва demo данните директно в MongoDB
 
 ## Demo профили
 
@@ -95,7 +89,7 @@ node server/scripts/seedDemoData.js --json-only
 
 ## Бележки
 
-- `npm run check:regression` използва временни fixtures и възстановява JSON файловете след проверката.
-- `npm run seed:demo` оставя demo данните в JSON fallback файловете и, при налична MongoDB връзка, ги записва и в базата.
+- `npm run check:regression` използва отделна MongoDB regression база и почиства тестовите записи след проверката.
+- `npm run seed:demo` записва demo данните директно в MongoDB.
 - При реална защита е добре първо да се пусне `npm run seed:demo`, после `npm run dev`.
 

@@ -155,7 +155,7 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
           isLoading: false,
           error:
             error.status === 503
-              ? 'Животните временно не могат да се заредят. Провери връзката към базата данни или активирай mock fallback режима за разработка.'
+              ? 'Животните временно не могат да се заредят. Провери връзката към MongoDB.'
               : error.message,
         }));
       }

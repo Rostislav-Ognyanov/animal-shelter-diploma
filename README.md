@@ -14,7 +14,6 @@
 - React + Vite
 - MongoDB + Mongoose
 - JWT + bcrypt
-- JSON fallback само за smoke/regression проверки и аварийна локална разработка
 
 ## Роли
 
@@ -46,7 +45,7 @@
 - create/edit/status change за `employee` и `admin`
 - deactivate/archive за `admin`
 - role-based UI и backend защита
-- връзка към база данни или JSON fallback при локален режим
+- постоянство през MongoDB и Mongoose модели
 
 Основни API маршрути:
 
@@ -97,7 +96,6 @@
 PORT=5000
 DB_URL=mongodb://127.0.0.1:27017/animal_shelter
 JWT_SECRET=your_jwt_secret_here
-ANIMALS_ALLOW_MOCK_FALLBACK=false
 VITE_DEV_SERVER_PORT=5173
 VITE_DEV_API_TARGET=http://localhost:5000
 ```
@@ -106,7 +104,6 @@ VITE_DEV_API_TARGET=http://localhost:5000
 
 - `DB_URL` е основният MongoDB connection string. Ако липсва напълно, backend-ът пробва локално `mongodb://127.0.0.1:27017/animal_shelter`.
 - `JWT_SECRET` е задължителен за предвидим локален auth.
-- `ANIMALS_ALLOW_MOCK_FALLBACK=false` е нормалният режим за проекта. При липса на MongoDB API модулите, които изискват база, не трябва да минават тихо към JSON файлове.
 - `VITE_DEV_API_TARGET` се попълва локално в `.env`, за да проксира `/api` заявките от Vite към backend-а.
 
 ## Стартиране на проекта
@@ -158,7 +155,7 @@ npm start
 npm run check:regression
 ```
 
-Скриптът прави временен backup на JSON данните, изпълнява основните auth/animals/adoptions сценарии и накрая възстановява оригиналните файлове.
+Скриптът използва отделна MongoDB база `animal_shelter_regression`, seed-ва тестови записи директно в колекциите, изпълнява основните auth/animals/adoptions сценарии и накрая почиства regression данните.
 
 ## Demo seed
 
@@ -168,7 +165,7 @@ npm run check:regression
 npm run seed:demo
 ```
 
-Скриптът подготвя JSON fallback данните и, ако има активна MongoDB връзка, upsert-ва същите demo записи и в базата. За нормалния MongoDB-first режим първо стартирай базата с `npm run db:up` или използвай `npm run setup:mongo`.
+Скриптът зарежда demo профили, животни и заявки директно в MongoDB. Първо стартирай базата с `npm run db:up` или използвай `npm run setup:mongo`.
 
 ## MongoDB команди
 

@@ -1,4 +1,4 @@
-[
+export const DEMO_ANIMALS = [
   {
     "slug": "hotdog-dachshund-dog",
     "name": "Hotdog",
@@ -1727,4 +1727,4 @@
       }
     ]
   }
-]
+];

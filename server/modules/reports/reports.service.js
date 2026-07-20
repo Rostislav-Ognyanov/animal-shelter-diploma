@@ -1,12 +1,6 @@
-﻿import Animal from '../../models/Animal.js';
+import Animal from '../../models/Animal.js';
 import AdoptionRequest from '../../models/AdoptionRequest.js';
 import User from '../../models/User.js';
-import {
-  describeAnimalsPersistenceMode,
-  isAnimalsMockFallbackEnabled,
-  isDatabaseConnected,
-} from '../../config/db.js';
-import { loadJsonFile } from '../../utils/loadJsonFile.js';
 import { createHttpError } from '../../utils/httpError.js';
 import {
   ANIMAL_GENDER_VALUES,
@@ -17,9 +11,6 @@ import {
 import { ADOPTION_REQUEST_STATUS_VALUES } from '../shared/rolePolicies.js';
 import { MANAGED_USER_ROLE_VALUES, USER_STATUS_VALUES } from '../users/user.constants.js';
 
-const USERS_DATA_PATH = 'data/users.json';
-const ANIMALS_DATA_PATH = 'data/animals.json';
-const ADOPTIONS_DATA_PATH = 'data/adoption-requests.json';
 const REPORT_INTAKE_WINDOWS = [7, 30, 90];
 const REPORT_PERIOD_VALUES = ['all', '7d', '30d', '90d', 'this-month', 'this-year', 'custom'];
 
@@ -147,63 +138,28 @@ function normalizeReportsFilters(filters = {}) {
   };
 }
 
-function canUseReportsMockFallback() {
-  return !isDatabaseConnected() && isAnimalsMockFallbackEnabled();
-}
-
-function assertReportsDataSourceAvailable() {
-  if (isDatabaseConnected() || canUseReportsMockFallback()) {
-    return;
-  }
-
-  throw createHttpError(
-    503,
-    'Модулът за отчети не е достъпен, защото няма активна връзка с MongoDB и mock fallback режимът е изключен.'
-  );
-}
-
 async function readUsersDataset() {
-  assertReportsDataSourceAvailable();
-
-  if (isDatabaseConnected()) {
-    return User.find({})
-      .select('role isActive createdAt updatedAt')
-      .lean();
-  }
-
-  return loadJsonFile(USERS_DATA_PATH);
+  return User.find({})
+    .select('role isActive createdAt updatedAt')
+    .lean();
 }
 
 async function readAnimalsDataset() {
-  assertReportsDataSourceAvailable();
-
-  if (isDatabaseConnected()) {
-    return Animal.find({})
-      .select('species status size gender intakeDate vaccinated neutered isActive createdAt updatedAt')
-      .lean();
-  }
-
-  return loadJsonFile(ANIMALS_DATA_PATH);
+  return Animal.find({})
+    .select('species status size gender intakeDate vaccinated neutered isActive createdAt updatedAt')
+    .lean();
 }
 
 async function readAdoptionsDataset() {
-  assertReportsDataSourceAvailable();
-
-  if (isDatabaseConnected()) {
-    return AdoptionRequest.find({})
-      .select('status createdAt updatedAt')
-      .lean();
-  }
-
-  return loadJsonFile(ADOPTIONS_DATA_PATH);
+  return AdoptionRequest.find({})
+    .select('status createdAt updatedAt')
+    .lean();
 }
 
 function buildSourceDescriptor() {
-  const mode = isDatabaseConnected() ? 'mongodb' : canUseReportsMockFallback() ? 'mock-fallback' : 'unavailable';
-
   return {
-    mode,
-    label: describeAnimalsPersistenceMode(),
+    mode: 'mongodb',
+    label: 'MongoDB',
   };
 }
 

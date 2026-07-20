@@ -1,14 +1,7 @@
-﻿import crypto from 'node:crypto';
-
-import { isDatabaseConnected } from '../../config/db.js';
 import Favorite from '../../models/Favorite.js';
 import { createHttpError } from '../../utils/httpError.js';
-import { loadJsonFile } from '../../utils/loadJsonFile.js';
-import { saveJsonFile } from '../../utils/saveJsonFile.js';
 import { getAnimalById } from '../animals/animals.service.js';
 import { getAllowedFavoriteActions, hasPermission } from '../shared/rolePolicies.js';
-
-const FAVORITES_DATA_PATH = 'data/favorites.json';
 
 function normalizeText(value) {
   return String(value ?? '').trim();
@@ -75,105 +68,31 @@ function serializeFavoriteAnimalItem(favorite, animal) {
   };
 }
 
-async function readMockFavorites() {
-  try {
-    return await loadJsonFile(FAVORITES_DATA_PATH);
-  } catch (error) {
-    if (error?.code === 'ENOENT') {
-      return [];
-    }
-
-    throw error;
-  }
-}
-
-async function writeMockFavorites(favorites) {
-  return saveJsonFile(FAVORITES_DATA_PATH, favorites);
-}
-
-function sortFavoritesByNewest(favorites) {
-  return [...favorites].sort((leftFavorite, rightFavorite) => {
-    const leftCreatedAt = new Date(leftFavorite.createdAt ?? 0).getTime();
-    const rightCreatedAt = new Date(rightFavorite.createdAt ?? 0).getTime();
-    return rightCreatedAt - leftCreatedAt;
-  });
-}
-
 async function listFavoriteRecordsByUserId(userId) {
-  const normalizedUserId = normalizeText(userId);
-
-  if (isDatabaseConnected()) {
-    return Favorite.find({ userId: normalizedUserId }).sort({ createdAt: -1 }).lean();
-  }
-
-  const favorites = await readMockFavorites();
-  return sortFavoritesByNewest(
-    favorites.filter((favorite) => normalizeText(favorite.userId) === normalizedUserId)
-  );
+  return Favorite.find({ userId: normalizeText(userId) }).sort({ createdAt: -1 }).lean();
 }
 
 async function findFavoriteRecordByUserAndAnimalId(userId, animalId) {
-  const normalizedUserId = normalizeText(userId);
-  const normalizedAnimalId = normalizeText(animalId);
-
-  if (isDatabaseConnected()) {
-    return Favorite.findOne({ userId: normalizedUserId, animalId: normalizedAnimalId }).lean();
-  }
-
-  const favorites = await readMockFavorites();
-  return (
-    favorites.find(
-      (favorite) =>
-        normalizeText(favorite.userId) === normalizedUserId &&
-        normalizeText(favorite.animalId) === normalizedAnimalId
-    ) ?? null
-  );
+  return Favorite.findOne({
+    userId: normalizeText(userId),
+    animalId: normalizeText(animalId),
+  }).lean();
 }
 
 async function createFavoriteRecord(userId, animalId) {
-  if (isDatabaseConnected()) {
-    const createdFavorite = await Favorite.create({
-      userId: normalizeText(userId),
-      animalId: normalizeText(animalId),
-    });
-
-    return createdFavorite.toObject();
-  }
-
-  const favorites = await readMockFavorites();
-  const favoriteRecord = {
-    id: crypto.randomUUID(),
+  const createdFavorite = await Favorite.create({
     userId: normalizeText(userId),
     animalId: normalizeText(animalId),
-    createdAt: new Date().toISOString(),
-  };
+  });
 
-  favorites.push(favoriteRecord);
-  await writeMockFavorites(favorites);
-  return favoriteRecord;
+  return createdFavorite.toObject();
 }
 
 async function deleteFavoriteRecord(userId, animalId) {
-  const normalizedUserId = normalizeText(userId);
-  const normalizedAnimalId = normalizeText(animalId);
-
-  if (isDatabaseConnected()) {
-    await Favorite.deleteOne({ userId: normalizedUserId, animalId: normalizedAnimalId });
-    return;
-  }
-
-  const favorites = await readMockFavorites();
-  const nextFavorites = favorites.filter(
-    (favorite) =>
-      !(
-        normalizeText(favorite.userId) === normalizedUserId &&
-        normalizeText(favorite.animalId) === normalizedAnimalId
-      )
-  );
-
-  if (nextFavorites.length !== favorites.length) {
-    await writeMockFavorites(nextFavorites);
-  }
+  await Favorite.deleteOne({
+    userId: normalizeText(userId),
+    animalId: normalizeText(animalId),
+  });
 }
 
 async function resolveFavoriteAnimal(animalId) {
