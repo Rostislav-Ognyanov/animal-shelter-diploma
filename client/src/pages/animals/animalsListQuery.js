@@ -9,7 +9,7 @@
   normalizeSpeciesValue,
 } from './animalUi.js';
 
-export const PAGE_SIZE = 10;
+export const PAGE_SIZE = 12;
 export const DEFAULT_SORT = 'name-asc';
 
 export const DEFAULT_FILTERS = {

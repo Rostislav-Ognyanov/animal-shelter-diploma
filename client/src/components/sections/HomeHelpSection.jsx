@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom';
+import { PageContentLink } from '../../pages/page-content/PageContentLink.jsx';
+import { getVisibleContentItems } from '../../pages/page-content/pageContentUtils.js';
 
 function VolunteerIcon() {
   return (
@@ -28,34 +29,38 @@ function DonationIcon() {
   );
 }
 
-export function HomeHelpSection() {
+function getIcon(cardId) {
+  if (cardId === 'donation') {
+    return <DonationIcon />;
+  }
+
+  return <VolunteerIcon />;
+}
+
+export function HomeHelpSection({ cards = [] }) {
+  const visibleCards = getVisibleContentItems(cards);
+
+  if (visibleCards.length === 0) {
+    return null;
+  }
+
   return (
     <section className="home-help-section" aria-label="Начини за помощ">
       <div className="section-container">
         <div className="home-help-grid">
-          <article className="home-help-panel home-help-panel-volunteer">
-            <VolunteerIcon />
-            <h2>Доброволствай при нас</h2>
-            <p>
-              Доброволците помагат с грижа за животните, разходки, транспорт, кампании и ежедневна поддръжка.
-              Ако искаш да отделиш време и внимание, ще намерим подходяща дейност според възможностите ти.
-            </p>
-            <Link className="about-page-contact-link home-help-link" to="/volunteers">
-              Стани доброволец
-            </Link>
-          </article>
-
-          <article className="home-help-panel home-help-panel-donation">
-            <DonationIcon />
-            <h2>Дари, за да спасиш животи</h2>
-            <p>
-              Даренията покриват храна, лекарства, консумативи и спешна грижа за животни в нужда. Дори малък
-              принос помага на екипа да реагира по-бързо и да осигури по-добри условия.
-            </p>
-            <Link className="about-page-contact-link home-help-link" to="/donations">
-              Заяви дарение
-            </Link>
-          </article>
+          {visibleCards.map((card) => (
+            <article
+              key={card.id ?? card.title}
+              className={`home-help-panel home-help-panel-${card.id === 'donation' ? 'donation' : 'volunteer'}`}
+            >
+              {getIcon(card.id)}
+              <h2>{card.title}</h2>
+              <p>{card.description}</p>
+              <PageContentLink className="about-page-contact-link home-help-link" to={card.ctaTo}>
+                {card.ctaLabel}
+              </PageContentLink>
+            </article>
+          ))}
         </div>
       </div>
     </section>

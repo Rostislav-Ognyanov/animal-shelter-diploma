@@ -5,6 +5,9 @@ import { useAuth } from '../../auth/AuthProvider.jsx';
 import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
 import { createEmptyFeedback, createErrorFeedback, createSuccessFeedback } from '../../lib/feedback.js';
 import { postJson } from '../../lib/api.js';
+import { PageContentLink } from '../page-content/PageContentLink.jsx';
+import { DEFAULT_PAGE_CONTENT } from '../page-content/pageContentDefaults.js';
+import { buildHeroBackgroundStyle, splitContentText, usePageContent } from '../page-content/pageContentUtils.js';
 import {
   DONATION_PRESET_AMOUNTS,
   formatDonationAmount,
@@ -48,6 +51,7 @@ function validateDonationForm(values) {
 
 export function DonationPage({ siteName = 'Animal Shelter' }) {
   const { currentUser } = useAuth();
+  const { content } = usePageContent('donations', DEFAULT_PAGE_CONTENT.donations);
   const [formValues, setFormValues] = useState(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState({});
   const [submitState, setSubmitState] = useState({
@@ -76,6 +80,9 @@ export function DonationPage({ siteName = 'Animal Shelter' }) {
     const numericAmount = Number(formValues.amount);
     return DONATION_PRESET_AMOUNTS.includes(numericAmount) ? numericAmount : null;
   }, [formValues.amount]);
+  const reasonTitle = String(content.reasonBlock?.title ?? '').replaceAll('{siteName}', siteName);
+  const reasonText = String(content.reasonBlock?.text ?? '').replaceAll('{siteName}', siteName);
+  const reasonParagraphs = splitContentText(reasonText);
 
   function handleFieldChange(fieldName, value) {
     setFormValues((currentValue) => ({
@@ -160,9 +167,12 @@ export function DonationPage({ siteName = 'Animal Shelter' }) {
 
   return (
     <main className="route-shell donations-shell donations-page-shell">
-      <section className="donations-hero donations-page-hero">
+      <section
+        className="donations-hero donations-page-hero"
+        style={buildHeroBackgroundStyle(content.hero?.imagePath)}
+      >
         <div>
-          <h1>Дарения</h1>
+          <h1>{content.hero?.title}</h1>
         </div>
       </section>
 
@@ -170,28 +180,28 @@ export function DonationPage({ siteName = 'Animal Shelter' }) {
         <div className="section-container about-content">
           <div className="about-layout">
             <div className="about-text">
-              <h2>Защо да дариш на {siteName}?</h2>
+              <h2>{reasonTitle}</h2>
               <div className="about-copy">
-                <p>
-                  Всяко дарение към {siteName} е подкрепа не само за животните, но и за ежедневните усилия на хората,
-                  които се грижат за тях с внимание, търпение и истинска отдаденост. Нашият екип работи всеки ден, за
-                  да осигури безопасност, лечение, храна и спокойна среда за животни, които са преживели изоставяне,
-                  нараняване или липса на грижа. Зад всяко спасено животно стоят много труд, време и желание то да
-                  получи шанс за възстановяване и нов живот. Когато дарявате, вие помагате тази грижа да продължи и
-                  давате възможност на приюта да достига до още повече животни в нужда.
-                </p>
+                {reasonParagraphs.map((paragraph) => (
+                  <p key={paragraph}>{paragraph}</p>
+                ))}
               </div>
-              <a className="about-page-contact-link donations-reason-action" href="#donation-form">
-                Дари сега
-              </a>
+              <PageContentLink
+                className="about-page-contact-link donations-reason-action"
+                to={content.reasonBlock?.ctaTo}
+              >
+                {content.reasonBlock?.ctaLabel}
+              </PageContentLink>
             </div>
 
-            <figure className="about-image-wrap">
-              <img
-                src={buildPublicAssetPath('images/page_images/donation_hero.jpg')}
-                alt="Дарение в подкрепа на животните в приюта"
-              />
-            </figure>
+            {content.reasonBlock?.imagePath ? (
+              <figure className="about-image-wrap">
+                <img
+                  src={buildPublicAssetPath(content.reasonBlock.imagePath)}
+                  alt={content.reasonBlock.imageAlt ?? ''}
+                />
+              </figure>
+            ) : null}
           </div>
         </div>
       </section>
@@ -230,6 +240,8 @@ export function DonationPage({ siteName = 'Animal Shelter' }) {
             <div className="donation-amount-heading">
               <h2>Избери сума</h2>
               <p>Можеш да избереш готова стойност или да въведеш собствена.</p>
+              {content.useOfDonations ? <p>{content.useOfDonations}</p> : null}
+              {content.campaignNote ? <p>{content.campaignNote}</p> : null}
             </div>
 
             <div className="donation-preset-grid">

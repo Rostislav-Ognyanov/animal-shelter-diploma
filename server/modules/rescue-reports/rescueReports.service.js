@@ -3,6 +3,11 @@ import mongoose from 'mongoose';
 import RescueReport from '../../models/RescueReport.js';
 import { createHttpError } from '../../utils/httpError.js';
 import {
+  applyPagination,
+  buildPagination,
+  normalizePaginationOptions,
+} from '../../utils/pagination.js';
+import {
   getAllowedRescueReportActions,
   hasPermission,
 } from '../shared/rolePolicies.js';
@@ -10,6 +15,7 @@ import {
   RESCUE_REPORT_SPECIES_LABELS,
   RESCUE_REPORT_SPECIES_VALUES,
   RESCUE_REPORT_STATUS_LABELS,
+  RESCUE_REPORT_STATUS_TRANSITIONS,
   RESCUE_REPORT_STATUS_VALUES,
   RESCUE_REPORT_URGENCY_LABELS,
   RESCUE_REPORT_URGENCY_VALUES,
@@ -239,9 +245,36 @@ function serializeRescueReport(report) {
     imageUrl: report.imageUrl ?? '',
     status,
     statusLabel: RESCUE_REPORT_STATUS_LABELS[status] ?? status,
+    allowedStatusTransitions: RESCUE_REPORT_STATUS_TRANSITIONS[status] ?? [],
     notes: report.notes ?? '',
     createdAt: normalizeDateOutput(report.createdAt),
     updatedAt: normalizeDateOutput(report.updatedAt),
+  };
+}
+
+function assertAllowedRescueReportStatusTransition(currentStatus, nextStatus) {
+  if (!currentStatus || !nextStatus || currentStatus === nextStatus) {
+    return;
+  }
+
+  const allowedTransitions = RESCUE_REPORT_STATUS_TRANSITIONS[currentStatus] ?? [];
+
+  if (!allowedTransitions.includes(nextStatus)) {
+    throw createHttpError(409, `Status transition from "${currentStatus}" to "${nextStatus}" is not allowed.`, {
+      currentStatus,
+      requestedStatus: nextStatus,
+      allowedTransitions,
+    });
+  }
+}
+
+function serializeRescueReportListItem(report) {
+  const serializedReport = serializeRescueReport(report);
+  const { imageUrl, ...reportWithoutImage } = serializedReport;
+
+  return {
+    ...reportWithoutImage,
+    hasImage: Boolean(imageUrl),
   };
 }
 
@@ -282,6 +315,7 @@ export function getRescueReportModulePolicy(roleCandidate) {
     resource: 'rescueReports',
     allowedActions: getAllowedRescueReportActions(roleCandidate),
     statuses: RESCUE_REPORT_STATUS_VALUES,
+    statusTransitions: RESCUE_REPORT_STATUS_TRANSITIONS,
     urgencies: RESCUE_REPORT_URGENCY_VALUES,
     species: RESCUE_REPORT_SPECIES_VALUES,
   };
@@ -300,11 +334,23 @@ export async function createRescueReport(payload) {
 
 export async function getRescueReportCollection(currentUser, filters = {}) {
   assertStaffPermission(currentUser, 'view-all');
-  const reports = await RescueReport.find(buildRescueReportQuery(filters))
-    .sort({ createdAt: -1 })
-    .lean();
+  const query = buildRescueReportQuery(filters);
+  const paginationOptions = normalizePaginationOptions(filters, {
+    defaultLimit: 10,
+    maxLimit: 50,
+  });
+  const total = await RescueReport.countDocuments(query);
+  const pagination = buildPagination(total, paginationOptions);
+  const reports = await applyPagination(
+    RescueReport.find(query).sort({ createdAt: -1, _id: -1 }),
+    pagination
+  ).lean();
 
-  return reports.map(serializeRescueReport);
+  return {
+    items: reports.map(serializeRescueReportListItem),
+    total,
+    pagination,
+  };
 }
 
 export async function getRescueReportById(reportId, currentUser) {
@@ -322,8 +368,20 @@ export async function updateRescueReportStatus(reportId, payload, currentUser) {
   assertStaffPermission(currentUser, 'update-status');
   const normalizedId = assertValidRescueReportId(reportId);
   const normalizedPayload = normalizeStatusUpdatePayload(payload);
-  const updatedReport = await RescueReport.findByIdAndUpdate(
-    normalizedId,
+  const report = await findRescueReportRecordById(normalizedId);
+
+  if (!report) {
+    throw createHttpError(404, 'Сигналът не беше намерен.');
+  }
+
+  const currentStatus = report.status ?? 'pending';
+  assertAllowedRescueReportStatusTransition(currentStatus, normalizedPayload.status);
+
+  const updatedReport = await RescueReport.findOneAndUpdate(
+    {
+      _id: normalizedId,
+      status: currentStatus,
+    },
     {
       status: normalizedPayload.status,
       notes: normalizedPayload.notes,
@@ -335,7 +393,10 @@ export async function updateRescueReportStatus(reportId, payload, currentUser) {
   ).lean();
 
   if (!updatedReport) {
-    throw createHttpError(404, 'Сигналът не беше намерен.');
+    throw createHttpError(409, 'Rescue report status changed before the update could be saved.', {
+      currentStatus,
+      requestedStatus: normalizedPayload.status,
+    });
   }
 
   return serializeRescueReport(updatedReport);

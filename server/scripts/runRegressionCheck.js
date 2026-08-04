@@ -7,8 +7,11 @@ const { hashPassword } = await import('../modules/auth/auth.security.js');
 const { ANIMAL_SPECIES_VALUES } = await import('../modules/animals/animal.constants.js');
 const { default: AdoptionRequest } = await import('../models/AdoptionRequest.js');
 const { default: Animal } = await import('../models/Animal.js');
+const { default: Donation } = await import('../models/Donation.js');
 const { default: Favorite } = await import('../models/Favorite.js');
+const { default: RescueReport } = await import('../models/RescueReport.js');
 const { default: User } = await import('../models/User.js');
+const { default: VolunteerApplication } = await import('../models/VolunteerApplication.js');
 const { default: mongoose } = await import('mongoose');
 const { default: app } = await import('../app.js');
 
@@ -35,6 +38,21 @@ function extractItems(response) {
 
 function extractItem(response) {
   return response.body?.data ?? null;
+}
+
+function extractPagination(response) {
+  return response.body?.meta?.pagination ?? {};
+}
+
+function expectPagination(response, expectedValues, scenario) {
+  const pagination = extractPagination(response);
+
+  Object.entries(expectedValues).forEach(([fieldName, expectedValue]) => {
+    expect(
+      pagination[fieldName] === expectedValue,
+      `${scenario}: expected pagination.${fieldName} to be ${expectedValue}, received ${pagination[fieldName]}`
+    );
+  });
 }
 
 async function createFixtures() {
@@ -155,8 +173,11 @@ async function clearRegressionCollections() {
   await Promise.all([
     AdoptionRequest.deleteMany({}),
     Animal.deleteMany({}),
+    Donation.deleteMany({}),
     Favorite.deleteMany({}),
+    RescueReport.deleteMany({}),
     User.deleteMany({}),
+    VolunteerApplication.deleteMany({}),
   ]);
 }
 
@@ -189,6 +210,118 @@ async function seedMongoFixtures(fixtures) {
     usersByDemoId,
     animalsBySlug,
   };
+}
+
+async function seedDonationPaginationFixtures() {
+  await Donation.deleteMany({});
+
+  const donationDocuments = Array.from({ length: 25 }, (_, index) => {
+    const number = index + 1;
+    const paddedNumber = String(number).padStart(2, '0');
+    const isFilteredFixture = number <= 12;
+
+    return {
+      name: `${isFilteredFixture ? 'Filtered' : 'General'} Pagination Donor ${paddedNumber}`,
+      email: `pagination-donor-${paddedNumber}@example.com`,
+      phone: `+35988855${String(number).padStart(4, '0')}`,
+      amount: number,
+      message: isFilteredFixture ? 'filtered pagination fixture' : 'general pagination fixture',
+      createdAt: iso(`2026-05-${paddedNumber}T10:00:00Z`),
+      updatedAt: iso(`2026-05-${paddedNumber}T10:00:00Z`),
+    };
+  });
+
+  await Donation.insertMany(donationDocuments);
+}
+
+async function seedVolunteerPaginationFixtures() {
+  await VolunteerApplication.deleteMany({});
+
+  await VolunteerApplication.insertMany(
+    Array.from({ length: 3 }, (_, index) => {
+      const number = index + 1;
+      const paddedNumber = String(number).padStart(2, '0');
+
+      return {
+        firstName: `Volunteer${paddedNumber}`,
+        lastName: 'Pagination',
+        email: `volunteer-pagination-${paddedNumber}@example.com`,
+        phone: `+35988777${String(number).padStart(4, '0')}`,
+        age: 24 + number,
+        guardianConsent: false,
+        preferredPositions: ['animal-care'],
+        motivation: 'Regression pagination fixture.',
+        experience: '',
+        availability: 'Weekends',
+        status: number === 1 ? 'pending' : number === 2 ? 'under-review' : 'approved',
+        notes: '',
+        createdAt: iso(`2026-06-${paddedNumber}T10:00:00Z`),
+        updatedAt: iso(`2026-06-${paddedNumber}T10:00:00Z`),
+      };
+    })
+  );
+}
+
+async function seedRescueReportPaginationFixtures() {
+  await RescueReport.deleteMany({});
+
+  await RescueReport.insertMany(
+    Array.from({ length: 3 }, (_, index) => {
+      const number = index + 1;
+      const paddedNumber = String(number).padStart(2, '0');
+
+      return {
+        name: `Reporter ${paddedNumber}`,
+        email: `reporter-pagination-${paddedNumber}@example.com`,
+        phone: `+35988666${String(number).padStart(4, '0')}`,
+        location: `Regression location ${paddedNumber}`,
+        species: number === 1 ? 'dog' : number === 2 ? 'cat' : 'rabbit',
+        urgency: number === 3 ? 'high' : 'medium',
+        description: 'Regression rescue report pagination fixture.',
+        imageUrl: number === 3 ? 'data:image/png;base64,fixture-image' : '',
+        status: number === 1 ? 'pending' : number === 2 ? 'under-review' : 'accepted',
+        notes: '',
+        createdAt: iso(`2026-07-${paddedNumber}T10:00:00Z`),
+        updatedAt: iso(`2026-07-${paddedNumber}T10:00:00Z`),
+      };
+    })
+  );
+}
+
+async function createVolunteerTransitionFixture(status, suffix) {
+  const createdApplication = await VolunteerApplication.create({
+    firstName: `VolunteerTransition${suffix}`,
+    lastName: 'Regression',
+    email: `volunteer-transition-${suffix}@example.com`,
+    phone: `+35988778${String(suffix).padStart(4, '0')}`,
+    age: 30,
+    guardianConsent: false,
+    preferredPositions: ['animal-care'],
+    motivation: 'Regression status transition fixture.',
+    experience: '',
+    availability: 'Weekdays',
+    status,
+    notes: '',
+  });
+
+  return String(createdApplication._id);
+}
+
+async function createRescueReportTransitionFixture(status, suffix) {
+  const createdReport = await RescueReport.create({
+    name: `Reporter Transition ${suffix}`,
+    email: `reporter-transition-${suffix}@example.com`,
+    phone: `+35988667${String(suffix).padStart(4, '0')}`,
+    location: `Regression transition location ${suffix}`,
+    species: 'dog',
+    urgency: 'medium',
+    description: 'Regression status transition fixture.',
+    imageUrl: '',
+    status,
+    notes: '',
+  });
+
+  return String(createdReport._id);
 }
 
 function getSetCookieHeader(headers) {
@@ -391,6 +524,44 @@ try {
 
     const adminReportsResponse = await adminSession.get('/api/reports/overview');
     expectStatus(adminReportsResponse, 200, 'admin reports access');
+  });
+
+  await recordStep('Pagination wiring: animals and users endpoints', async () => {
+    const animalsPaginationResponse = await guestSession.get('/api/animals?page=2&limit=1');
+    expectStatus(animalsPaginationResponse, 200, 'animals pagination wiring');
+    expect(extractItems(animalsPaginationResponse).length === 1, 'animals pagination should honor limit=1');
+    expect(extractItem(animalsPaginationResponse)?.total === 3, 'animals pagination should expose filtered total');
+    expectPagination(
+      animalsPaginationResponse,
+      {
+        page: 2,
+        limit: 1,
+        maxLimit: 48,
+        total: 3,
+        totalPages: 3,
+        hasNextPage: true,
+        hasPreviousPage: true,
+      },
+      'animals pagination wiring'
+    );
+
+    const usersPaginationResponse = await adminSession.get('/api/users?page=2&limit=2');
+    expectStatus(usersPaginationResponse, 200, 'users pagination wiring');
+    expect(extractItems(usersPaginationResponse).length === 2, 'users pagination should honor limit=2');
+    expect(extractItem(usersPaginationResponse)?.total === 4, 'users pagination should expose total users');
+    expectPagination(
+      usersPaginationResponse,
+      {
+        page: 2,
+        limit: 2,
+        maxLimit: 50,
+        total: 4,
+        totalPages: 2,
+        hasNextPage: false,
+        hasPreviousPage: true,
+      },
+      'users pagination wiring'
+    );
   });
 
   await recordStep('Favorites: client add, list, remove and guards', async () => {
@@ -721,6 +892,384 @@ try {
     const unaffectedAnimalResponse = await guestSession.get('/api/animals/beta-maine-coon-cat');
     expectStatus(unaffectedAnimalResponse, 200, 'animal details after cancel');
     expect(extractItem(unaffectedAnimalResponse)?.status === 'available', 'pending request cancellation should keep the animal available');
+  });
+
+  await recordStep('Pagination wiring: adoption endpoints', async () => {
+    const allAdoptionsPaginationResponse = await adminSession.get('/api/adoptions?page=2&limit=1');
+    expectStatus(allAdoptionsPaginationResponse, 200, 'all adoptions pagination wiring');
+    expect(extractItems(allAdoptionsPaginationResponse).length === 1, 'all adoptions should honor limit=1');
+    expect(extractItem(allAdoptionsPaginationResponse)?.total === 2, 'all adoptions should expose total requests');
+    expectPagination(
+      allAdoptionsPaginationResponse,
+      {
+        page: 2,
+        limit: 1,
+        maxLimit: 50,
+        total: 2,
+        totalPages: 2,
+        hasNextPage: false,
+        hasPreviousPage: true,
+      },
+      'all adoptions pagination wiring'
+    );
+
+    const ownAdoptionsPaginationResponse = await clientSession.get('/api/adoptions/my?page=2&limit=1');
+    expectStatus(ownAdoptionsPaginationResponse, 200, 'own adoptions pagination wiring');
+    expect(extractItems(ownAdoptionsPaginationResponse).length === 1, 'own adoptions should honor limit=1');
+    expect(extractItem(ownAdoptionsPaginationResponse)?.total === 2, 'own adoptions should expose client request total');
+    expectPagination(
+      ownAdoptionsPaginationResponse,
+      {
+        page: 2,
+        limit: 1,
+        maxLimit: 30,
+        total: 2,
+        totalPages: 2,
+        hasNextPage: false,
+        hasPreviousPage: true,
+      },
+      'own adoptions pagination wiring'
+    );
+  });
+
+  await recordStep('Pagination wiring: volunteers and rescue report endpoints', async () => {
+    await seedVolunteerPaginationFixtures();
+
+    const volunteersPaginationResponse = await adminSession.get('/api/volunteers?page=2&limit=1');
+    expectStatus(volunteersPaginationResponse, 200, 'volunteers pagination wiring');
+    expect(extractItems(volunteersPaginationResponse).length === 1, 'volunteers should honor limit=1');
+    expect(extractItem(volunteersPaginationResponse)?.total === 3, 'volunteers should expose total applications');
+    expectPagination(
+      volunteersPaginationResponse,
+      {
+        page: 2,
+        limit: 1,
+        maxLimit: 50,
+        total: 3,
+        totalPages: 3,
+        hasNextPage: true,
+        hasPreviousPage: true,
+      },
+      'volunteers pagination wiring'
+    );
+
+    const volunteersTransitionResponse = await adminSession.get('/api/volunteers?page=1&limit=1');
+    expectStatus(volunteersTransitionResponse, 200, 'volunteers status transitions response');
+    const volunteerListItem = extractItems(volunteersTransitionResponse)[0] ?? {};
+    expect(
+      Array.isArray(volunteerListItem.allowedStatusTransitions),
+      'volunteers list should expose allowed status transitions'
+    );
+    expect(
+      volunteerListItem.allowedStatusTransitions.length === 0,
+      'approved volunteer application should not expose next status transitions'
+    );
+
+    const pendingVolunteerResponse = await adminSession.get('/api/volunteers?page=3&limit=1');
+    expectStatus(pendingVolunteerResponse, 200, 'pending volunteer transitions response');
+    const pendingVolunteerListItem = extractItems(pendingVolunteerResponse)[0] ?? {};
+    expect(
+      pendingVolunteerListItem.allowedStatusTransitions.length === 1 &&
+        pendingVolunteerListItem.allowedStatusTransitions.includes('under-review'),
+      'pending volunteer application should only expose under-review as next status'
+    );
+
+    const volunteerPendingToReviewId = await createVolunteerTransitionFixture('pending', 1);
+    const volunteerPendingToReviewResponse = await adminSession.patch(
+      `/api/volunteers/${volunteerPendingToReviewId}/status`,
+      {
+        status: 'under-review',
+        notes: 'Allowed transition regression check.',
+      }
+    );
+    expectStatus(volunteerPendingToReviewResponse, 200, 'volunteers pending to under-review transition');
+    expect(
+      extractItem(volunteerPendingToReviewResponse)?.status === 'under-review',
+      'volunteers pending to under-review should update status'
+    );
+
+    const volunteerUnderReviewToApprovedId = await createVolunteerTransitionFixture('under-review', 2);
+    const volunteerUnderReviewToApprovedResponse = await adminSession.patch(
+      `/api/volunteers/${volunteerUnderReviewToApprovedId}/status`,
+      {
+        status: 'approved',
+        notes: 'Allowed transition regression check.',
+      }
+    );
+    expectStatus(volunteerUnderReviewToApprovedResponse, 200, 'volunteers under-review to approved transition');
+    expect(
+      extractItem(volunteerUnderReviewToApprovedResponse)?.status === 'approved',
+      'volunteers under-review to approved should update status'
+    );
+
+    const volunteerUnderReviewToRejectedId = await createVolunteerTransitionFixture('under-review', 3);
+    const volunteerUnderReviewToRejectedResponse = await adminSession.patch(
+      `/api/volunteers/${volunteerUnderReviewToRejectedId}/status`,
+      {
+        status: 'rejected',
+        notes: 'Allowed transition regression check.',
+      }
+    );
+    expectStatus(volunteerUnderReviewToRejectedResponse, 200, 'volunteers under-review to rejected transition');
+    expect(
+      extractItem(volunteerUnderReviewToRejectedResponse)?.status === 'rejected',
+      'volunteers under-review to rejected should update status'
+    );
+
+    const invalidVolunteerPendingToApprovedId = await createVolunteerTransitionFixture('pending', 4);
+    const invalidVolunteerPendingToApprovedResponse = await adminSession.patch(
+      `/api/volunteers/${invalidVolunteerPendingToApprovedId}/status`,
+      {
+        status: 'approved',
+        notes: '',
+      }
+    );
+    expectStatus(
+      invalidVolunteerPendingToApprovedResponse,
+      409,
+      'volunteers pending to approved should require under-review first'
+    );
+
+    const invalidVolunteerPendingToRejectedId = await createVolunteerTransitionFixture('pending', 5);
+    const invalidVolunteerPendingToRejectedResponse = await adminSession.patch(
+      `/api/volunteers/${invalidVolunteerPendingToRejectedId}/status`,
+      {
+        status: 'rejected',
+        notes: '',
+      }
+    );
+    expectStatus(
+      invalidVolunteerPendingToRejectedResponse,
+      409,
+      'volunteers pending to rejected should require under-review first'
+    );
+
+    const invalidVolunteerTransitionResponse = await adminSession.patch(
+      `/api/volunteers/${volunteerListItem.id}/status`,
+      {
+        status: 'pending',
+        notes: '',
+      }
+    );
+    expectStatus(invalidVolunteerTransitionResponse, 409, 'volunteers invalid status transition');
+
+    await seedRescueReportPaginationFixtures();
+
+    const rescueReportsPaginationResponse = await adminSession.get('/api/rescue-reports?page=2&limit=1');
+    expectStatus(rescueReportsPaginationResponse, 200, 'rescue reports pagination wiring');
+    expect(extractItems(rescueReportsPaginationResponse).length === 1, 'rescue reports should honor limit=1');
+    expect(extractItem(rescueReportsPaginationResponse)?.total === 3, 'rescue reports should expose total reports');
+    expectPagination(
+      rescueReportsPaginationResponse,
+      {
+        page: 2,
+        limit: 1,
+        maxLimit: 50,
+        total: 3,
+        totalPages: 3,
+        hasNextPage: true,
+        hasPreviousPage: true,
+      },
+      'rescue reports pagination wiring'
+    );
+
+    const rescueReportsImageFlagResponse = await adminSession.get('/api/rescue-reports?page=1&limit=1');
+    expectStatus(rescueReportsImageFlagResponse, 200, 'rescue reports image flag list response');
+    const rescueReportListItem = extractItems(rescueReportsImageFlagResponse)[0] ?? {};
+    expect(rescueReportListItem.hasImage === true, 'rescue reports list should expose whether an image exists');
+    expect(
+      Array.isArray(rescueReportListItem.allowedStatusTransitions),
+      'rescue reports list should expose allowed status transitions'
+    );
+    expect(
+      rescueReportListItem.allowedStatusTransitions.includes('resolved'),
+      'accepted rescue report should expose resolved as next status'
+    );
+    expect(
+      !Object.prototype.hasOwnProperty.call(rescueReportListItem, 'imageUrl'),
+      'rescue reports list should not return the full image payload'
+    );
+
+    const rescuePendingToReviewId = await createRescueReportTransitionFixture('pending', 1);
+    const rescuePendingToReviewResponse = await adminSession.patch(
+      `/api/rescue-reports/${rescuePendingToReviewId}/status`,
+      {
+        status: 'under-review',
+        notes: 'Allowed transition regression check.',
+      }
+    );
+    expectStatus(rescuePendingToReviewResponse, 200, 'rescue reports pending to under-review transition');
+    expect(
+      extractItem(rescuePendingToReviewResponse)?.status === 'under-review',
+      'rescue reports pending to under-review should update status'
+    );
+
+    const rescuePendingToAcceptedId = await createRescueReportTransitionFixture('pending', 2);
+    const rescuePendingToAcceptedResponse = await adminSession.patch(
+      `/api/rescue-reports/${rescuePendingToAcceptedId}/status`,
+      {
+        status: 'accepted',
+        notes: 'Allowed transition regression check.',
+      }
+    );
+    expectStatus(rescuePendingToAcceptedResponse, 200, 'rescue reports pending to accepted transition');
+    expect(
+      extractItem(rescuePendingToAcceptedResponse)?.status === 'accepted',
+      'rescue reports pending to accepted should update status'
+    );
+
+    const rescuePendingToRejectedId = await createRescueReportTransitionFixture('pending', 3);
+    const rescuePendingToRejectedResponse = await adminSession.patch(
+      `/api/rescue-reports/${rescuePendingToRejectedId}/status`,
+      {
+        status: 'rejected',
+        notes: 'Allowed transition regression check.',
+      }
+    );
+    expectStatus(rescuePendingToRejectedResponse, 200, 'rescue reports pending to rejected transition');
+    expect(
+      extractItem(rescuePendingToRejectedResponse)?.status === 'rejected',
+      'rescue reports pending to rejected should update status'
+    );
+
+    const rescueUnderReviewToAcceptedId = await createRescueReportTransitionFixture('under-review', 4);
+    const rescueUnderReviewToAcceptedResponse = await adminSession.patch(
+      `/api/rescue-reports/${rescueUnderReviewToAcceptedId}/status`,
+      {
+        status: 'accepted',
+        notes: 'Allowed transition regression check.',
+      }
+    );
+    expectStatus(rescueUnderReviewToAcceptedResponse, 200, 'rescue reports under-review to accepted transition');
+    expect(
+      extractItem(rescueUnderReviewToAcceptedResponse)?.status === 'accepted',
+      'rescue reports under-review to accepted should update status'
+    );
+
+    const rescueUnderReviewToRejectedId = await createRescueReportTransitionFixture('under-review', 5);
+    const rescueUnderReviewToRejectedResponse = await adminSession.patch(
+      `/api/rescue-reports/${rescueUnderReviewToRejectedId}/status`,
+      {
+        status: 'rejected',
+        notes: 'Allowed transition regression check.',
+      }
+    );
+    expectStatus(rescueUnderReviewToRejectedResponse, 200, 'rescue reports under-review to rejected transition');
+    expect(
+      extractItem(rescueUnderReviewToRejectedResponse)?.status === 'rejected',
+      'rescue reports under-review to rejected should update status'
+    );
+
+    const rescueAcceptedToResolvedId = await createRescueReportTransitionFixture('accepted', 6);
+    const rescueAcceptedToResolvedResponse = await adminSession.patch(
+      `/api/rescue-reports/${rescueAcceptedToResolvedId}/status`,
+      {
+        status: 'resolved',
+        notes: 'Allowed transition regression check.',
+      }
+    );
+    expectStatus(rescueAcceptedToResolvedResponse, 200, 'rescue reports accepted to resolved transition');
+    expect(
+      extractItem(rescueAcceptedToResolvedResponse)?.status === 'resolved',
+      'rescue reports accepted to resolved should update status'
+    );
+
+    const invalidRescueUnderReviewToResolvedId = await createRescueReportTransitionFixture('under-review', 7);
+    const invalidRescueUnderReviewToResolvedResponse = await adminSession.patch(
+      `/api/rescue-reports/${invalidRescueUnderReviewToResolvedId}/status`,
+      {
+        status: 'resolved',
+        notes: '',
+      }
+    );
+    expectStatus(
+      invalidRescueUnderReviewToResolvedResponse,
+      409,
+      'rescue reports under-review to resolved should require accepted first'
+    );
+
+    const invalidRescueResolvedToAcceptedId = await createRescueReportTransitionFixture('resolved', 8);
+    const invalidRescueResolvedToAcceptedResponse = await adminSession.patch(
+      `/api/rescue-reports/${invalidRescueResolvedToAcceptedId}/status`,
+      {
+        status: 'accepted',
+        notes: '',
+      }
+    );
+    expectStatus(
+      invalidRescueResolvedToAcceptedResponse,
+      409,
+      'rescue reports resolved to accepted should be forbidden'
+    );
+
+    const invalidRescueRejectedToAcceptedId = await createRescueReportTransitionFixture('rejected', 9);
+    const invalidRescueRejectedToAcceptedResponse = await adminSession.patch(
+      `/api/rescue-reports/${invalidRescueRejectedToAcceptedId}/status`,
+      {
+        status: 'accepted',
+        notes: '',
+      }
+    );
+    expectStatus(
+      invalidRescueRejectedToAcceptedResponse,
+      409,
+      'rescue reports rejected to accepted should be forbidden'
+    );
+
+    const invalidRescueReportTransitionResponse = await adminSession.patch(
+      `/api/rescue-reports/${rescueReportListItem.id}/status`,
+      {
+        status: 'pending',
+        notes: '',
+      }
+    );
+    expectStatus(invalidRescueReportTransitionResponse, 409, 'rescue reports invalid status transition');
+  });
+
+  await recordStep('Pagination: donations pages, limits and filtered totals', async () => {
+    await seedDonationPaginationFixtures();
+
+    const pageTwoResponse = await adminSession.get('/api/donations?page=2&limit=10');
+    expectStatus(pageTwoResponse, 200, 'donations page 2');
+    expect(extractItems(pageTwoResponse).length === 10, 'donations page 2 should return 10 items');
+    expect(extractItem(pageTwoResponse)?.total === 25, 'donations page 2 should expose total 25');
+    expect(extractPagination(pageTwoResponse).page === 2, 'donations page 2 should expose page 2');
+    expect(extractPagination(pageTwoResponse).totalPages === 3, 'donations page 2 should expose 3 total pages');
+    expect(extractPagination(pageTwoResponse).hasNextPage === true, 'donations page 2 should have next page');
+    expect(extractPagination(pageTwoResponse).hasPreviousPage === true, 'donations page 2 should have previous page');
+
+    const lastPageResponse = await adminSession.get('/api/donations?page=3&limit=10');
+    expectStatus(lastPageResponse, 200, 'donations last page');
+    expect(extractItems(lastPageResponse).length === 5, 'donations last page should return remaining 5 items');
+    expect(extractPagination(lastPageResponse).hasNextPage === false, 'donations last page should not have next page');
+    expect(extractPagination(lastPageResponse).hasPreviousPage === true, 'donations last page should have previous page');
+
+    const invalidPaginationQueries = [
+      'page=0',
+      'page=-1',
+      'page=abc',
+      'limit=0',
+      'limit=2.5',
+    ];
+
+    for (const invalidQuery of invalidPaginationQueries) {
+      const invalidResponse = await adminSession.get(`/api/donations?${invalidQuery}`);
+      expectStatus(invalidResponse, 400, `invalid donations pagination ${invalidQuery}`);
+    }
+
+    const maxLimitResponse = await adminSession.get('/api/donations?limit=500');
+    expectStatus(maxLimitResponse, 200, 'donations max limit clamp');
+    expect(extractPagination(maxLimitResponse).limit === 50, 'donations max limit should clamp to 50');
+    expect(extractPagination(maxLimitResponse).maxLimit === 50, 'donations max limit metadata should expose 50');
+    expect(extractItems(maxLimitResponse).length === 25, 'donations max limit should return all 25 fixtures');
+
+    const filteredResponse = await adminSession.get('/api/donations?search=Filtered&limit=5');
+    expectStatus(filteredResponse, 200, 'filtered donations pagination');
+    expect(extractItem(filteredResponse)?.total === 12, 'filtered donations total should count only matches');
+    expect(extractItems(filteredResponse).length === 5, 'filtered donations first page should return 5 items');
+    expect(extractPagination(filteredResponse).totalPages === 3, 'filtered donations should expose 3 pages');
+    expect(extractPagination(filteredResponse).hasNextPage === true, 'filtered donations first page should have next page');
+    expect(extractPagination(filteredResponse).hasPreviousPage === false, 'filtered donations first page should not have previous page');
   });
 
   console.log('');

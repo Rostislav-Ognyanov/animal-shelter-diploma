@@ -11,8 +11,13 @@ import contactInquiriesRoutes from './modules/contact-inquiries/contactInquiries
 import donationsRoutes from './modules/donations/donations.routes.js';
 import favoritesRoutes from './modules/favorites/favorites.routes.js';
 import homeRoutes from './modules/home/home.routes.js';
+import legalContentRoutes from './modules/legal-content/legalContent.routes.js';
+import pageContentRoutes from './modules/page-content/pageContent.routes.js';
 import reportsRoutes from './modules/reports/reports.routes.js';
 import rescueReportsRoutes from './modules/rescue-reports/rescueReports.routes.js';
+import rescueStoriesRoutes from './modules/rescue-stories/rescueStories.routes.js';
+import siteSettingsRoutes from './modules/site-settings/siteSettings.routes.js';
+import speciesContentRoutes from './modules/species-content/speciesContent.routes.js';
 import usersRoutes from './modules/users/users.routes.js';
 import volunteersRoutes from './modules/volunteers/volunteers.routes.js';
 import { sendError } from './utils/apiResponse.js';
@@ -31,6 +36,11 @@ app.use(express.urlencoded({ extended: true, limit: '8mb' }));
 app.use(attachCurrentUser);
 
 app.use('/api/home', homeRoutes);
+app.use('/api/page-content', pageContentRoutes);
+app.use('/api/legal-content', legalContentRoutes);
+app.use('/api/site-settings', siteSettingsRoutes);
+app.use('/api/species-content', speciesContentRoutes);
+app.use('/api/rescue-stories', rescueStoriesRoutes);
 app.use('/api/animals', animalsRoutes);
 app.use('/api/adoptions', adoptionsRoutes);
 app.use('/api/auth', authRoutes);

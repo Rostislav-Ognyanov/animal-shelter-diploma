@@ -2,12 +2,45 @@ import { Link } from 'react-router-dom';
 
 const ADMIN_DASHBOARD_LINKS = [
   { to: '/search', label: 'Животни', description: 'Пълен достъп до животните и техния статус.' },
-  { to: '/admin/adoptions', label: 'Осиновявания', description: 'Административен преглед на заявките.' },
-  { to: '/admin/volunteers', label: 'Доброволци', description: 'Кандидатури и одобрения за доброволчество.' },
+  {
+    to: '/admin/adoptions',
+    label: 'Осиновявания',
+    description: 'Административен преглед на заявките.',
+  },
+  {
+    to: '/admin/volunteers',
+    label: 'Доброволци',
+    description: 'Кандидатури и одобрения за доброволчество.',
+  },
   { to: '/admin/signals', label: 'Сигнали', description: 'Сигнали за животни и служебна обработка.' },
   { to: '/admin/donations', label: 'Дарения', description: 'Преглед на заявените дарения.' },
   { to: '/admin/users', label: 'Потребители', description: 'Клиенти, служители, роли и активност.' },
   { to: '/admin/reports', label: 'Отчети', description: 'Dashboard, статистики и аналитични справки.' },
+  {
+    to: '/admin/page-content',
+    label: 'Съдържание',
+    description: 'Редакция на публичните блокове, снимки и CTA надписи.',
+  },
+  {
+    to: '/admin/legal-content',
+    label: 'Юридически',
+    description: 'Чернови, публикуване и история на юридическите страници.',
+  },
+  {
+    to: '/admin/species-content',
+    label: 'Видове',
+    description: 'Чернови и публикуване на информацията по видове животни.',
+  },
+  {
+    to: '/admin/rescue-stories-content',
+    label: 'Истории',
+    description: 'Добавяне, редакция, featured ред и архивиране на истории.',
+  },
+  {
+    to: '/admin/site-settings',
+    label: 'Настройки',
+    description: 'Контакти, име на приюта, лого и общи публични данни.',
+  },
 ];
 
 export function AdminDashboardPage() {

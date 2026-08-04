@@ -43,11 +43,19 @@ export function getDonationManagementPath(role) {
   return role === 'admin' ? '/admin/donations' : '/staff/donations';
 }
 
-export function buildDonationListQuery(search) {
+export function buildDonationListQuery(search, page, limit) {
   const params = new URLSearchParams();
 
   if (search?.trim()) {
     params.set('search', search.trim());
+  }
+
+  if (page) {
+    params.set('page', String(page));
+  }
+
+  if (limit) {
+    params.set('limit', String(limit));
   }
 
   const query = params.toString();

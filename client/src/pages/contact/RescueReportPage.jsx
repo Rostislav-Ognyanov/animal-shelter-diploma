@@ -1,10 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useAuth } from '../../auth/AuthProvider.jsx';
 import { createEmptyFeedback, createErrorFeedback, createSuccessFeedback } from '../../lib/feedback.js';
 import { postJson } from '../../lib/api.js';
 import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
+import { DEFAULT_PAGE_CONTENT } from '../page-content/pageContentDefaults.js';
+import {
+  buildHeroBackgroundStyle,
+  getVisibleContentItems,
+  splitContentText,
+  usePageContent,
+} from '../page-content/pageContentUtils.js';
+import { useSiteSettings } from '../site-settings/useSiteSettings.js';
 import {
   RESCUE_REPORT_SPECIES_OPTIONS,
   RESCUE_REPORT_URGENCY_OPTIONS,
@@ -39,13 +47,6 @@ const CONTACT_TYPES = [
     label: 'Общо запитване',
     description: 'За всичко останало, свързано с приюта.',
   },
-];
-
-const CONTACT_INFO = [
-  { icon: '☎', label: 'Телефон', value: '+359 888 123 456' },
-  { icon: '@', label: 'Email', value: 'contact@animal-shelter.bg' },
-  { icon: '◷', label: 'Работно време', value: 'Понеделник - събота, 09:00 - 18:00' },
-  { icon: '⌖', label: 'Адрес', value: 'гр. София, ул. Зелена грижа 12' },
 ];
 
 const EMPTY_FORM = {
@@ -180,6 +181,8 @@ function readImageFileAsDataUrl(file) {
 
 export function RescueReportPage() {
   const { currentUser } = useAuth();
+  const { content } = usePageContent('contact', DEFAULT_PAGE_CONTENT.contact);
+  const { settings } = useSiteSettings();
   const imageInputRef = useRef(null);
   const [formValues, setFormValues] = useState(() => buildInitialFormValues(currentUser));
   const [formErrors, setFormErrors] = useState({});
@@ -203,10 +206,29 @@ export function RescueReportPage() {
     }));
   }, [currentUser]);
 
-  const selectedContactType = useMemo(
-    () => CONTACT_TYPES.find((type) => type.value === formValues.inquiryType) ?? CONTACT_TYPES[0],
-    [formValues.inquiryType]
+  const contactTypes = useMemo(
+    () =>
+      CONTACT_TYPES.map((type) => ({
+        ...type,
+        ...(content.contactTypeLabels?.[type.value] ?? {}),
+      })),
+    [content.contactTypeLabels]
   );
+
+  const selectedContactType = useMemo(
+    () => contactTypes.find((type) => type.value === formValues.inquiryType) ?? contactTypes[0],
+    [contactTypes, formValues.inquiryType]
+  );
+  const contactInfoItems = useMemo(
+    () => [
+      { icon: '☎', label: 'Телефон', value: settings.phone },
+      { icon: '@', label: 'Email', value: settings.email },
+      { icon: '◷', label: 'Работно време', value: settings.workingHours },
+      { icon: '⌖', label: 'Адрес', value: settings.address },
+    ],
+    [settings.address, settings.email, settings.phone, settings.workingHours]
+  );
+  const infoBlocks = getVisibleContentItems(content.infoBlocks ?? []);
 
   const submittedReportName = useMemo(
     () => getRescueReportDisplayName(submitState.submittedRecord),
@@ -376,82 +398,71 @@ export function RescueReportPage() {
 
   return (
     <main className="route-shell rescue-shell contact-page-shell">
-      <section className="contact-page-hero">
+      <section className="contact-page-hero" style={buildHeroBackgroundStyle(content.hero?.imagePath)}>
         <div>
-          <h1>Свържи се с нас</h1>
+          <h1>{content.hero?.title}</h1>
         </div>
       </section>
 
       <section className="about-page-story-block contact-page-story-block">
-        <div className="about-page-split-inner about-page-story-row">
-          <article className="about-page-split-copy">
-            <h2>Помощта започва с контакт</h2>
-            <p>
-              Ако имате въпрос, нужда от съдействие или искате да подадете сигнал за животно в нужда, можете да се
-              свържете с нас по всяко време чрез тази страница. Приютът приема запитвания, свързани с животни,
-              осиновяване, доброволчество, дарения и други случаи, в които е необходима навременна реакция и
-              координация. За нас е важно всяко съобщение да достигне до правилното място, за да може помощта да бъде
-              по-бърза и по-ефективна. Когато се свържете с нас, вие правите важна стъпка към реална подкрепа за
-              животните и дейността на приюта.
-            </p>
-          </article>
-
-          <figure className="about-page-split-image">
-            <img
-              src={buildPublicAssetPath('images/page_images/contacts_hero1.jpg?v=2')}
-              alt="Контакт и съдействие за животно в нужда"
-            />
-          </figure>
-        </div>
-
-        <div className="about-page-story-divider" aria-hidden="true" />
-
-        <div className="about-page-split-inner about-page-story-row about-page-story-row-reversed">
-          <figure className="about-page-split-image">
-            <img
-              src={buildPublicAssetPath('images/page_images/contacts_hero2.jpg')}
-              alt="Начини за връзка с приюта"
-            />
-          </figure>
-
-          <article className="about-page-split-copy contact-page-details-copy">
-            <h2>Начини за връзка с приюта</h2>
-            <p>
-              Можете да се свържете с нас по телефон, имейл или чрез формата на тази страница, когато искате да подадете
-              сигнал, да зададете въпрос или да получите допълнителна информация. При необходимост от по-бърза реакция
-              е препоръчително да предоставите възможно най-точни данни за случая, за да можем да насочим запитването
-              към правилния екип. По-долу ще откриете основните ни контакти, чрез които можете да поддържате връзка с
-              приюта и неговата дейност.
-            </p>
-
-            <div className="contact-info-grid" aria-label="Контактна информация">
-              {CONTACT_INFO.map((item) => (
-                <article key={item.label} className="contact-info-card">
-                  <span className="contact-info-label">
-                    <span className="contact-info-icon" aria-hidden="true">
-                      {item.icon}
-                    </span>
-                    {item.label}
-                  </span>
-                  <strong>{item.value}</strong>
-                </article>
+        {infoBlocks.map((block, index) => {
+          const paragraphs = splitContentText(block.text);
+          const imageElement = block.imagePath ? (
+            <figure className="about-page-split-image">
+              <img src={buildPublicAssetPath(block.imagePath)} alt={block.imageAlt ?? ''} />
+            </figure>
+          ) : null;
+          const copyElement = (
+            <article className="about-page-split-copy contact-page-details-copy">
+              <h2>{block.title}</h2>
+              {paragraphs.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
               ))}
-            </div>
-          </article>
-        </div>
+              {index === 1 ? (
+                <div className="contact-info-grid" aria-label="Контактна информация">
+                  {contactInfoItems.map((item) => (
+                    <article key={item.label} className="contact-info-card">
+                      <span className="contact-info-label">
+                        <span className="contact-info-icon" aria-hidden="true">
+                          {item.icon}
+                        </span>
+                        {item.label}
+                      </span>
+                      <strong>{item.value}</strong>
+                    </article>
+                  ))}
+                </div>
+              ) : null}
+            </article>
+          );
+
+          return (
+            <Fragment key={block.id ?? block.title}>
+              {index > 0 ? <div className="about-page-story-divider" aria-hidden="true" /> : null}
+              <div
+                className={`about-page-split-inner about-page-story-row ${
+                  block.imagePosition === 'left' ? 'about-page-story-row-reversed' : ''
+                }`}
+              >
+                {block.imagePosition === 'left' ? imageElement : copyElement}
+                {block.imagePosition === 'left' ? copyElement : imageElement}
+              </div>
+            </Fragment>
+          );
+        })}
       </section>
 
       <section className="rescue-card contact-type-section">
         <p className="contact-type-transition">
-          Избери най-подходящия тип запитване, за да ни помогнеш да насочим информацията по-бързо към правилния екип.
+          {content.typeSelectorIntro}
         </p>
 
         <div>
-          <h2>Избери с какво е свързана нуждата</h2>
+          <h2>{content.typeSelectorTitle}</h2>
         </div>
 
         <div className="contact-type-grid">
-          {CONTACT_TYPES.map((type) => {
+          {contactTypes.map((type) => {
             const isSelected = type.value === formValues.inquiryType;
 
             return (
@@ -515,7 +526,7 @@ export function RescueReportPage() {
       <section className="rescue-card">
         <form className="rescue-form-grid" onSubmit={handleSubmit} noValidate>
           <p className="contact-form-intro rescue-form-grid-wide">
-            Попълни формата по-долу с възможно най-точна информация, за да можем да реагираме по-подходящо и навреме.
+            {content.formIntro}
           </p>
 
           <label>

@@ -15,6 +15,8 @@ function readVolunteerApplicationFilters(query = {}) {
   return {
     status: query.status,
     search: query.search,
+    page: query.page,
+    limit: query.limit,
   };
 }
 
@@ -46,13 +48,14 @@ export async function listVolunteerApplications(req, res, next) {
 
     return sendCollectionSuccess(res, {
       message: 'Кандидатурите за доброволци са заредени успешно.',
-      items: applications,
-      total: applications.length,
+      items: applications.items,
+      total: applications.total,
       data: {
         policy: getVolunteerApplicationModulePolicy(req.user?.role),
       },
       meta: {
         filters,
+        pagination: applications.pagination,
       },
     });
   } catch (error) {

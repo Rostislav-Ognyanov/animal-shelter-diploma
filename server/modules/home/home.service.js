@@ -1,5 +1,6 @@
 import { getProfileMenu } from '../shared/profileMenus.js';
 import { normalizeRole } from '../shared/rolePolicies.js';
+import { getSiteSettings } from '../site-settings/siteSettings.service.js';
 
 const HOME_PAGE_DATA = {
   siteName: 'Animal Shelter',
@@ -123,9 +124,27 @@ function normalizeHomeNavigation(navItems = []) {
 
 export async function getHomePageData(roleCandidate) {
   const role = normalizeRole(roleCandidate);
+  const siteSettings = await getSiteSettings();
 
   return {
     ...HOME_PAGE_DATA,
+    siteName: siteSettings.siteName,
+    logoUrl: siteSettings.logoUrl,
+    siteSettings,
+    publicBanner: siteSettings.publicBanner,
+    footer: {
+      ...HOME_PAGE_DATA.footer,
+      logoUrl: siteSettings.logoUrl,
+      copyright: siteSettings.copyright || `© 2026 ${siteSettings.siteName}`,
+      secondary: siteSettings.footerSecondary,
+      socialLinks: siteSettings.socialLinks,
+      contactInfo: {
+        phone: siteSettings.phone,
+        email: siteSettings.email,
+        address: siteSettings.address,
+        workingHours: siteSettings.workingHours,
+      },
+    },
     navItems: normalizeHomeNavigation(HOME_PAGE_DATA.navItems),
     userRole: role,
     roleLabel: getProfileMenu(role).roleLabel,

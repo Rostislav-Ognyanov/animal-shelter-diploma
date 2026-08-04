@@ -20,8 +20,23 @@ const STATUS_LABEL_MAP = Object.fromEntries(
   ADOPTION_STATUS_OPTIONS.map((option) => [option.value, option.label])
 );
 
-export function buildAdoptionStatusQuery(status) {
-  return status ? `?status=${encodeURIComponent(status)}` : '';
+export function buildAdoptionStatusQuery(status, page, limit) {
+  const params = new URLSearchParams();
+
+  if (status) {
+    params.set('status', status);
+  }
+
+  if (page) {
+    params.set('page', String(page));
+  }
+
+  if (limit) {
+    params.set('limit', String(limit));
+  }
+
+  const query = params.toString();
+  return query ? `?${query}` : '';
 }
 
 export function getAdoptionStatusLabel(status) {

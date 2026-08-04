@@ -13,6 +13,8 @@ import {
 function readDonationFilters(query = {}) {
   return {
     search: query.search,
+    page: query.page,
+    limit: query.limit,
   };
 }
 
@@ -44,13 +46,14 @@ export async function listDonations(req, res, next) {
 
     return sendCollectionSuccess(res, {
       message: 'Даренията са заредени успешно.',
-      items: donations,
-      total: donations.length,
+      items: donations.items,
+      total: donations.total,
       data: {
         policy: getDonationModulePolicy(req.user?.role),
       },
       meta: {
         filters,
+        pagination: donations.pagination,
       },
     });
   } catch (error) {

@@ -22,7 +22,7 @@ export const USER_STATUS_OPTIONS = [
   { value: 'inactive', label: USER_STATUS_LABELS.inactive },
 ];
 
-export const USER_PAGE_SIZE_OPTIONS = [5, 10, 20];
+export const USER_PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 
 export function getUserRoleLabel(role) {
   return USER_ROLE_LABELS[role] ?? 'Потребител';

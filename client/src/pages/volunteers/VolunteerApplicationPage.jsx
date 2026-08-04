@@ -5,6 +5,9 @@ import { useAuth } from '../../auth/AuthProvider.jsx';
 import { createEmptyFeedback, createErrorFeedback, createSuccessFeedback } from '../../lib/feedback.js';
 import { postJson } from '../../lib/api.js';
 import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
+import { PageContentLink } from '../page-content/PageContentLink.jsx';
+import { DEFAULT_PAGE_CONTENT } from '../page-content/pageContentDefaults.js';
+import { buildHeroBackgroundStyle, splitContentText, usePageContent } from '../page-content/pageContentUtils.js';
 import {
   VOLUNTEER_POSITION_OPTIONS,
   getVolunteerDisplayName,
@@ -126,6 +129,7 @@ function validateVolunteerForm(values) {
 
 export function VolunteerApplicationPage() {
   const { currentUser } = useAuth();
+  const { content } = usePageContent('volunteering', DEFAULT_PAGE_CONTENT.volunteering);
   const [formValues, setFormValues] = useState(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState({});
   const [submitState, setSubmitState] = useState({
@@ -160,6 +164,7 @@ export function VolunteerApplicationPage() {
     () => formValues.preferredPositions.includes('other'),
     [formValues.preferredPositions]
   );
+  const reasonParagraphs = splitContentText(content.reasonBlock?.text);
 
   function handleFieldChange(fieldName, value) {
     setFormValues((currentValue) => {
@@ -315,9 +320,12 @@ export function VolunteerApplicationPage() {
 
   return (
     <main className="route-shell volunteers-shell volunteers-page-shell">
-      <section className="volunteers-hero volunteers-page-hero">
+      <section
+        className="volunteers-hero volunteers-page-hero"
+        style={buildHeroBackgroundStyle(content.hero?.imagePath)}
+      >
         <div>
-          <h1>Кандидатствай за доброволец</h1>
+          <h1>{content.hero?.title}</h1>
         </div>
       </section>
 
@@ -325,28 +333,28 @@ export function VolunteerApplicationPage() {
         <div className="section-container about-content">
           <div className="about-layout volunteers-reason-layout">
             <div className="about-text">
-              <h2>Обичаш животните и искаш да помогнеш с грижи?</h2>
+              <h2>{content.reasonBlock?.title}</h2>
               <div className="about-copy">
-                <p>
-                  Като доброволец можеш да станеш истинска част от ежедневната грижа за животните в приюта и да
-                  помогнеш там, където има най-голяма нужда. С времето, вниманието и желанието си за помощ ще допринесеш
-                  за по-добра среда, повече спокойствие и повече шанс за възстановяване на животните, които разчитат на
-                  нас. Независимо дали участваш в пряката грижа, в организацията на дейности или в подкрепата на екипа,
-                  твоето присъствие има реално значение. Доброволчеството е възможност не само да помогнеш, но и да
-                  бъдеш част от кауза, която променя животи.
-                </p>
+                {reasonParagraphs.map((paragraph) => (
+                  <p key={paragraph}>{paragraph}</p>
+                ))}
               </div>
-              <a className="about-page-contact-link volunteers-reason-action" href="#volunteer-personal-info">
-                Стани доброволец
-              </a>
+              <PageContentLink
+                className="about-page-contact-link volunteers-reason-action"
+                to={content.reasonBlock?.ctaTo}
+              >
+                {content.reasonBlock?.ctaLabel}
+              </PageContentLink>
             </div>
 
-            <figure className="about-image-wrap">
-              <img
-                src={buildPublicAssetPath('images/page_images/volunteering_hero.png')}
-                alt="Доброволец в подкрепа на животните в приюта"
-              />
-            </figure>
+            {content.reasonBlock?.imagePath ? (
+              <figure className="about-image-wrap">
+                <img
+                  src={buildPublicAssetPath(content.reasonBlock.imagePath)}
+                  alt={content.reasonBlock.imageAlt ?? ''}
+                />
+              </figure>
+            ) : null}
           </div>
         </div>
       </section>
@@ -386,8 +394,11 @@ export function VolunteerApplicationPage() {
       <section className="volunteers-card" id="volunteer-form">
         <form className="volunteer-form-grid" id="volunteer-personal-info" onSubmit={handleSubmit} noValidate>
           <p className="volunteer-form-intro volunteer-form-grid-wide">
-            Попълни формата по-долу, за да ни разкажеш с какво и кога би искал да помагаш.
+            {content.formIntro}
           </p>
+          {content.instructions ? (
+            <p className="volunteer-form-intro volunteer-form-grid-wide">{content.instructions}</p>
+          ) : null}
 
           <label>
             <RequiredLabel>Име</RequiredLabel>

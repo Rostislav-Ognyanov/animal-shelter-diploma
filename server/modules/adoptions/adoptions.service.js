@@ -3,6 +3,11 @@ import mongoose from 'mongoose';
 import AdoptionRequest from '../../models/AdoptionRequest.js';
 import Animal from '../../models/Animal.js';
 import { createHttpError } from '../../utils/httpError.js';
+import {
+  applyPagination,
+  buildPagination,
+  normalizePaginationOptions,
+} from '../../utils/pagination.js';
 import { ANIMAL_ID_SLUG_PATTERN } from '../animals/animal.constants.js';
 import { getAnimalById, updateAnimalStatus } from '../animals/animals.service.js';
 import {
@@ -660,29 +665,54 @@ export async function createAdoptionRequest(payload, currentUser) {
 export async function getOwnAdoptionRequestCollection(currentUser, filters = {}) {
   assertPermission(currentUser, 'list-own');
   const query = buildRequestQuery(filters);
-  const requests = await AdoptionRequest.find({
+  const mongoQuery = {
     user: currentUser.id,
     ...query,
-  })
-    .sort({ createdAt: -1 })
+  };
+  const paginationOptions = normalizePaginationOptions(filters, {
+    defaultLimit: 10,
+    maxLimit: 30,
+  });
+  const total = await AdoptionRequest.countDocuments(mongoQuery);
+  const pagination = buildPagination(total, paginationOptions);
+  const requests = await applyPagination(
+    AdoptionRequest.find(mongoQuery).sort({ createdAt: -1, _id: -1 }),
+    pagination
+  )
     .populate('user', 'firstName lastName username email role')
     .populate('animal', 'slug name displayName species breed status imageUrls')
     .lean();
 
-  return requests.map((entry) => serializeAdoptionRequest(entry, currentUser));
+  return {
+    items: requests.map((entry) => serializeAdoptionRequest(entry, currentUser)),
+    total,
+    pagination,
+  };
 }
 
 export async function getAllAdoptionRequestCollection(currentUser, filters = {}) {
   assertPermission(currentUser, 'view-all');
   assertStaffCanManage(currentUser);
   const query = buildRequestQuery(filters);
-  const requests = await AdoptionRequest.find(query)
-    .sort({ createdAt: -1 })
+  const paginationOptions = normalizePaginationOptions(filters, {
+    defaultLimit: 20,
+    maxLimit: 50,
+  });
+  const total = await AdoptionRequest.countDocuments(query);
+  const pagination = buildPagination(total, paginationOptions);
+  const requests = await applyPagination(
+    AdoptionRequest.find(query).sort({ createdAt: -1, _id: -1 }),
+    pagination
+  )
     .populate('user', 'firstName lastName username email role')
     .populate('animal', 'slug name displayName species breed status imageUrls')
     .lean();
 
-  return requests.map((entry) => serializeAdoptionRequest(entry, currentUser));
+  return {
+    items: requests.map((entry) => serializeAdoptionRequest(entry, currentUser)),
+    total,
+    pagination,
+  };
 }
 
 export async function getAdoptionRequestById(requestId, currentUser) {

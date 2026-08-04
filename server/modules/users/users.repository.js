@@ -1,7 +1,11 @@
 import mongoose from 'mongoose';
 
 import User from '../../models/User.js';
-import { createHttpError } from '../../utils/httpError.js';
+import {
+  applyPagination,
+  buildPagination,
+  normalizePaginationOptions,
+} from '../../utils/pagination.js';
 
 function normalizeText(value) {
   return String(value ?? '').trim();
@@ -37,45 +41,6 @@ function serializeId(user) {
 
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function parsePositiveInteger(value, fieldName, defaultValue) {
-  if (value === undefined || value === null || value === '') {
-    return defaultValue;
-  }
-
-  const numericValue = Number(value);
-
-  if (!Number.isInteger(numericValue) || numericValue <= 0) {
-    throw createHttpError(400, `Параметърът "${fieldName}" трябва да бъде положително цяло число.`);
-  }
-
-  return numericValue;
-}
-
-function normalizePaginationOptions(filters = {}) {
-  const page = parsePositiveInteger(filters.page, 'page', 1);
-  const limit = parsePositiveInteger(filters.limit, 'limit', 10);
-
-  return {
-    page,
-    limit,
-  };
-}
-
-function buildPagination(total, options) {
-  const effectiveLimit = options.limit || 1;
-  const totalPages = total === 0 ? 0 : Math.ceil(total / effectiveLimit);
-  const safePage = totalPages === 0 ? 1 : Math.min(options.page, totalPages);
-
-  return {
-    page: safePage,
-    limit: effectiveLimit,
-    total,
-    totalPages,
-    hasNextPage: totalPages > 0 && safePage < totalPages,
-    hasPreviousPage: totalPages > 0 && safePage > 1,
-  };
 }
 
 export function serializePublicUser(user) {
@@ -189,15 +154,17 @@ function buildMongoUserQuery(filters = {}) {
 }
 
 export async function listUsers(filters = {}) {
-  const paginationOptions = normalizePaginationOptions(filters);
+  const paginationOptions = normalizePaginationOptions(filters, {
+    defaultLimit: 10,
+    maxLimit: 50,
+  });
   const query = buildMongoUserQuery(filters);
   const total = await User.countDocuments(query);
   const pagination = buildPagination(total, paginationOptions);
-  const users = await User.find(query)
-    .sort({ lastName: 1, firstName: 1 })
-    .skip((pagination.page - 1) * pagination.limit)
-    .limit(pagination.limit)
-    .lean();
+  const users = await applyPagination(
+    User.find(query).sort({ lastName: 1, firstName: 1, _id: 1 }),
+    pagination
+  ).lean();
 
   return {
     items: users,

@@ -12,6 +12,13 @@ export const VOLUNTEER_APPLICATION_STATUS_LABELS = {
   rejected: 'Отхвърлена',
 };
 
+export const VOLUNTEER_APPLICATION_STATUS_TRANSITIONS = {
+  pending: ['under-review'],
+  'under-review': ['approved', 'rejected'],
+  approved: [],
+  rejected: [],
+};
+
 export const VOLUNTEER_POSITION_VALUES = [
   'animal-care',
   'cleaning',

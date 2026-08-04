@@ -3,6 +3,11 @@
 import Animal from '../../models/Animal.js';
 import { createHttpError } from '../../utils/httpError.js';
 import {
+  applyPagination,
+  buildPagination,
+  normalizePaginationOptions,
+} from '../../utils/pagination.js';
+import {
   ANIMAL_GENDER_LABELS,
   ANIMAL_GENDER_VALUES,
   ANIMAL_ID_SLUG_PATTERN,
@@ -1028,20 +1033,6 @@ function normalizeDeactivatePayload(payload, currentAnimal) {
   return nextStatusAndActivity;
 }
 
-function parsePositiveInteger(value, fieldName, defaultValue) {
-  if (value === undefined || value === null || value === '') {
-    return defaultValue;
-  }
-
-  const numericValue = Number(value);
-
-  if (!Number.isInteger(numericValue) || numericValue <= 0) {
-    throw createHttpError(400, 'Параметърът "' + fieldName + '" трябва да бъде положително цяло число.');
-  }
-
-  return numericValue;
-}
-
 function normalizeSortValue(value) {
   const rawSort = String(value || 'name-asc').trim();
   const normalizedSort = ANIMAL_SORT_VALUE_BY_NORMALIZED_VALUE[rawSort.toLowerCase()] ?? rawSort;
@@ -1061,27 +1052,22 @@ function resolveSortDefinition(sortValue) {
     field,
     direction,
     value: sortValue,
-    mongo: { [field]: direction },
+    mongo: { [field]: direction, _id: direction },
   };
 }
 
 function normalizeAnimalListOptions(filters = {}) {
-  const hasExplicitPagination =
-    filters.page !== undefined ||
-    filters.limit !== undefined ||
-    filters.pageSize !== undefined;
-
-  const page = parsePositiveInteger(filters.page, 'page', 1);
-  const limit = parsePositiveInteger(filters.limit ?? filters.pageSize, 'limit', hasExplicitPagination ? 12 : null);
+  const paginationOptions = normalizePaginationOptions(filters, {
+    defaultLimit: 12,
+    maxLimit: 48,
+  });
   const sort = normalizeSortValue(filters.sort);
   const sortDefinition = resolveSortDefinition(sort);
 
   return {
-    page,
-    limit,
+    ...paginationOptions,
     sort,
     sortDefinition,
-    hasExplicitPagination,
   };
 }
 
@@ -1127,29 +1113,18 @@ export async function getAnimalsCollection(filters = {}) {
   const listOptions = normalizeAnimalListOptions(filters);
   const mongoFilters = buildMongoFilters(filters);
   const total = await Animal.countDocuments(mongoFilters);
-  const effectiveLimit = (listOptions.limit ?? total) || 1;
-  const totalPages = total === 0 ? 0 : Math.ceil(total / effectiveLimit);
-  const safePage = totalPages === 0 ? 1 : Math.min(listOptions.page, totalPages);
-  const query = Animal.find(mongoFilters).sort(listOptions.sortDefinition.mongo);
-
-  if (listOptions.limit) {
-    query.skip((safePage - 1) * listOptions.limit).limit(listOptions.limit);
-  }
-
+  const pagination = buildPagination(total, listOptions);
+  const query = applyPagination(
+    Animal.find(mongoFilters).sort(listOptions.sortDefinition.mongo),
+    pagination
+  );
   const animals = await query.lean();
   const items = animals.map(serializeAnimal);
 
   return {
     items,
     total,
-    pagination: {
-      page: safePage,
-      limit: effectiveLimit,
-      total,
-      totalPages,
-      hasNextPage: totalPages > 0 && safePage < totalPages,
-      hasPreviousPage: totalPages > 0 && safePage > 1,
-    },
+    pagination,
     sort: listOptions.sort,
   };
 }

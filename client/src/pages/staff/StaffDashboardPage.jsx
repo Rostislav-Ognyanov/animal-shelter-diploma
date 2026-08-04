@@ -3,9 +3,28 @@ import { Link } from 'react-router-dom';
 const STAFF_DASHBOARD_LINKS = [
   { to: '/search', label: 'Животни', description: 'Преглед, редакция и добавяне на животни.' },
   { to: '/staff/adoptions', label: 'Осиновявания', description: 'Преглед и обработка на заявки.' },
-  { to: '/staff/volunteers', label: 'Доброволци', description: 'Кандидатури и статуси за доброволчество.' },
+  {
+    to: '/staff/volunteers',
+    label: 'Доброволци',
+    description: 'Кандидатури и статуси за доброволчество.',
+  },
   { to: '/staff/signals', label: 'Сигнали', description: 'Сигнали за намерени животни в нужда.' },
   { to: '/staff/donations', label: 'Дарения', description: 'Преглед на заявените дарения.' },
+  {
+    to: '/staff/page-content',
+    label: 'Съдържание',
+    description: 'Редакция на публичните блокове, снимки и CTA надписи.',
+  },
+  {
+    to: '/staff/species-content',
+    label: 'Видове',
+    description: 'Чернови за информацията по видове животни.',
+  },
+  {
+    to: '/staff/rescue-stories-content',
+    label: 'Истории',
+    description: 'Добавяне, редакция и архивиране на спасителни истории.',
+  },
 ];
 
 export function StaffDashboardPage() {

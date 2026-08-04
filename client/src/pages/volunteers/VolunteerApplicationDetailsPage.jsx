@@ -5,13 +5,13 @@ import { useAuth } from '../../auth/AuthProvider.jsx';
 import { createEmptyFeedback, createErrorFeedback, createSuccessFeedback } from '../../lib/feedback.js';
 import { fetchJson, patchJson } from '../../lib/api.js';
 import {
-  VOLUNTEER_STATUS_OPTIONS,
   formatVolunteerDate,
   getVolunteerDisplayName,
   getVolunteerManagementPath,
   getVolunteerPositionSummary,
   getVolunteerStatusGuidance,
   getVolunteerStatusLabel,
+  getVolunteerStatusTransitionOptions,
 } from './volunteerUi.js';
 
 export function VolunteerApplicationDetailsPage() {
@@ -89,7 +89,10 @@ export function VolunteerApplicationDetailsPage() {
         feedback: createEmptyFeedback(),
       });
 
-      const updatedApplication = await patchJson(`/api/volunteers/${applicationId}/status`, reviewForm);
+      const updatedApplication = await patchJson(`/api/volunteers/${applicationId}/status`, {
+        ...reviewForm,
+        status: reviewForm.status || pageState.item?.status || 'pending',
+      });
 
       setPageState((currentValue) => ({
         ...currentValue,
@@ -147,6 +150,11 @@ export function VolunteerApplicationDetailsPage() {
 
   const application = pageState.item;
   const isMinorApplication = Number(application?.age) > 0 && Number(application.age) < 18;
+  const volunteerStatusOptions = getVolunteerStatusTransitionOptions(
+    application?.status,
+    application?.allowedStatusTransitions
+  );
+  const hasVolunteerStatusOptions = volunteerStatusOptions.length > 0;
 
   return (
     <main className="route-shell volunteers-shell">
@@ -267,16 +275,21 @@ export function VolunteerApplicationDetailsPage() {
             <label>
               <span>Статус</span>
               <select
-                value={reviewForm.status}
+                value={
+                  volunteerStatusOptions.some((option) => option.value === reviewForm.status)
+                    ? reviewForm.status
+                    : ''
+                }
                 onChange={(event) =>
                   setReviewForm((currentValue) => ({
                     ...currentValue,
                     status: event.target.value,
                   }))
                 }
-                disabled={submitState.isSubmitting}
+                disabled={!hasVolunteerStatusOptions || submitState.isSubmitting}
               >
-                {VOLUNTEER_STATUS_OPTIONS.map((option) => (
+                <option value="">{hasVolunteerStatusOptions ? 'Избери нов статус' : 'Няма преходи'}</option>
+                {volunteerStatusOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>

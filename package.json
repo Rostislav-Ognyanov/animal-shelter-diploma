@@ -12,13 +12,14 @@
     "db:wait": "node server/scripts/waitForMongo.js",
     "db:down": "docker compose down",
     "db:logs": "docker compose logs -f mongodb",
-    "setup:mongo": "npm run db:up && npm run db:wait && npm run seed:demo",
+    "setup:mongo": "npm run db:up && npm run db:wait && npm run seed:demo && npm run seed:content",
     "build": "npm run build:client",
     "build:client": "node node_modules/vite/bin/vite.js build --config client/vite.config.js",
     "preview:client": "node node_modules/vite/bin/vite.js preview --config client/vite.config.js",
     "start": "node server/server.js",
     "seed:animals": "node server/scripts/seedAnimals.js",
     "seed:demo": "node server/scripts/seedDemoData.js",
+    "seed:content": "node server/scripts/seedContent.js",
     "check:regression": "node server/scripts/runRegressionCheck.js"
   },
   "dependencies": {

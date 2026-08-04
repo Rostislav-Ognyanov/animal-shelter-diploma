@@ -19,18 +19,33 @@ function renderFooterLink(item) {
 
 export function Footer({ footer, siteName }) {
   const footerNavigation = getMainNavigation();
+  const logoUrl = footer?.logoUrl ?? footer?.siteSettings?.logoUrl ?? 'images/logo.jpg';
+  const contactInfo = footer?.contactInfo;
+  const socialLinks = footer?.socialLinks ?? [];
+  const footerLinks = footer?.links ?? [];
 
   return (
     <footer id="site-footer">
       <div className="footer-container">
         <div className="footer-brand-block">
           <Link className="footer-brand" to="/">
-            <img src={buildPublicAssetPath('images/logo.jpg')} alt="Лого на приюта" />
+            <img src={buildPublicAssetPath(logoUrl)} alt="Лого на приюта" />
             <span>{siteName}</span>
           </Link>
           <div className="footer-info">
             <p>{footer.copyright}</p>
             <p>{footer.secondary}</p>
+            {contactInfo?.phone ? <p>{contactInfo.phone}</p> : null}
+            {contactInfo?.email ? <p>{contactInfo.email}</p> : null}
+            {socialLinks.length ? (
+              <div className="footer-social-links" aria-label="Социални профили">
+                {socialLinks.map((link) => (
+                  <a key={`${link.label}-${link.url}`} href={link.url} target="_blank" rel="noreferrer">
+                    {link.label}
+                  </a>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -45,7 +60,7 @@ export function Footer({ footer, siteName }) {
         </nav>
 
         <div className="footer-links">
-          {footer.links.map((link) => (
+          {footerLinks.map((link) => (
             <span key={link.href ?? link.to ?? link.label}>{renderFooterLink(link)}</span>
           ))}
         </div>

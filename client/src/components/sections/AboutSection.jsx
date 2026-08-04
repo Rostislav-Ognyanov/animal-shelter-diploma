@@ -1,29 +1,45 @@
-import { Link } from 'react-router-dom';
-
 import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
+import { PageContentLink } from '../../pages/page-content/PageContentLink.jsx';
+
+function getParagraphs(about) {
+  if (Array.isArray(about?.paragraphs)) {
+    return about.paragraphs;
+  }
+
+  if (about?.text) {
+    return [about.text];
+  }
+
+  return [];
+}
 
 export function AboutSection({ about }) {
+  const paragraphs = getParagraphs(about);
+  const imagePath = about?.imagePath;
+  const ctaLabel = about?.cta?.label ?? about?.ctaLabel;
+  const ctaTo = about?.cta?.to ?? about?.ctaTo;
+
   return (
     <section className="about" id="about-section">
       <div className="section-container about-content">
         <div className="about-layout">
-          <figure className="about-image-wrap">
-            <img src={buildPublicAssetPath('images/page_images/hero2.jpg')} alt="Животно в грижа в приюта" />
-          </figure>
+          {imagePath ? (
+            <figure className="about-image-wrap">
+              <img src={buildPublicAssetPath(imagePath)} alt={about?.imageAlt ?? ''} />
+            </figure>
+          ) : null}
 
           <div className="about-text">
-            <h2>{about.title}</h2>
+            <h2>{about?.title}</h2>
             <div className="about-copy">
-              {about.paragraphs.map((paragraph) => (
+              {paragraphs.map((paragraph) => (
                 <p key={paragraph}>{paragraph}</p>
               ))}
             </div>
 
-            {about.cta ? (
-              <Link className="about-page-contact-link about-section-action" to={about.cta.to}>
-                {about.cta.label}
-              </Link>
-            ) : null}
+            <PageContentLink className="about-page-contact-link about-section-action" to={ctaTo}>
+              {ctaLabel}
+            </PageContentLink>
           </div>
         </div>
       </div>

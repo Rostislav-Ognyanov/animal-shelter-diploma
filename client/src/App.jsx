@@ -85,11 +85,13 @@ function AppLayout() {
   return (
     <div className="app">
       <Header
+        logoUrl={homeData.logoUrl}
         siteName={homeData.siteName}
         profileMenu={homeData.profileMenu}
         currentUser={currentUser}
         onLogout={logout}
         role={role}
+        publicBanner={homeData.publicBanner}
       />
       <AppRoutes homeData={homeData} role={role} />
       <Footer footer={homeData.footer} siteName={homeData.siteName} />

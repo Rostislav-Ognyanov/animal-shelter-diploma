@@ -152,14 +152,24 @@ export function AdminUsersPage() {
           return;
         }
 
+        const pagination = payload.meta?.pagination ?? buildEmptyPagination();
+
         setListState({
           items: payload.data?.items ?? [],
           total: payload.data?.total ?? 0,
-          pagination: payload.meta?.pagination ?? buildEmptyPagination(),
+          pagination,
           policy: payload.data?.policy ?? null,
           isLoading: false,
           error: '',
         });
+
+        const syncedPage = Number(pagination.page ?? filters.page);
+
+        if (Number.isInteger(syncedPage) && syncedPage > 0 && syncedPage !== filters.page) {
+          setFilters((currentValue) =>
+            currentValue.page === syncedPage ? currentValue : { ...currentValue, page: syncedPage }
+          );
+        }
       } catch (error) {
         if (!isMounted) {
           return;

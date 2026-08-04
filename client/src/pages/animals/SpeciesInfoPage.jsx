@@ -2,17 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
-import { SPECIES_SHOWCASE_ITEMS } from './animalAwarenessData.js';
+import { buildHeroBackgroundStyle } from '../page-content/pageContentUtils.js';
 import { buildAnimalsSearchPath } from './animalsListQuery.js';
-import { SPECIES_DETAILED_CONTENT } from './speciesDetailedContent.js';
-import { SPECIES_FACTS } from './speciesFactsData.js';
+import { usePublishedSpeciesContent } from './useSpeciesContent.js';
 
-function SpeciesDetailSection({ index, section }) {
+function SpeciesDetailSection({ section }) {
   const copyRef = useRef(null);
   const [imageHeight, setImageHeight] = useState(null);
 
   useEffect(() => {
-    if (!section.imageSrc || !copyRef.current) {
+    if (!section.imageUrl || !copyRef.current) {
       return undefined;
     }
 
@@ -36,11 +35,11 @@ function SpeciesDetailSection({ index, section }) {
       resizeObserver.disconnect();
       window.removeEventListener('resize', updateImageHeight);
     };
-  }, [section.imageSrc]);
+  }, [section.imageUrl]);
 
   return (
     <article
-      className={`species-info-detail-row${index % 2 === 1 ? ' is-reversed' : ''}${
+      className={`species-info-detail-row${section.imagePosition === 'left' ? ' is-reversed' : ''}${
         section.centered ? ' is-centered' : ''
       }`}
     >
@@ -71,12 +70,12 @@ function SpeciesDetailSection({ index, section }) {
         ) : null}
       </div>
 
-      {section.imageSrc ? (
+      {section.imageUrl ? (
         <figure
           className="species-info-detail-image"
           style={imageHeight ? { height: `${imageHeight}px` } : undefined}
         >
-          <img src={buildPublicAssetPath(section.imageSrc)} alt={section.imageAlt} />
+          <img src={buildPublicAssetPath(section.imageUrl)} alt={section.imageAlt} />
         </figure>
       ) : null}
     </article>
@@ -85,11 +84,12 @@ function SpeciesDetailSection({ index, section }) {
 
 export function SpeciesInfoPage() {
   const { species } = useParams();
-  const facts = SPECIES_FACTS[species];
-  const detailedContent = SPECIES_DETAILED_CONTENT[species];
-  const speciesItem = SPECIES_SHOWCASE_ITEMS.find((item) => item.value === species);
+  const { speciesContent } = usePublishedSpeciesContent(species);
+  const visibleSections = (speciesContent?.sections ?? [])
+    .filter((section) => section.isVisible !== false)
+    .sort((firstSection, secondSection) => (firstSection.order ?? 0) - (secondSection.order ?? 0));
 
-  if (!facts || !speciesItem) {
+  if (!speciesContent) {
     return (
       <main className="route-shell species-info-shell">
         <section className="species-info-not-found">
@@ -104,57 +104,27 @@ export function SpeciesInfoPage() {
   }
 
   return (
-    <main className={`route-shell species-info-shell${detailedContent ? ' species-info-detailed-shell' : ''}`}>
-      {detailedContent ? (
-        <section
-          className="species-info-page-hero"
-          style={{
-            backgroundImage: `linear-gradient(90deg, rgba(28, 67, 47, 0.86), rgba(47, 111, 78, 0.34)), url("${buildPublicAssetPath(
-              detailedContent.heroImageSrc
-            )}")`,
-          }}
-        >
-          <div>
-            <h1>{facts.title}</h1>
-          </div>
-        </section>
-      ) : (
-        <section className="species-info-hero">
-          <div className="species-info-hero-copy">
-            <Link className="animals-secondary-action" to="/za-zhivotnite">
-              Назад към видовете
-            </Link>
-            <h1>{facts.title}</h1>
-            <p>{facts.subtitle}</p>
-            <Link className="animals-primary-action" to={buildAnimalsSearchPath({ species })}>
-              Виж животните за осиновяване
-            </Link>
-          </div>
+    <main className="route-shell species-info-shell species-info-detailed-shell">
+      <section className="species-info-page-hero" style={buildHeroBackgroundStyle(speciesContent.heroImageUrl)}>
+        <div>
+          <h1>{speciesContent.displayName}</h1>
+        </div>
+      </section>
 
-          <div className="species-info-hero-image">
-            <img src={buildPublicAssetPath(speciesItem.imageSrc)} alt={speciesItem.imageAlt} />
-          </div>
-        </section>
-      )}
+      <section className="species-info-detail-sections">
+        {visibleSections.map((section) => (
+          <SpeciesDetailSection key={section.title} section={section} />
+        ))}
 
-      {detailedContent ? (
-        <section className="species-info-detail-sections">
-          {detailedContent.sections.map((section, index) => (
-            <SpeciesDetailSection key={section.title} index={index} section={section} />
-          ))}
-        </section>
-      ) : (
-        <section className="species-info-chapters">
-          {facts.chapters.map((chapter) => (
-            <article key={chapter.title} className="species-info-chapter">
-              <h2>{chapter.title}</h2>
-              {chapter.paragraphs.map((paragraph) => (
-                <p key={paragraph}>{paragraph}</p>
-              ))}
-            </article>
-          ))}
-        </section>
-      )}
+        <div className="species-info-page-actions">
+          <Link className="animals-secondary-action" to="/informacia-za-zhivotnite">
+            Назад към видовете
+          </Link>
+          <Link className="animals-primary-action" to={buildAnimalsSearchPath({ species })}>
+            Виж животните
+          </Link>
+        </div>
+      </section>
     </main>
   );
 }

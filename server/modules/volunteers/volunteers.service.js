@@ -3,11 +3,17 @@ import mongoose from 'mongoose';
 import VolunteerApplication from '../../models/VolunteerApplication.js';
 import { createHttpError } from '../../utils/httpError.js';
 import {
+  applyPagination,
+  buildPagination,
+  normalizePaginationOptions,
+} from '../../utils/pagination.js';
+import {
   getAllowedVolunteerApplicationActions,
   hasPermission,
 } from '../shared/rolePolicies.js';
 import {
   VOLUNTEER_APPLICATION_STATUS_LABELS,
+  VOLUNTEER_APPLICATION_STATUS_TRANSITIONS,
   VOLUNTEER_APPLICATION_STATUS_VALUES,
   VOLUNTEER_POSITION_LABELS,
   VOLUNTEER_POSITION_VALUES,
@@ -297,6 +303,7 @@ function serializeVolunteerApplication(application) {
   const preferredPositions = Array.isArray(application.preferredPositions)
     ? application.preferredPositions.map((position) => String(position))
     : [];
+  const status = application.status ?? 'pending';
 
   return {
     id: serializeId(application),
@@ -314,13 +321,29 @@ function serializeVolunteerApplication(application) {
     motivation: application.motivation ?? '',
     experience: application.experience ?? '',
     availability: application.availability ?? '',
-    status: application.status ?? 'pending',
-    statusLabel:
-      VOLUNTEER_APPLICATION_STATUS_LABELS[application.status] ?? application.status ?? 'В очакване',
+    status,
+    statusLabel: VOLUNTEER_APPLICATION_STATUS_LABELS[status] ?? status,
+    allowedStatusTransitions: VOLUNTEER_APPLICATION_STATUS_TRANSITIONS[status] ?? [],
     notes: application.notes ?? '',
     createdAt: normalizeDateOutput(application.createdAt),
     updatedAt: normalizeDateOutput(application.updatedAt),
   };
+}
+
+function assertAllowedVolunteerStatusTransition(currentStatus, nextStatus) {
+  if (!currentStatus || !nextStatus || currentStatus === nextStatus) {
+    return;
+  }
+
+  const allowedTransitions = VOLUNTEER_APPLICATION_STATUS_TRANSITIONS[currentStatus] ?? [];
+
+  if (!allowedTransitions.includes(nextStatus)) {
+    throw createHttpError(409, `Status transition from "${currentStatus}" to "${nextStatus}" is not allowed.`, {
+      currentStatus,
+      requestedStatus: nextStatus,
+      allowedTransitions,
+    });
+  }
 }
 
 function buildVolunteerQuery(filters = {}) {
@@ -363,6 +386,7 @@ export function getVolunteerApplicationModulePolicy(roleCandidate) {
     resource: 'volunteers',
     allowedActions: getAllowedVolunteerApplicationActions(roleCandidate),
     statuses: VOLUNTEER_APPLICATION_STATUS_VALUES,
+    statusTransitions: VOLUNTEER_APPLICATION_STATUS_TRANSITIONS,
   };
 }
 
@@ -379,11 +403,23 @@ export async function createVolunteerApplication(payload) {
 
 export async function getVolunteerApplicationCollection(currentUser, filters = {}) {
   assertStaffPermission(currentUser, 'view-all');
-  const applications = await VolunteerApplication.find(buildVolunteerQuery(filters))
-    .sort({ createdAt: -1 })
-    .lean();
+  const query = buildVolunteerQuery(filters);
+  const paginationOptions = normalizePaginationOptions(filters, {
+    defaultLimit: 10,
+    maxLimit: 50,
+  });
+  const total = await VolunteerApplication.countDocuments(query);
+  const pagination = buildPagination(total, paginationOptions);
+  const applications = await applyPagination(
+    VolunteerApplication.find(query).sort({ createdAt: -1, _id: -1 }),
+    pagination
+  ).lean();
 
-  return applications.map(serializeVolunteerApplication);
+  return {
+    items: applications.map(serializeVolunteerApplication),
+    total,
+    pagination,
+  };
 }
 
 export async function getVolunteerApplicationById(applicationId, currentUser) {
@@ -401,8 +437,20 @@ export async function updateVolunteerApplicationStatus(applicationId, payload, c
   assertStaffPermission(currentUser, 'update-status');
   const normalizedId = assertValidVolunteerApplicationId(applicationId);
   const normalizedPayload = normalizeStatusUpdatePayload(payload);
-  const updatedApplication = await VolunteerApplication.findByIdAndUpdate(
-    normalizedId,
+  const application = await findVolunteerApplicationRecordById(normalizedId);
+
+  if (!application) {
+    throw createHttpError(404, 'Кандидатурата не беше намерена.');
+  }
+
+  const currentStatus = application.status ?? 'pending';
+  assertAllowedVolunteerStatusTransition(currentStatus, normalizedPayload.status);
+
+  const updatedApplication = await VolunteerApplication.findOneAndUpdate(
+    {
+      _id: normalizedId,
+      status: currentStatus,
+    },
     {
       status: normalizedPayload.status,
       notes: normalizedPayload.notes,
@@ -414,7 +462,10 @@ export async function updateVolunteerApplicationStatus(applicationId, payload, c
   ).lean();
 
   if (!updatedApplication) {
-    throw createHttpError(404, 'Кандидатурата не беше намерена.');
+    throw createHttpError(409, 'Volunteer application status changed before the update could be saved.', {
+      currentStatus,
+      requestedStatus: normalizedPayload.status,
+    });
   }
 
   return serializeVolunteerApplication(updatedApplication);

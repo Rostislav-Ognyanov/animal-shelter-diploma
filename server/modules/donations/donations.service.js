@@ -2,6 +2,11 @@ import mongoose from 'mongoose';
 
 import Donation from '../../models/Donation.js';
 import { createHttpError } from '../../utils/httpError.js';
+import {
+  applyPagination,
+  buildPagination,
+  normalizePaginationOptions,
+} from '../../utils/pagination.js';
 import { getAllowedDonationActions, hasPermission } from '../shared/rolePolicies.js';
 
 const DONATION_ID_PATTERN = /^[0-9a-f]{24}$/i;
@@ -197,9 +202,23 @@ export async function createDonation(payload) {
 
 export async function getDonationCollection(currentUser, filters = {}) {
   assertStaffPermission(currentUser, 'view-all');
-  const donations = await Donation.find(buildDonationQuery(filters)).sort({ createdAt: -1 }).lean();
+  const query = buildDonationQuery(filters);
+  const paginationOptions = normalizePaginationOptions(filters, {
+    defaultLimit: 20,
+    maxLimit: 50,
+  });
+  const total = await Donation.countDocuments(query);
+  const pagination = buildPagination(total, paginationOptions);
+  const donations = await applyPagination(
+    Donation.find(query).sort({ createdAt: -1, _id: -1 }),
+    pagination
+  ).lean();
 
-  return donations.map(serializeDonation);
+  return {
+    items: donations.map(serializeDonation),
+    total,
+    pagination,
+  };
 }
 
 export async function getDonationById(donationId, currentUser) {

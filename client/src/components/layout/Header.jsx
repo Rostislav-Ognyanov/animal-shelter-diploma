@@ -22,7 +22,15 @@ function renderMenuLink(item, onClick, className = '', children = item.label) {
   );
 }
 
-export function Header({ siteName, profileMenu, currentUser, onLogout, role }) {
+export function Header({
+  logoUrl = 'images/logo.jpg',
+  siteName,
+  profileMenu,
+  currentUser,
+  onLogout,
+  role,
+  publicBanner,
+}) {
   const navigate = useNavigate();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef(null);
@@ -110,10 +118,15 @@ export function Header({ siteName, profileMenu, currentUser, onLogout, role }) {
 
   return (
     <header id="main-header">
+      {publicBanner?.isVisible && publicBanner?.text ? (
+        <div className="site-public-banner">
+          <p>{publicBanner.text}</p>
+        </div>
+      ) : null}
       <div className="header-container">
         <div className="header-left">
           <Link className="logo" to="/">
-            <img src={buildPublicAssetPath('images/logo.jpg')} alt="Лого на приюта" />
+            <img src={buildPublicAssetPath(logoUrl)} alt="Лого на приюта" />
             <span>{siteName}</span>
           </Link>
         </div>

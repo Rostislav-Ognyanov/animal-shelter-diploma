@@ -15,6 +15,8 @@ function readRescueReportFilters(query = {}) {
   return {
     status: query.status,
     search: query.search,
+    page: query.page,
+    limit: query.limit,
   };
 }
 
@@ -46,13 +48,14 @@ export async function listRescueReports(req, res, next) {
 
     return sendCollectionSuccess(res, {
       message: 'Сигналите са заредени успешно.',
-      items: reports,
-      total: reports.length,
+      items: reports.items,
+      total: reports.total,
       data: {
         policy: getRescueReportModulePolicy(req.user?.role),
       },
       meta: {
         filters,
+        pagination: reports.pagination,
       },
     });
   } catch (error) {

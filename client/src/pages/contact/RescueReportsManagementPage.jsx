@@ -2,8 +2,12 @@
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/AuthProvider.jsx';
+import {
+  buildEmptyPagination,
+  PaginationControls,
+} from '../../components/common/PaginationControls.jsx';
 import { createEmptyFeedback, createErrorFeedback, createSuccessFeedback } from '../../lib/feedback.js';
-import { fetchJson, patchJson } from '../../lib/api.js';
+import { fetchApi, patchJson } from '../../lib/api.js';
 import {
   RESCUE_REPORT_STATUS_OPTIONS,
   buildRescueReportListQuery,
@@ -13,13 +17,22 @@ import {
   getRescueReportSpeciesLabel,
   getRescueReportStatusGuidance,
   getRescueReportStatusLabel,
+  getRescueReportStatusTransitionOptions,
   getRescueReportUrgencyLabel,
 } from './rescueReportUi.js';
+
+const RESCUE_REPORTS_PAGE_SIZE = 10;
+
+function normalizePageParam(value) {
+  const numericPage = Number(value ?? 1);
+  return Number.isInteger(numericPage) && numericPage > 0 ? numericPage : 1;
+}
 
 function normalizeSearchParams(searchParams) {
   return {
     status: searchParams.get('status') || '',
     search: searchParams.get('search') || '',
+    page: normalizePageParam(searchParams.get('page')),
   };
 }
 
@@ -29,6 +42,8 @@ export function RescueReportsManagementPage() {
   const [reloadToken, setReloadToken] = useState(0);
   const [pageState, setPageState] = useState({
     items: [],
+    total: 0,
+    pagination: buildEmptyPagination(RESCUE_REPORTS_PAGE_SIZE),
     isLoading: true,
     error: '',
   });
@@ -50,19 +65,34 @@ export function RescueReportsManagementPage() {
           error: '',
         }));
 
-        const payload = await fetchJson(
-          `/api/rescue-reports${buildRescueReportListQuery(filters.status, filters.search)}`
+        const payload = await fetchApi(
+          `/api/rescue-reports${buildRescueReportListQuery(
+            filters.status,
+            filters.search,
+            filters.page,
+            RESCUE_REPORTS_PAGE_SIZE
+          )}`
         );
 
         if (!isMounted) {
           return;
         }
 
+        const pagination =
+          payload.meta?.pagination ?? buildEmptyPagination(RESCUE_REPORTS_PAGE_SIZE);
+
         setPageState({
-          items: payload.items ?? [],
+          items: payload.data?.items ?? [],
+          total: payload.data?.total ?? 0,
+          pagination,
           isLoading: false,
           error: '',
         });
+        const syncedPage = Number(pagination.page ?? filters.page);
+
+        if (Number.isInteger(syncedPage) && syncedPage > 0 && syncedPage !== filters.page) {
+          updateFilters({ page: syncedPage });
+        }
         setSelectedStatuses({});
       } catch (error) {
         if (!isMounted) {
@@ -71,6 +101,8 @@ export function RescueReportsManagementPage() {
 
         setPageState({
           items: [],
+          total: 0,
+          pagination: buildEmptyPagination(RESCUE_REPORTS_PAGE_SIZE),
           isLoading: false,
           error: error.message,
         });
@@ -82,12 +114,15 @@ export function RescueReportsManagementPage() {
     return () => {
       isMounted = false;
     };
-  }, [filters.search, filters.status, reloadToken]);
+  }, [filters.search, filters.status, filters.page, reloadToken]);
 
   function updateFilters(nextValues) {
     const nextParams = new URLSearchParams();
     const nextStatus = nextValues.status ?? filters.status;
     const nextSearch = nextValues.search ?? filters.search;
+    const nextPage = Object.prototype.hasOwnProperty.call(nextValues, 'page')
+      ? normalizePageParam(nextValues.page)
+      : 1;
 
     if (nextStatus) {
       nextParams.set('status', nextStatus);
@@ -97,11 +132,28 @@ export function RescueReportsManagementPage() {
       nextParams.set('search', nextSearch.trim());
     }
 
+    if (nextPage > 1) {
+      nextParams.set('page', String(nextPage));
+    }
+
     setSearchParams(nextParams, { replace: true });
   }
 
+  function handlePageChange(nextPage) {
+    if (nextPage < 1 || nextPage === filters.page) {
+      return;
+    }
+
+    updateFilters({ page: nextPage });
+  }
+
   async function handleStatusUpdate(report) {
-    const nextStatus = selectedStatuses[report.id] || report.status;
+    const nextStatus = selectedStatuses[report.id];
+
+    if (!nextStatus || nextStatus === report.status) {
+      setFeedback(createErrorFeedback('Избери разрешен следващ статус преди запис.'));
+      return;
+    }
 
     try {
       setSubmittingId(report.id);
@@ -115,15 +167,17 @@ export function RescueReportsManagementPage() {
         ...currentValue,
         items: currentValue.items.map((item) => (item.id === report.id ? { ...item, ...updatedReport } : item)),
       }));
-      setSelectedStatuses((currentValue) => ({
-        ...currentValue,
-        [report.id]: updatedReport.status,
-      }));
+      setSelectedStatuses((currentValue) => {
+        const nextValue = { ...currentValue };
+        delete nextValue[report.id];
+        return nextValue;
+      });
       setFeedback(
         createSuccessFeedback(
           `Сигналът на ${getRescueReportDisplayName(updatedReport)} е обновен на „${getRescueReportStatusLabel(updatedReport.status)}“.`
         )
       );
+      setReloadToken((currentValue) => currentValue + 1);
     } catch (error) {
       setFeedback(createErrorFeedback(error.message));
     } finally {
@@ -213,7 +267,14 @@ export function RescueReportsManagementPage() {
 
         {!pageState.isLoading && !pageState.error && pageState.items.length > 0 ? (
           <div className="rescue-table">
-            {pageState.items.map((report) => (
+            {pageState.items.map((report) => {
+              const transitionOptions = getRescueReportStatusTransitionOptions(
+                report.status,
+                report.allowedStatusTransitions
+              );
+              const hasTransitionOptions = transitionOptions.length > 0;
+
+              return (
               <article key={report.id} className="rescue-table-row">
                 <div>
                   <div className="rescue-row-badges">
@@ -237,8 +298,8 @@ export function RescueReportsManagementPage() {
 
                 <div className="adoptions-row-actions rescue-row-actions">
                   <select
-                    value={selectedStatuses[report.id] ?? report.status}
-                    disabled={submittingId === report.id}
+                    value={selectedStatuses[report.id] ?? ''}
+                    disabled={!hasTransitionOptions || submittingId === report.id}
                     onChange={(event) =>
                       setSelectedStatuses((currentValue) => ({
                         ...currentValue,
@@ -246,7 +307,8 @@ export function RescueReportsManagementPage() {
                       }))
                     }
                   >
-                    {RESCUE_REPORT_STATUS_OPTIONS.map((option) => (
+                    <option value="">{hasTransitionOptions ? 'Нов статус' : 'Няма преходи'}</option>
+                    {transitionOptions.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
@@ -255,7 +317,7 @@ export function RescueReportsManagementPage() {
                   <button
                     type="button"
                     className="animals-primary-action"
-                    disabled={submittingId === report.id}
+                    disabled={!hasTransitionOptions || submittingId === report.id}
                     onClick={() => handleStatusUpdate(report)}
                   >
                     {submittingId === report.id ? 'Запис...' : 'Запази'}
@@ -265,8 +327,17 @@ export function RescueReportsManagementPage() {
                   </Link>
                 </div>
               </article>
-            ))}
+              );
+            })}
           </div>
+        ) : null}
+
+        {!pageState.isLoading && !pageState.error && pageState.items.length > 0 ? (
+          <PaginationControls
+            pagination={pageState.pagination}
+            isLoading={pageState.isLoading}
+            onPageChange={handlePageChange}
+          />
         ) : null}
       </section>
     </main>

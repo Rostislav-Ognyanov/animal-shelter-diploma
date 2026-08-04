@@ -14,7 +14,9 @@ import { AnimalsInfoPage } from '../pages/animals/AnimalsInfoPage.jsx';
 import { AnimalsOverviewPage } from '../pages/animals/AnimalsOverviewPage.jsx';
 import { CreateAnimalPage } from '../pages/animals/CreateAnimalPage.jsx';
 import { EditAnimalPage } from '../pages/animals/EditAnimalPage.jsx';
+import { RescueStoriesManagementPage } from '../pages/animals/RescueStoriesManagementPage.jsx';
 import { RescueStoriesPage } from '../pages/animals/RescueStoriesPage.jsx';
+import { SpeciesContentManagementPage } from '../pages/animals/SpeciesContentManagementPage.jsx';
 import { SpeciesInfoPage } from '../pages/animals/SpeciesInfoPage.jsx';
 import { AboutPage } from '../pages/about/AboutPage.jsx';
 import { LoginPage } from '../pages/auth/LoginPage.jsx';
@@ -27,10 +29,13 @@ import { DonationPage } from '../pages/donations/DonationPage.jsx';
 import { DonationsManagementPage } from '../pages/donations/DonationsManagementPage.jsx';
 import { FavoriteAnimalsPage } from '../pages/favorites/FavoriteAnimalsPage.jsx';
 import { HomePage } from '../pages/home/HomePage.jsx';
+import { LegalContentManagementPage } from '../pages/legal/LegalContentManagementPage.jsx';
 import { LegalPage } from '../pages/legal/LegalPage.jsx';
 import { AccessDeniedPage } from '../pages/not-found/AccessDeniedPage.jsx';
 import { NotFoundPage } from '../pages/not-found/NotFoundPage.jsx';
+import { PageContentManagementPage } from '../pages/page-content/PageContentManagementPage.jsx';
 import { SearchResultsPage } from '../pages/search/SearchResultsPage.jsx';
+import { SiteSettingsManagementPage } from '../pages/site-settings/SiteSettingsManagementPage.jsx';
 import { StaffDashboardPage } from '../pages/staff/StaffDashboardPage.jsx';
 import { SupportPage } from '../pages/support/SupportPage.jsx';
 import { MyProfilePage } from '../pages/users/MyProfilePage.jsx';
@@ -85,6 +90,9 @@ export function AppRoutes({ homeData, role }) {
         <Route path="/staff/donations/:donationId" element={<DonationDetailsPage />} />
         <Route path="/staff/signals" element={<RescueReportsManagementPage />} />
         <Route path="/staff/signals/:reportId" element={<RescueReportDetailsPage />} />
+        <Route path="/staff/page-content" element={<PageContentManagementPage role={role} />} />
+        <Route path="/staff/species-content" element={<SpeciesContentManagementPage role={role} />} />
+        <Route path="/staff/rescue-stories-content" element={<RescueStoriesManagementPage role={role} />} />
       </Route>
       <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
         <Route path="/admin" element={<AdminDashboardPage />} />
@@ -98,6 +106,11 @@ export function AppRoutes({ homeData, role }) {
         <Route path="/admin/donations/:donationId" element={<DonationDetailsPage />} />
         <Route path="/admin/signals" element={<RescueReportsManagementPage />} />
         <Route path="/admin/signals/:reportId" element={<RescueReportDetailsPage />} />
+        <Route path="/admin/page-content" element={<PageContentManagementPage role={role} />} />
+        <Route path="/admin/legal-content" element={<LegalContentManagementPage />} />
+        <Route path="/admin/species-content" element={<SpeciesContentManagementPage role={role} />} />
+        <Route path="/admin/rescue-stories-content" element={<RescueStoriesManagementPage role={role} />} />
+        <Route path="/admin/site-settings" element={<SiteSettingsManagementPage />} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

@@ -2,8 +2,12 @@
 import { Link } from 'react-router-dom';
 
 import { ConfirmDialog } from '../../components/common/ConfirmDialog.jsx';
+import {
+  buildEmptyPagination,
+  PaginationControls,
+} from '../../components/common/PaginationControls.jsx';
 import { createEmptyFeedback, createErrorFeedback, createSuccessFeedback } from '../../lib/feedback.js';
-import { fetchJson, patchJson } from '../../lib/api.js';
+import { fetchApi, patchJson } from '../../lib/api.js';
 import {
   ADOPTION_STATUS_OPTIONS,
   buildAdoptionStatusQuery,
@@ -13,11 +17,16 @@ import {
   getAnimalDisplayName,
 } from './adoptionUi.js';
 
+const OWN_ADOPTION_REQUESTS_PAGE_SIZE = 10;
+
 export function MyAdoptionRequestsPage() {
   const [statusFilter, setStatusFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [reloadToken, setReloadToken] = useState(0);
   const [pageState, setPageState] = useState({
     items: [],
+    total: 0,
+    pagination: buildEmptyPagination(OWN_ADOPTION_REQUESTS_PAGE_SIZE),
     isLoading: true,
     error: '',
   });
@@ -31,17 +40,33 @@ export function MyAdoptionRequestsPage() {
     async function loadRequests() {
       try {
         setPageState((currentValue) => ({ ...currentValue, isLoading: true, error: '' }));
-        const payload = await fetchJson(`/api/adoptions/my${buildAdoptionStatusQuery(statusFilter)}`);
+        const payload = await fetchApi(
+          `/api/adoptions/my${buildAdoptionStatusQuery(
+            statusFilter,
+            currentPage,
+            OWN_ADOPTION_REQUESTS_PAGE_SIZE
+          )}`
+        );
 
         if (!isMounted) {
           return;
         }
 
+        const pagination =
+          payload.meta?.pagination ?? buildEmptyPagination(OWN_ADOPTION_REQUESTS_PAGE_SIZE);
+
         setPageState({
-          items: payload.items ?? [],
+          items: payload.data?.items ?? [],
+          total: payload.data?.total ?? 0,
+          pagination,
           isLoading: false,
           error: '',
         });
+        const syncedPage = Number(pagination.page ?? currentPage);
+
+        if (Number.isInteger(syncedPage) && syncedPage > 0 && syncedPage !== currentPage) {
+          setCurrentPage(syncedPage);
+        }
       } catch (error) {
         if (!isMounted) {
           return;
@@ -49,6 +74,8 @@ export function MyAdoptionRequestsPage() {
 
         setPageState({
           items: [],
+          total: 0,
+          pagination: buildEmptyPagination(OWN_ADOPTION_REQUESTS_PAGE_SIZE),
           isLoading: false,
           error: error.message,
         });
@@ -60,7 +87,20 @@ export function MyAdoptionRequestsPage() {
     return () => {
       isMounted = false;
     };
-  }, [statusFilter, reloadToken]);
+  }, [statusFilter, currentPage, reloadToken]);
+
+  function handleStatusFilterChange(value) {
+    setStatusFilter(value);
+    setCurrentPage(1);
+  }
+
+  function handlePageChange(nextPage) {
+    if (nextPage < 1 || nextPage === currentPage) {
+      return;
+    }
+
+    setCurrentPage(nextPage);
+  }
 
   async function handleCancel(requestId) {
     try {
@@ -75,6 +115,7 @@ export function MyAdoptionRequestsPage() {
         ),
       }));
       setFeedback(createSuccessFeedback('Заявката е отменена успешно.'));
+      setReloadToken((currentValue) => currentValue + 1);
     } catch (error) {
       setFeedback(createErrorFeedback(error.message));
     } finally {
@@ -95,7 +136,7 @@ export function MyAdoptionRequestsPage() {
 
         <label className="adoptions-filter">
           Филтър по статус
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+          <select value={statusFilter} onChange={(event) => handleStatusFilterChange(event.target.value)}>
             <option value="">Всички статуси</option>
             {ADOPTION_STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -198,6 +239,14 @@ export function MyAdoptionRequestsPage() {
               );
             })}
           </div>
+        ) : null}
+
+        {!pageState.isLoading && !pageState.error && pageState.items.length > 0 ? (
+          <PaginationControls
+            pagination={pageState.pagination}
+            isLoading={pageState.isLoading}
+            onPageChange={handlePageChange}
+          />
         ) : null}
       </section>
 

@@ -135,15 +135,25 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
         }
 
         const total = payload.data?.total ?? 0;
+        const pagination = payload.meta?.pagination ?? buildEmptyPagination(total);
 
         setAnimalsState({
           items: payload.data?.items ?? [],
           total,
-          pagination: payload.meta?.pagination ?? buildEmptyPagination(total),
+          pagination,
           sort: payload.meta?.sort ?? effectiveFilters.sort,
           isLoading: false,
           error: '',
         });
+
+        const syncedPage = Number(pagination.page ?? routeFilters.page);
+
+        if (Number.isInteger(syncedPage) && syncedPage > 0 && syncedPage !== routeFilters.page) {
+          updateRouteFilters(
+            mergeAnimalsRouteFilters(routeFilters, { page: syncedPage }),
+            { replace: true }
+          );
+        }
       } catch (error) {
         if (!isMounted) {
           return;

@@ -16,6 +16,8 @@ import {
 function readAdoptionRequestFilters(query = {}) {
   return {
     status: query.status,
+    page: query.page,
+    limit: query.limit,
   };
 }
 
@@ -47,13 +49,14 @@ export async function listOwnAdoptionRequests(req, res, next) {
 
     return sendCollectionSuccess(res, {
       message: 'Твоите заявки за осиновяване са заредени успешно.',
-      items: adoptionRequestCollection,
-      total: adoptionRequestCollection.length,
+      items: adoptionRequestCollection.items,
+      total: adoptionRequestCollection.total,
       data: {
         policy: getAdoptionRequestModulePolicy(req.user?.role),
       },
       meta: {
         filters: adoptionFilters,
+        pagination: adoptionRequestCollection.pagination,
       },
     });
   } catch (error) {
@@ -68,13 +71,14 @@ export async function listAdoptionRequests(req, res, next) {
 
     return sendCollectionSuccess(res, {
       message: 'Заявките за осиновяване са заредени успешно.',
-      items: adoptionRequestCollection,
-      total: adoptionRequestCollection.length,
+      items: adoptionRequestCollection.items,
+      total: adoptionRequestCollection.total,
       data: {
         policy: getAdoptionRequestModulePolicy(req.user?.role),
       },
       meta: {
         filters: adoptionFilters,
+        pagination: adoptionRequestCollection.pagination,
       },
     });
   } catch (error) {

@@ -10,6 +10,14 @@ export const RESCUE_REPORT_STATUS_OPTIONS = Object.entries(RESCUE_REPORT_STATUS_
   ([value, label]) => ({ value, label })
 );
 
+export const RESCUE_REPORT_STATUS_TRANSITIONS = {
+  pending: ['under-review', 'accepted', 'rejected'],
+  'under-review': ['accepted', 'rejected'],
+  accepted: ['resolved'],
+  resolved: [],
+  rejected: [],
+};
+
 export const RESCUE_REPORT_URGENCY_LABELS = {
   low: 'Ниска',
   medium: 'Средна',
@@ -40,6 +48,28 @@ export const RESCUE_REPORT_SPECIES_OPTIONS = Object.entries(RESCUE_REPORT_SPECIE
 
 export function getRescueReportStatusLabel(status) {
   return RESCUE_REPORT_STATUS_LABELS[status] ?? 'В очакване';
+}
+
+export function getRescueReportStatusTransitions(status, allowedTransitions) {
+  if (Array.isArray(allowedTransitions)) {
+    return allowedTransitions;
+  }
+
+  return RESCUE_REPORT_STATUS_TRANSITIONS[status] ?? [];
+}
+
+export function getRescueReportStatusTransitionOptions(
+  status,
+  allowedTransitions,
+  { includeCurrent = false } = {}
+) {
+  const transitionValues = getRescueReportStatusTransitions(status, allowedTransitions);
+  const values = includeCurrent ? [status, ...transitionValues] : transitionValues;
+
+  return [...new Set(values.filter(Boolean))].map((value) => ({
+    value,
+    label: getRescueReportStatusLabel(value),
+  }));
 }
 
 export function getRescueReportUrgencyLabel(urgency) {
@@ -91,7 +121,7 @@ export function getRescueReportStatusGuidance(status) {
   }
 }
 
-export function buildRescueReportListQuery(status, search) {
+export function buildRescueReportListQuery(status, search, page, limit) {
   const params = new URLSearchParams();
 
   if (status) {
@@ -100,6 +130,14 @@ export function buildRescueReportListQuery(status, search) {
 
   if (search?.trim()) {
     params.set('search', search.trim());
+  }
+
+  if (page) {
+    params.set('page', String(page));
+  }
+
+  if (limit) {
+    params.set('limit', String(limit));
   }
 
   const query = params.toString();

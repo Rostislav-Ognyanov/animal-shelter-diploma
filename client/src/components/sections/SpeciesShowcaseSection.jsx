@@ -1,61 +1,76 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
-import { SPECIES_SHOWCASE_ITEMS } from '../../pages/animals/animalAwarenessData.js';
 import { buildAnimalsSearchPath } from '../../pages/animals/animalsListQuery.js';
+import { usePublishedSpeciesContentList } from '../../pages/animals/useSpeciesContent.js';
 
 export function SpeciesShowcaseSection() {
-  const [selectedSpeciesValue, setSelectedSpeciesValue] = useState(SPECIES_SHOWCASE_ITEMS[0].value);
+  const { speciesContent } = usePublishedSpeciesContentList();
+  const [selectedSpeciesValue, setSelectedSpeciesValue] = useState('');
+
+  useEffect(() => {
+    if (speciesContent.length === 0) {
+      return;
+    }
+
+    const selectedSpeciesExists = speciesContent.some((item) => item.species === selectedSpeciesValue);
+
+    if (!selectedSpeciesValue || !selectedSpeciesExists) {
+      setSelectedSpeciesValue(speciesContent[0].species);
+    }
+  }, [selectedSpeciesValue, speciesContent]);
 
   const selectedSpecies = useMemo(
-    () =>
-      SPECIES_SHOWCASE_ITEMS.find((item) => item.value === selectedSpeciesValue) ??
-      SPECIES_SHOWCASE_ITEMS[0],
-    [selectedSpeciesValue]
+    () => speciesContent.find((item) => item.species === selectedSpeciesValue) ?? speciesContent[0],
+    [selectedSpeciesValue, speciesContent]
   );
 
   const adoptionPath = useMemo(
-    () => buildAnimalsSearchPath({ species: selectedSpecies.value }),
-    [selectedSpecies.value]
+    () => buildAnimalsSearchPath({ species: selectedSpecies?.species }),
+    [selectedSpecies?.species]
   );
 
   const adoptionActionLabel = useMemo(
-    () => `Осинови ${selectedSpecies.tabLabel.toLowerCase()}`,
-    [selectedSpecies.tabLabel]
+    () => `Осинови ${selectedSpecies?.displayName?.toLowerCase() ?? 'животно'}`,
+    [selectedSpecies?.displayName]
   );
+
+  if (!selectedSpecies) {
+    return null;
+  }
 
   return (
     <section className="species-showcase" id="species-showcase-section">
       <div className="section-container species-showcase-container">
         <div className="species-showcase-layout">
           <div className="species-showcase-list" role="tablist" aria-label="Видове животни">
-            {SPECIES_SHOWCASE_ITEMS.map((item) => {
-              const isSelected = item.value === selectedSpecies.value;
+            {speciesContent.map((item) => {
+              const isSelected = item.species === selectedSpecies.species;
 
               return (
                 <button
-                  key={item.value}
+                  key={item.species}
                   type="button"
                   className={`species-showcase-tab ${isSelected ? 'is-selected' : ''}`}
-                  onClick={() => setSelectedSpeciesValue(item.value)}
+                  onClick={() => setSelectedSpeciesValue(item.species)}
                 >
-                  <span className="species-showcase-tab-label">{item.tabLabel}</span>
+                  <span className="species-showcase-tab-label">{item.displayName}</span>
                 </button>
               );
             })}
           </div>
 
-          <article className={`species-showcase-panel is-${selectedSpecies.value}`}>
+          <article className={`species-showcase-panel is-${selectedSpecies.species}`}>
             <div className="species-showcase-panel-layout">
               <div className="species-showcase-panel-content">
                 <div className="species-showcase-panel-top">
                   <h3>{selectedSpecies.title}</h3>
-                  <p>{selectedSpecies.description}</p>
+                  <p>{selectedSpecies.introduction}</p>
                 </div>
 
                 <div className="species-showcase-issues">
-                  {selectedSpecies.issues.map((issue) => (
+                  {(selectedSpecies.issues ?? []).map((issue) => (
                     <article key={issue} className="species-showcase-issue-card">
                       <p>{issue}</p>
                     </article>
@@ -76,8 +91,8 @@ export function SpeciesShowcaseSection() {
 
               <div className="species-showcase-figure">
                 <img
-                  src={buildPublicAssetPath(selectedSpecies.imageSrc)}
-                  alt={selectedSpecies.imageAlt}
+                  src={buildPublicAssetPath(selectedSpecies.cardImageUrl)}
+                  alt={selectedSpecies.cardImageAlt}
                 />
               </div>
             </div>

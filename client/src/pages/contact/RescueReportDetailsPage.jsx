@@ -6,13 +6,13 @@ import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
 import { createEmptyFeedback, createErrorFeedback, createSuccessFeedback } from '../../lib/feedback.js';
 import { fetchJson, patchJson } from '../../lib/api.js';
 import {
-  RESCUE_REPORT_STATUS_OPTIONS,
   formatRescueReportDate,
   getRescueReportDisplayName,
   getRescueReportManagementPath,
   getRescueReportSpeciesLabel,
   getRescueReportStatusGuidance,
   getRescueReportStatusLabel,
+  getRescueReportStatusTransitionOptions,
   getRescueReportUrgencyLabel,
 } from './rescueReportUi.js';
 
@@ -91,7 +91,10 @@ export function RescueReportDetailsPage() {
         feedback: createEmptyFeedback(),
       });
 
-      const updatedReport = await patchJson(`/api/rescue-reports/${reportId}/status`, reviewForm);
+      const updatedReport = await patchJson(`/api/rescue-reports/${reportId}/status`, {
+        ...reviewForm,
+        status: reviewForm.status || pageState.item?.status || 'pending',
+      });
 
       setPageState((currentValue) => ({
         ...currentValue,
@@ -148,6 +151,11 @@ export function RescueReportDetailsPage() {
   }
 
   const report = pageState.item;
+  const reportStatusOptions = getRescueReportStatusTransitionOptions(
+    report?.status,
+    report?.allowedStatusTransitions
+  );
+  const hasReportStatusOptions = reportStatusOptions.length > 0;
 
   return (
     <main className="route-shell rescue-shell">
@@ -252,16 +260,21 @@ export function RescueReportDetailsPage() {
             <label>
               <span>Статус</span>
               <select
-                value={reviewForm.status}
+                value={
+                  reportStatusOptions.some((option) => option.value === reviewForm.status)
+                    ? reviewForm.status
+                    : ''
+                }
                 onChange={(event) =>
                   setReviewForm((currentValue) => ({
                     ...currentValue,
                     status: event.target.value,
                   }))
                 }
-                disabled={submitState.isSubmitting}
+                disabled={!hasReportStatusOptions || submitState.isSubmitting}
               >
-                {RESCUE_REPORT_STATUS_OPTIONS.map((option) => (
+                <option value="">{hasReportStatusOptions ? 'Избери нов статус' : 'Няма преходи'}</option>
+                {reportStatusOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>

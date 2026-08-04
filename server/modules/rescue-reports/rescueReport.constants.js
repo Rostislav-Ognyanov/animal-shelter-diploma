@@ -14,6 +14,14 @@ export const RESCUE_REPORT_STATUS_LABELS = {
   rejected: 'Отхвърлен',
 };
 
+export const RESCUE_REPORT_STATUS_TRANSITIONS = {
+  pending: ['under-review', 'accepted', 'rejected'],
+  'under-review': ['accepted', 'rejected'],
+  accepted: ['resolved'],
+  resolved: [],
+  rejected: [],
+};
+
 export const RESCUE_REPORT_URGENCY_VALUES = ['low', 'medium', 'high', 'critical'];
 
 export const RESCUE_REPORT_URGENCY_LABELS = {

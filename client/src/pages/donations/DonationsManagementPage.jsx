@@ -2,7 +2,11 @@
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/AuthProvider.jsx';
-import { fetchJson } from '../../lib/api.js';
+import {
+  buildEmptyPagination,
+  PaginationControls,
+} from '../../components/common/PaginationControls.jsx';
+import { fetchApi } from '../../lib/api.js';
 import {
   buildDonationListQuery,
   formatDonationAmount,
@@ -11,9 +15,17 @@ import {
   getDonationManagementPath,
 } from './donationUi.js';
 
+const DONATIONS_PAGE_SIZE = 20;
+
+function normalizePageParam(value) {
+  const numericPage = Number(value ?? 1);
+  return Number.isInteger(numericPage) && numericPage > 0 ? numericPage : 1;
+}
+
 function normalizeSearchParams(searchParams) {
   return {
     search: searchParams.get('search') || '',
+    page: normalizePageParam(searchParams.get('page')),
   };
 }
 
@@ -23,6 +35,8 @@ export function DonationsManagementPage() {
   const [reloadToken, setReloadToken] = useState(0);
   const [pageState, setPageState] = useState({
     items: [],
+    total: 0,
+    pagination: buildEmptyPagination(DONATIONS_PAGE_SIZE),
     isLoading: true,
     error: '',
   });
@@ -38,17 +52,28 @@ export function DonationsManagementPage() {
     async function loadDonations() {
       try {
         setPageState((currentValue) => ({ ...currentValue, isLoading: true, error: '' }));
-        const payload = await fetchJson(`/api/donations${buildDonationListQuery(filters.search)}`);
+        const payload = await fetchApi(
+          `/api/donations${buildDonationListQuery(filters.search, filters.page, DONATIONS_PAGE_SIZE)}`
+        );
 
         if (!isMounted) {
           return;
         }
 
+        const pagination = payload.meta?.pagination ?? buildEmptyPagination(DONATIONS_PAGE_SIZE);
+
         setPageState({
-          items: payload.items ?? [],
+          items: payload.data?.items ?? [],
+          total: payload.data?.total ?? 0,
+          pagination,
           isLoading: false,
           error: '',
         });
+        const syncedPage = Number(pagination.page ?? filters.page);
+
+        if (Number.isInteger(syncedPage) && syncedPage > 0 && syncedPage !== filters.page) {
+          updatePageParam(syncedPage);
+        }
       } catch (error) {
         if (!isMounted) {
           return;
@@ -56,6 +81,8 @@ export function DonationsManagementPage() {
 
         setPageState({
           items: [],
+          total: 0,
+          pagination: buildEmptyPagination(DONATIONS_PAGE_SIZE),
           isLoading: false,
           error: error.message,
         });
@@ -67,7 +94,7 @@ export function DonationsManagementPage() {
     return () => {
       isMounted = false;
     };
-  }, [filters.search, reloadToken]);
+  }, [filters.search, filters.page, reloadToken]);
 
   function updateSearch(value) {
     const nextParams = new URLSearchParams();
@@ -77,6 +104,28 @@ export function DonationsManagementPage() {
     }
 
     setSearchParams(nextParams, { replace: true });
+  }
+
+  function updatePageParam(nextPage) {
+    const nextParams = new URLSearchParams();
+
+    if (filters.search.trim()) {
+      nextParams.set('search', filters.search.trim());
+    }
+
+    if (nextPage > 1) {
+      nextParams.set('page', String(nextPage));
+    }
+
+    setSearchParams(nextParams, { replace: true });
+  }
+
+  function handlePageChange(nextPage) {
+    if (nextPage < 1 || nextPage === filters.page) {
+      return;
+    }
+
+    updatePageParam(nextPage);
   }
 
   return (
@@ -166,6 +215,14 @@ export function DonationsManagementPage() {
               </article>
             ))}
           </div>
+        ) : null}
+
+        {!pageState.isLoading && !pageState.error && pageState.items.length > 0 ? (
+          <PaginationControls
+            pagination={pageState.pagination}
+            isLoading={pageState.isLoading}
+            onPageChange={handlePageChange}
+          />
         ) : null}
       </section>
     </main>

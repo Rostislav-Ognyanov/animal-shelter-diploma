@@ -1,92 +1,101 @@
+import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
 
 import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
-import { RESCUE_STORIES, SPECIES_SHOWCASE_ITEMS } from './animalAwarenessData.js';
+import { PageContentLink } from '../page-content/PageContentLink.jsx';
+import { DEFAULT_PAGE_CONTENT } from '../page-content/pageContentDefaults.js';
+import {
+  buildHeroBackgroundStyle,
+  getVisibleContentItems,
+  splitContentText,
+  usePageContent,
+} from '../page-content/pageContentUtils.js';
+import { DEFAULT_RESCUE_STORIES } from './rescueStoriesData.js';
+import { usePublishedRescueStories } from './useRescueStories.js';
+import { usePublishedSpeciesContentList } from './useSpeciesContent.js';
 
-const FEATURED_SPECIES = SPECIES_SHOWCASE_ITEMS.slice(0, 4);
+const DEFAULT_OVERVIEW_STORIES = DEFAULT_RESCUE_STORIES.filter((story) => story.isFeatured).slice(0, 3);
+
+function OverviewInfoBlock({ block }) {
+  const paragraphs = splitContentText(block.text);
+  const imageElement = block.imagePath ? (
+    <figure className="about-page-split-image">
+      <img src={buildPublicAssetPath(block.imagePath)} alt={block.imageAlt ?? ''} />
+    </figure>
+  ) : null;
+  const copyElement = (
+    <article className="about-page-split-copy animals-overview-story-copy">
+      <h2>{block.title}</h2>
+      {paragraphs.map((paragraph) => (
+        <p key={paragraph}>{paragraph}</p>
+      ))}
+      <PageContentLink className="about-page-contact-link animals-overview-story-action" to={block.ctaTo}>
+        {block.ctaLabel}
+      </PageContentLink>
+    </article>
+  );
+
+  return (
+    <div
+      className={`about-page-split-inner about-page-story-row animals-overview-story-row ${
+        block.imagePosition === 'left' ? 'about-page-story-row-reversed' : ''
+      }`}
+    >
+      {block.imagePosition === 'left' ? imageElement : copyElement}
+      {block.imagePosition === 'left' ? copyElement : imageElement}
+    </div>
+  );
+}
 
 export function AnimalsOverviewPage() {
+  const { content } = usePageContent('animals-overview', DEFAULT_PAGE_CONTENT['animals-overview']);
+  const { speciesContent } = usePublishedSpeciesContentList();
+  const { stories } = usePublishedRescueStories({ featured: true, limit: 3 }, DEFAULT_OVERVIEW_STORIES);
+  const infoBlocks = getVisibleContentItems(content.infoBlocks ?? []);
+  const featuredSpecies = speciesContent.slice(0, 4);
+
   return (
     <main className="route-shell animals-overview-shell animals-page-shell">
-      <section className="animals-overview-page-hero">
+      <section
+        className="animals-overview-page-hero"
+        style={buildHeroBackgroundStyle(content.hero?.imagePath)}
+      >
         <div>
-          <h1>За нашите животни</h1>
+          <h1>{content.hero?.title}</h1>
         </div>
       </section>
 
-      <section className="about-page-story-block animals-overview-story-block">
-        <div className="about-page-split-inner about-page-story-row animals-overview-story-row">
-          <article className="about-page-split-copy animals-overview-story-copy">
-            <h2>Животните в нашия приют</h2>
-            <p>
-              В приюта живеят различни видове животни, всяко със своя характер, нужди и история. Някои от тях се нуждаят
-              от повече време и спокойствие, други са по-активни, социални и готови за нов дом. На тази страница можете
-              да научите повече за основните видове животни в приюта, за техния начин на живот, поведение и нужди.
-              Целта на тази информация е да помогне на всеки посетител по-лесно да се ориентира, да разбере какви грижи
-              изисква всеки вид и да направи по-отговорен и информиран избор.
-            </p>
-            <a className="about-page-contact-link animals-overview-story-action" href="#species-showcase-section">
-              Към видовете
-            </a>
-          </article>
-
-          <figure className="about-page-split-image">
-            <img
-              src={buildPublicAssetPath('images/page_images/about_animals_hero1.jpg')}
-              alt="Животни в приюта"
-            />
-          </figure>
-        </div>
-
-        <div className="about-page-story-divider" aria-hidden="true" />
-
-        <div className="about-page-split-inner about-page-story-row about-page-story-row-reversed animals-overview-story-row">
-          <figure className="about-page-split-image">
-            <img
-              src={buildPublicAssetPath('images/page_images/about_animals_hero2.jpg')}
-              alt="Грижа и информация за животните"
-            />
-          </figure>
-
-          <article className="about-page-split-copy animals-overview-story-copy">
-            <h2>Как помощта променя съдби</h2>
-            <p>
-              Зад всяко животно в приюта стои различен път, изпълнен с трудности, възстановяване и нова надежда.
-              Историите за спасявания показват как навременната помощ, постоянната грижа и човешката съпричастност
-              могат да променят напълно съдбата на едно животно. Те разкриват не само предизвикателствата, през които
-              преминават животните, но и значението на осиновяването, доброволчеството и подкрепата към приюта. Чрез
-              тези истории всеки посетител може по-ясно да види реалния смисъл на помощта и възможността да бъде част от
-              една положителна промяна.
-            </p>
-            <a className="about-page-contact-link animals-overview-story-action" href="#rescue-stories-section">
-              Невероятни истории
-            </a>
-          </article>
-        </div>
-      </section>
+      {infoBlocks.length > 0 ? (
+        <section className="about-page-story-block animals-overview-story-block">
+          {infoBlocks.map((block, index) => (
+            <Fragment key={block.id ?? block.title}>
+              {index > 0 ? <div className="about-page-story-divider" aria-hidden="true" /> : null}
+              <OverviewInfoBlock block={block} />
+            </Fragment>
+          ))}
+        </section>
+      ) : null}
 
       <section className="animals-overview-species-section" id="species-showcase-section">
         <div className="animals-overview-section-heading animals-overview-stories-heading">
           <div className="animals-overview-heading-copy">
-            <h2>Информация за животните ни</h2>
-            <p>
-              Разгледайте основните видове животни в приюта и научете повече за техните особености, поведение и нужди.
-            </p>
+            <h2>{content.speciesSection?.title}</h2>
+            <p>{content.speciesSection?.description}</p>
           </div>
-          <Link className="animals-secondary-action" to="/informacia-za-zhivotnite">
-            Вижте повече
-          </Link>
+          <PageContentLink className="animals-secondary-action" to={content.speciesSection?.ctaTo}>
+            {content.speciesSection?.ctaLabel}
+          </PageContentLink>
         </div>
 
         <div className="animals-overview-species-grid">
-          {FEATURED_SPECIES.map((species) => (
+          {featuredSpecies.map((species) => (
             <Link
-              key={species.value}
+              key={species.species}
               className="animals-overview-species-card"
-              to={`/za-zhivotnite/${species.value}`}
+              to={`/za-zhivotnite/${species.species}`}
             >
-              <img src={buildPublicAssetPath(species.imageSrc)} alt={species.imageAlt} />
-              <span>{species.tabLabel}</span>
+              <img src={buildPublicAssetPath(species.cardImageUrl)} alt={species.cardImageAlt} />
+              <span>{species.displayName}</span>
             </Link>
           ))}
         </div>
@@ -95,23 +104,20 @@ export function AnimalsOverviewPage() {
       <section className="animals-overview-stories-section" id="rescue-stories-section">
         <div className="animals-overview-section-heading animals-overview-stories-heading">
           <div className="animals-overview-heading-copy">
-            <h2>Истории за спасявания</h2>
-            <p>
-              Всяка история показва как грижата, търпението и навременната помощ могат да променят напълно съдбата на
-              едно животно.
-            </p>
+            <h2>{content.storiesSection?.title}</h2>
+            <p>{content.storiesSection?.description}</p>
           </div>
-          <Link className="animals-secondary-action" to="/istorii-za-spasyavaniya">
-            Вижте повече
-          </Link>
+          <PageContentLink className="animals-secondary-action" to={content.storiesSection?.ctaTo}>
+            {content.storiesSection?.ctaLabel}
+          </PageContentLink>
         </div>
 
         <div className="animals-overview-stories-grid">
-          {RESCUE_STORIES.map((story) => (
-            <article key={story.title} className="animals-overview-story-card">
+          {stories.map((story) => (
+            <article key={story.id ?? story.slug ?? story.title} className="animals-overview-story-card">
               <small>от {story.submittedBy}</small>
               <h3>{story.title}</h3>
-              <p>{story.text}</p>
+              <p>{story.summary || story.content}</p>
             </article>
           ))}
         </div>

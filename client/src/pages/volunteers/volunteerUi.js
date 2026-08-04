@@ -9,6 +9,13 @@ export const VOLUNTEER_STATUS_OPTIONS = Object.entries(VOLUNTEER_STATUS_LABELS).
   ([value, label]) => ({ value, label })
 );
 
+export const VOLUNTEER_STATUS_TRANSITIONS = {
+  pending: ['under-review'],
+  'under-review': ['approved', 'rejected'],
+  approved: [],
+  rejected: [],
+};
+
 export const VOLUNTEER_POSITION_LABELS = {
   'animal-care': 'Грижа за животни',
   cleaning: 'Почистване',
@@ -25,6 +32,28 @@ export const VOLUNTEER_POSITION_OPTIONS = Object.entries(VOLUNTEER_POSITION_LABE
 
 export function getVolunteerStatusLabel(status) {
   return VOLUNTEER_STATUS_LABELS[status] ?? 'В очакване';
+}
+
+export function getVolunteerStatusTransitions(status, allowedTransitions) {
+  if (Array.isArray(allowedTransitions)) {
+    return allowedTransitions;
+  }
+
+  return VOLUNTEER_STATUS_TRANSITIONS[status] ?? [];
+}
+
+export function getVolunteerStatusTransitionOptions(
+  status,
+  allowedTransitions,
+  { includeCurrent = false } = {}
+) {
+  const transitionValues = getVolunteerStatusTransitions(status, allowedTransitions);
+  const values = includeCurrent ? [status, ...transitionValues] : transitionValues;
+
+  return [...new Set(values.filter(Boolean))].map((value) => ({
+    value,
+    label: getVolunteerStatusLabel(value),
+  }));
 }
 
 export function getVolunteerPositionLabel(position) {
@@ -91,7 +120,7 @@ export function getVolunteerStatusGuidance(status) {
   }
 }
 
-export function buildVolunteerListQuery(status, search) {
+export function buildVolunteerListQuery(status, search, page, limit) {
   const params = new URLSearchParams();
 
   if (status) {
@@ -100,6 +129,14 @@ export function buildVolunteerListQuery(status, search) {
 
   if (search?.trim()) {
     params.set('search', search.trim());
+  }
+
+  if (page) {
+    params.set('page', String(page));
+  }
+
+  if (limit) {
+    params.set('limit', String(limit));
   }
 
   const query = params.toString();
