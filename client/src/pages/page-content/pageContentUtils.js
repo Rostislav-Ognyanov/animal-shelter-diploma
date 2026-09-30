@@ -42,25 +42,28 @@ export function mergePageContent(defaultContent, savedContent) {
   return mergedContent;
 }
 
-export function usePageContent(pageKey, defaultContent) {
-  const [content, setContent] = useState(() => clonePageContent(defaultContent));
+export function usePageContent(pageKey) {
+  const [content, setContent] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  // reloadToken provides an explicit retry path after a temporary content API failure.
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
 
     setIsLoading(true);
     setError('');
-    setContent(clonePageContent(defaultContent));
+    setContent({});
 
     fetchJson(`/api/page-content/${pageKey}`)
       .then((pageContent) => {
+        // Ignore stale responses that may arrive after the user navigates to another page.
         if (!isMounted) {
           return;
         }
 
-        setContent(mergePageContent(defaultContent, pageContent?.content));
+        setContent(isPlainObject(pageContent?.content) ? pageContent.content : {});
       })
       .catch((requestError) => {
         if (!isMounted) {
@@ -78,18 +81,19 @@ export function usePageContent(pageKey, defaultContent) {
     return () => {
       isMounted = false;
     };
-  }, [defaultContent, pageKey]);
+  }, [pageKey, reloadToken]);
 
   return {
     content,
     error,
     isLoading,
+    reload: () => setReloadToken((currentValue) => currentValue + 1),
     setContent,
   };
 }
 
 export function getVisibleContentItems(items = []) {
-  return items.filter((item) => item?.isVisible !== false);
+  return Array.isArray(items) ? items.filter((item) => item?.isVisible !== false) : [];
 }
 
 export function buildHeroBackgroundStyle(imagePath) {

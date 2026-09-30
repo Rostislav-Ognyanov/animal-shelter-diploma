@@ -6,6 +6,13 @@ import {
   buildPagination,
   normalizePaginationOptions,
 } from '../../utils/pagination.js';
+import {
+  normalizeDateOutput,
+  serializeId,
+} from '../../utils/serialization.js';
+
+const USER_PUBLIC_PROJECTION =
+  'firstName lastName username email role isActive lastLoginAt createdAt updatedAt';
 
 function normalizeText(value) {
   return String(value ?? '').trim();
@@ -15,35 +22,11 @@ function normalizeLookupValue(value) {
   return normalizeText(value).toLowerCase();
 }
 
-function normalizeDateValue(value) {
-  if (!value) {
-    return null;
-  }
-
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-
-  return value;
-}
-
-function serializeId(user) {
-  if (user.id) {
-    return String(user.id);
-  }
-
-  if (user._id) {
-    return String(user._id);
-  }
-
-  return '';
-}
-
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-export function serializePublicUser(user) {
+export function serializeUserView(user) {
   return {
     id: serializeId(user),
     firstName: user.firstName,
@@ -52,9 +35,9 @@ export function serializePublicUser(user) {
     email: user.email,
     role: user.role,
     isActive: Boolean(user.isActive),
-    lastLoginAt: normalizeDateValue(user.lastLoginAt),
-    createdAt: normalizeDateValue(user.createdAt),
-    updatedAt: normalizeDateValue(user.updatedAt),
+    lastLoginAt: normalizeDateOutput(user.lastLoginAt),
+    createdAt: normalizeDateOutput(user.createdAt),
+    updatedAt: normalizeDateOutput(user.updatedAt),
   };
 }
 
@@ -111,17 +94,51 @@ export async function createUser(userPayload) {
   return createdUser.toObject();
 }
 
-export async function updateUserById(userId, changes) {
+export async function updateUserById(
+  userId,
+  changes,
+  { incrementAuthVersion = false, timestamps = true } = {}
+) {
   const normalizedUserId = normalizeText(userId);
 
   if (!normalizedUserId || !mongoose.isValidObjectId(normalizedUserId)) {
     return null;
   }
 
-  return User.findByIdAndUpdate(normalizedUserId, changes, {
-    new: true,
+  const updatePayload = incrementAuthVersion
+    ? {
+        $set: changes,
+        $inc: {
+          authVersion: 1,
+        },
+      }
+    : changes;
+
+  return User.findByIdAndUpdate(normalizedUserId, updatePayload, {
+    returnDocument: 'after',
     runValidators: true,
+    timestamps,
   }).lean();
+}
+
+export async function getUserSummary() {
+  const [total, active, inactive, clients, employees, admins] = await Promise.all([
+    User.countDocuments({}),
+    User.countDocuments({ isActive: true }),
+    User.countDocuments({ isActive: false }),
+    User.countDocuments({ role: 'client' }),
+    User.countDocuments({ role: 'employee' }),
+    User.countDocuments({ role: 'admin' }),
+  ]);
+
+  return {
+    total,
+    active,
+    inactive,
+    clients,
+    employees,
+    admins,
+  };
 }
 
 function buildMongoUserQuery(filters = {}) {
@@ -159,10 +176,15 @@ export async function listUsers(filters = {}) {
     maxLimit: 50,
   });
   const query = buildMongoUserQuery(filters);
-  const total = await User.countDocuments(query);
+  const [total, summary] = await Promise.all([
+    User.countDocuments(query),
+    getUserSummary(),
+  ]);
   const pagination = buildPagination(total, paginationOptions);
   const users = await applyPagination(
-    User.find(query).sort({ lastName: 1, firstName: 1, _id: 1 }),
+    User.find(query)
+      .select(USER_PUBLIC_PROJECTION)
+      .sort({ lastName: 1, firstName: 1, _id: 1 }),
     pagination
   ).lean();
 
@@ -170,5 +192,6 @@ export async function listUsers(filters = {}) {
     items: users,
     total,
     pagination,
+    summary,
   };
 }

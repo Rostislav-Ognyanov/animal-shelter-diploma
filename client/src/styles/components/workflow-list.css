@@ -1,0 +1,11 @@
+.workflow-list-item--terminal {
+  border-color: rgba(47, 111, 78, 0.07);
+  background: #f8faf8;
+  box-shadow: none;
+}
+
+.workflow-list-item--terminal p,
+.workflow-list-item--terminal small,
+.workflow-list-item--terminal > div > span:not([class]) {
+  color: #758379;
+}

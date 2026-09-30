@@ -2,17 +2,37 @@ import mongoose from 'mongoose';
 
 import AdoptionRequest from '../../models/AdoptionRequest.js';
 import Animal from '../../models/Animal.js';
+import User from '../../models/User.js';
 import { createHttpError } from '../../utils/httpError.js';
 import {
-  applyPagination,
   buildPagination,
   normalizePaginationOptions,
 } from '../../utils/pagination.js';
-import { ANIMAL_ID_SLUG_PATTERN } from '../animals/animal.constants.js';
-import { getAnimalById, updateAnimalStatus } from '../animals/animals.service.js';
+import { readWorkflowCollectionPage } from '../../utils/workflowList.js';
+import { assertAllowedFields, assertBodyObject } from '../../utils/requestValidation.js';
+import { normalizeDateOutput, serializeId } from '../../utils/serialization.js';
+import { isPlainObject } from '../../utils/object.js';
 import {
-  ADOPTION_REQUEST_STATUS_VALUES,
-  getAllowedAdoptionRequestActions,
+  ADOPTION_ANIMAL_ALLERGY_VALUES,
+  ADOPTION_ANIMAL_LIVING_PLACE_VALUES,
+  ADOPTION_HOUSING_TYPE_VALUES,
+  ADOPTION_MAX_OTHER_PETS,
+  ADOPTION_OTHER_PET_CARE_STATUS_VALUES,
+  ADOPTION_OTHER_PET_SEX_VALUES,
+  ADOPTION_OTHER_PET_SPECIES_VALUES,
+  ADOPTION_STATUS_LABELS,
+  ADOPTION_STATUS_TRANSITIONS,
+  ADOPTION_STATUS_VALUES,
+  ADOPTION_TEXT_LIMITS,
+  ADOPTION_TRANSPORT_VALUES,
+  ADOPTION_YARD_SECURITY_VALUES,
+  isValidAdoptionPhone,
+} from '../../../shared/domain/adoptionConstants.js';
+import { PROTECTED_CARE_SPECIES_VALUES } from '../../../shared/domain/animalConstants.js';
+import { ANIMAL_ID_SLUG_PATTERN } from '../animals/animal.constants.js';
+import { updateAnimalStatus } from '../animals/animals.service.js';
+import { notifyOperationalStaff, notifyUser } from '../notifications/notifications.service.js';
+import {
   hasPermission,
   normalizeRole,
 } from '../shared/rolePolicies.js';
@@ -20,80 +40,76 @@ import {
 const ACTIVE_ADOPTION_REQUEST_STATUSES = ['pending', 'under-review', 'approved'];
 const STAFF_ROLES = new Set(['employee', 'admin']);
 const ADOPTION_REQUEST_ID_PATTERN = /^[0-9a-f]{24}$/i;
-const PHONE_PATTERN = /^[0-9+\s().-]{6,32}$/;
 const RESERVED_ANIMAL_ADOPTION_STATUSES = ['under-review', 'approved'];
-const PROTECTED_CARE_SPECIES = new Set(['fox', 'owl', 'hedgehog']);
-const ADOPTION_REQUEST_STATUS_TRANSITIONS = {
-  pending: ['under-review', 'approved', 'rejected', 'cancelled'],
-  'under-review': ['approved', 'rejected', 'cancelled'],
-  approved: ['completed', 'cancelled'],
-  rejected: [],
-  cancelled: [],
-  completed: [],
-};
+const PROTECTED_CARE_SPECIES = new Set(PROTECTED_CARE_SPECIES_VALUES);
+const HOUSING_TYPE_VALUES = ADOPTION_HOUSING_TYPE_VALUES;
+const YARD_SECURITY_VALUES = ADOPTION_YARD_SECURITY_VALUES;
+const ANIMAL_LIVING_PLACE_VALUES = ADOPTION_ANIMAL_LIVING_PLACE_VALUES;
+const ANIMAL_ALLERGY_VALUES = ADOPTION_ANIMAL_ALLERGY_VALUES;
+const OTHER_PET_SPECIES_VALUES = ADOPTION_OTHER_PET_SPECIES_VALUES;
+const OTHER_PET_SEX_VALUES = ADOPTION_OTHER_PET_SEX_VALUES;
+const OTHER_PET_CARE_STATUS_VALUES = ADOPTION_OTHER_PET_CARE_STATUS_VALUES;
+const ANIMAL_TRANSPORT_VALUES = ADOPTION_TRANSPORT_VALUES;
+const ADOPTION_REQUEST_STATUS_TRANSITIONS = ADOPTION_STATUS_TRANSITIONS;
 
 function normalizeText(value) {
   return String(value ?? '').trim();
+}
+
+function normalizeLimitedText(value, fieldName, maxLength) {
+  const text = normalizeText(value);
+
+  if (text.length > maxLength) {
+    throw createHttpError(400, `Полето "${fieldName}" не може да бъде по-дълго от ${maxLength} символа.`);
+  }
+
+  return text;
 }
 
 function normalizeLookupText(value) {
   return normalizeText(value).toLowerCase();
 }
 
-function normalizeDateOutput(value) {
-  if (!value) {
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function normalizeEnumValue(value, allowedValues, fieldName) {
+  const normalizedValue = normalizeLookupText(value);
+
+  if (!allowedValues.includes(normalizedValue)) {
+    throw createHttpError(400, `Полето "${fieldName}" съдържа невалидна стойност.`, {
+      allowedValues,
+    });
+  }
+
+  return normalizedValue;
+}
+
+function normalizeRequiredBoolean(value, fieldName) {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  throw createHttpError(400, `Полето "${fieldName}" трябва да бъде с отговор "Да" или "Не".`);
+}
+
+function normalizeOptionalBoolean(value, fieldName) {
+  if (value === undefined || value === null || value === '') {
     return null;
   }
 
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-
-  return value;
+  return normalizeRequiredBoolean(value, fieldName);
 }
 
-function isPlainObject(value) {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
+function normalizeIntegerInRange(value, fieldName, min, max) {
+  const numberValue = Number(value);
 
-function serializeId(value) {
-  if (!value) {
-    return '';
+  if (!Number.isInteger(numberValue) || numberValue < min || numberValue > max) {
+    throw createHttpError(400, `Полето "${fieldName}" трябва да бъде цяло число между ${min} и ${max}.`);
   }
 
-  if (typeof value === 'object') {
-    if (value._id) {
-      return String(value._id);
-    }
-
-    if (value.id) {
-      return String(value.id);
-    }
-  }
-
-  return String(value);
-}
-
-function assertBodyObject(payload) {
-  if (!isPlainObject(payload)) {
-    throw createHttpError(400, 'Тялото на заявката трябва да бъде JSON обект.');
-  }
-
-  if (Object.keys(payload).length === 0) {
-    throw createHttpError(400, 'Тялото на заявката не може да бъде празно.');
-  }
-}
-
-function assertAllowedFields(payload, allowedFields) {
-  const allowedFieldSet = new Set(allowedFields);
-  const invalidFields = Object.keys(payload).filter((fieldName) => !allowedFieldSet.has(fieldName));
-
-  if (invalidFields.length > 0) {
-    throw createHttpError(400, 'Заявката съдържа неподдържани полета.', {
-      invalidFields,
-      allowedFields,
-    });
-  }
+  return numberValue;
 }
 
 function assertAuthenticatedUser(currentUser) {
@@ -174,13 +190,66 @@ function buildAnimalLookupQuery(animalId) {
 function normalizeStatus(value, fieldName = 'status') {
   const status = normalizeLookupText(value);
 
-  if (!ADOPTION_REQUEST_STATUS_VALUES.includes(status)) {
+  if (!ADOPTION_STATUS_VALUES.includes(status)) {
     throw createHttpError(400, `Полето "${fieldName}" съдържа невалидна стойност.`, {
-      allowedStatuses: ADOPTION_REQUEST_STATUS_VALUES,
+      allowedStatuses: ADOPTION_STATUS_VALUES,
     });
   }
 
   return status;
+}
+
+function normalizeOtherPet(entry, index) {
+  if (!isPlainObject(entry)) {
+    throw createHttpError(400, `Полето "otherPets[${index}]" трябва да бъде обект.`);
+  }
+
+  const species = normalizeEnumValue(
+    entry.species,
+    OTHER_PET_SPECIES_VALUES,
+    `otherPets[${index}].species`
+  );
+  const otherSpecies =
+    species === 'other'
+      ? normalizeLimitedText(entry.otherSpecies, `otherPets[${index}].otherSpecies`, 120)
+      : '';
+
+  if (species === 'other' && !otherSpecies) {
+    throw createHttpError(400, `Полето "otherPets[${index}].otherSpecies" е задължително при вид "Друго".`);
+  }
+
+  return {
+    species,
+    otherSpecies,
+    sex: normalizeEnumValue(entry.sex, OTHER_PET_SEX_VALUES, `otherPets[${index}].sex`),
+    neuteringStatus: normalizeEnumValue(
+      entry.neuteringStatus,
+      OTHER_PET_CARE_STATUS_VALUES,
+      `otherPets[${index}].neuteringStatus`
+    ),
+    vaccinationStatus: normalizeEnumValue(
+      entry.vaccinationStatus,
+      OTHER_PET_CARE_STATUS_VALUES,
+      `otherPets[${index}].vaccinationStatus`
+    ),
+    approximateAge: normalizeLimitedText(entry.approximateAge, `otherPets[${index}].approximateAge`, 120),
+  };
+}
+
+function normalizeOtherPets(payload, hasOtherPets) {
+  if (!hasOtherPets) {
+    return [];
+  }
+
+  if (!Array.isArray(payload.otherPets) || payload.otherPets.length === 0) {
+    throw createHttpError(400, 'При отговор "Да" за други животни трябва да добавиш поне едно животно.');
+  }
+
+  if (payload.otherPets.length > ADOPTION_MAX_OTHER_PETS) {
+    throw createHttpError(400, `Могат да бъдат добавени най-много ${ADOPTION_MAX_OTHER_PETS} животни.`);
+  }
+
+  return payload.otherPets.map((entry, index) => normalizeOtherPet(entry, index));
 }
 
 function normalizeOptionalStatus(value) {
@@ -213,21 +282,113 @@ function assertAllowedStatusTransition(currentStatus, nextStatus) {
 
 function normalizeCreatePayload(payload) {
   assertBodyObject(payload);
-  assertAllowedFields(payload, ['animalId', 'animal', 'motivation', 'message', 'contactPhone']);
+  assertAllowedFields(payload, [
+    'animalId',
+    'motivation',
+    'contactPhone',
+    'housingType',
+    'housingTypeOther',
+    'hasYard',
+    'yardSecurity',
+    'animalLivingPlace',
+    'animalLivingPlaceOther',
+    'householdMembersCount',
+    'hasAnimalAllergies',
+    'hasOtherPets',
+    'otherPets',
+    'hasPreviousPetExperience',
+    'previousPetExperienceDetails',
+    'acceptsUnexpectedMedicalCosts',
+    'animalTransport',
+  ]);
 
-  const animalId = assertValidAnimalId(payload.animalId ?? payload.animal);
-  const motivation = normalizeText(payload.motivation ?? payload.message);
+  const animalId = assertValidAnimalId(payload.animalId);
+  const motivation = normalizeLimitedText(
+    payload.motivation,
+    'motivation',
+    1500
+  );
   const contactPhone = normalizeText(payload.contactPhone);
+  const housingType = normalizeEnumValue(payload.housingType, HOUSING_TYPE_VALUES, 'housingType');
+  const housingTypeOther =
+    housingType === 'other'
+      ? normalizeLimitedText(payload.housingTypeOther, 'housingTypeOther', 120)
+      : '';
+  const hasYard = housingType === 'house' ? normalizeOptionalBoolean(payload.hasYard, 'hasYard') : null;
+  const yardSecurity =
+    housingType === 'house' && hasYard === true
+      ? normalizeEnumValue(payload.yardSecurity, YARD_SECURITY_VALUES, 'yardSecurity')
+      : null;
+  const animalLivingPlace = normalizeEnumValue(
+    payload.animalLivingPlace,
+    ANIMAL_LIVING_PLACE_VALUES,
+    'animalLivingPlace'
+  );
+  const animalLivingPlaceOther =
+    animalLivingPlace === 'other'
+      ? normalizeLimitedText(payload.animalLivingPlaceOther, 'animalLivingPlaceOther', 160)
+      : '';
+  const householdMembersCount = normalizeIntegerInRange(
+    payload.householdMembersCount,
+    'householdMembersCount',
+    1,
+    20
+  );
+  const hasAnimalAllergies = normalizeEnumValue(
+    payload.hasAnimalAllergies,
+    ANIMAL_ALLERGY_VALUES,
+    'hasAnimalAllergies'
+  );
+  const hasOtherPets = normalizeRequiredBoolean(payload.hasOtherPets, 'hasOtherPets');
+  const otherPets = normalizeOtherPets(payload, hasOtherPets);
+  const hasPreviousPetExperience = normalizeRequiredBoolean(
+    payload.hasPreviousPetExperience,
+    'hasPreviousPetExperience'
+  );
+  const previousPetExperienceDetails = hasPreviousPetExperience
+    ? normalizeLimitedText(payload.previousPetExperienceDetails, 'previousPetExperienceDetails', 1000)
+    : '';
+  const acceptsUnexpectedMedicalCosts = normalizeRequiredBoolean(
+    payload.acceptsUnexpectedMedicalCosts,
+    'acceptsUnexpectedMedicalCosts'
+  );
+  const animalTransport = normalizeEnumValue(payload.animalTransport, ANIMAL_TRANSPORT_VALUES, 'animalTransport');
 
   if (!motivation) {
     throw createHttpError(400, 'Полето "motivation" е задължително.');
+  }
+
+  if (motivation.length < 20) {
+    throw createHttpError(400, 'Полето "motivation" трябва да бъде поне 20 символа.');
+  }
+
+  if (housingType === 'other' && !housingTypeOther) {
+    throw createHttpError(400, 'Полето "housingTypeOther" е задължително при тип жилище "Друго".');
+  }
+
+  if (housingType === 'house' && hasYard === null) {
+    throw createHttpError(400, 'Полето "hasYard" е задължително при тип жилище "Къща".');
+  }
+
+  if (animalLivingPlace === 'other' && !animalLivingPlaceOther) {
+    throw createHttpError(400, 'Полето "animalLivingPlaceOther" е задължително при отговор "Друго".');
+  }
+
+  if (
+    animalLivingPlace === 'secured-yard' &&
+    (housingType !== 'house' || hasYard !== true || yardSecurity !== 'secured')
+  ) {
+    throw createHttpError(
+      400,
+      'Животното може да живее в обезопасен двор само при къща с потвърден обезопасен двор.'
+    );
   }
 
   if (!contactPhone) {
     throw createHttpError(400, 'Полето "contactPhone" е задължително.');
   }
 
-  if (!PHONE_PATTERN.test(contactPhone)) {
+  if (!isValidAdoptionPhone(contactPhone)) {
     throw createHttpError(400, 'Полето "contactPhone" съдържа невалиден телефонен номер.');
   }
 
@@ -235,15 +396,29 @@ function normalizeCreatePayload(payload) {
     animalId,
     motivation,
     contactPhone,
+    housingType,
+    housingTypeOther,
+    hasYard,
+    yardSecurity,
+    animalLivingPlace,
+    animalLivingPlaceOther,
+    householdMembersCount,
+    hasAnimalAllergies,
+    hasOtherPets,
+    otherPets,
+    hasPreviousPetExperience,
+    previousPetExperienceDetails,
+    acceptsUnexpectedMedicalCosts,
+    animalTransport,
   };
 }
 
 function normalizeStatusUpdatePayload(payload) {
   assertBodyObject(payload);
-  assertAllowedFields(payload, ['status', 'internalNote', 'internalNotes', 'note']);
+  assertAllowedFields(payload, ['status', 'internalNote']);
 
   const status = normalizeStatus(payload.status, 'status');
-  const internalNote = normalizeInternalNote(payload.internalNote ?? payload.internalNotes ?? payload.note);
+  const internalNote = normalizeInternalNote(payload.internalNote);
 
   return {
     status,
@@ -252,21 +427,11 @@ function normalizeStatusUpdatePayload(payload) {
 }
 
 function normalizeCancelPayload(payload) {
-  if (payload === undefined || payload === null || Object.keys(payload).length === 0) {
-    return {
-      reason: '',
-    };
-  }
+  const normalizedPayload = payload ?? {};
 
-  if (!isPlainObject(payload)) {
-    throw createHttpError(400, 'Тялото на заявката трябва да бъде JSON обект.');
-  }
-
-  assertAllowedFields(payload, ['reason', 'message']);
-
-  return {
-    reason: normalizeText(payload.reason ?? payload.message),
-  };
+  assertBodyObject(normalizedPayload, { allowEmpty: true });
+  assertAllowedFields(normalizedPayload, []);
+  return {};
 }
 
 function normalizeInternalNote(value) {
@@ -274,13 +439,17 @@ function normalizeInternalNote(value) {
     return null;
   }
 
-  if (Array.isArray(value)) {
-    const normalizedNotes = value.map((entry) => normalizeText(entry)).filter(Boolean);
-    return normalizedNotes.length > 0 ? normalizedNotes.join('\n') : null;
+  if (typeof value !== 'string') {
+    throw createHttpError(400, 'Полето "internalNote" трябва да бъде текст.');
   }
 
-  const note = normalizeText(value);
+  const note = normalizeLimitedText(value, 'internalNote', ADOPTION_TEXT_LIMITS.internalNote);
   return note || null;
+}
+
+function buildActorName(currentUser) {
+  const authorName = [currentUser.firstName, currentUser.lastName].filter(Boolean).join(' ').trim();
+  return authorName || currentUser.username || '';
 }
 
 function buildInternalNote(text, currentUser) {
@@ -288,15 +457,66 @@ function buildInternalNote(text, currentUser) {
     return null;
   }
 
-  const authorName = [currentUser.firstName, currentUser.lastName].filter(Boolean).join(' ').trim();
-
   return {
     text,
     author: mongoose.isValidObjectId(currentUser.id) ? currentUser.id : null,
     authorId: currentUser.id,
-    authorName: authorName || currentUser.username || '',
+    authorName: buildActorName(currentUser),
     createdAt: new Date().toISOString(),
   };
+}
+
+function buildStatusHistoryEntry(fromStatus, toStatus, currentUser) {
+  if (!toStatus || fromStatus === toStatus) {
+    return null;
+  }
+
+  return {
+    fromStatus: fromStatus ?? '',
+    toStatus,
+    changedBy: mongoose.isValidObjectId(currentUser?.id) ? currentUser.id : null,
+    changedByName: currentUser ? buildActorName(currentUser) : '',
+    changedAt: new Date().toISOString(),
+  };
+}
+
+async function runAdoptionNotification(action, context) {
+  try {
+    await action();
+  } catch (error) {
+    console.error(`[adoptions] ${context} notification failed`, error);
+  }
+}
+
+function applySession(query, session) {
+  if (session) {
+    query.session(session);
+  }
+
+  return query;
+}
+
+async function runAdoptionTransaction(work) {
+  // Request and animal lifecycle writes must commit together so a failed CAS cannot desynchronize them.
+  const session = await mongoose.startSession();
+
+  try {
+    let result;
+
+    await session.withTransaction(
+      async () => {
+        result = await work(session);
+      },
+      {
+        readConcern: { level: 'snapshot' },
+        writeConcern: { w: 'majority' },
+      }
+    );
+
+    return result;
+  } finally {
+    await session.endSession();
+  }
 }
 
 function getPrimaryImageUrl(animal) {
@@ -304,7 +524,7 @@ function getPrimaryImageUrl(animal) {
     return animal.imageUrls[0];
   }
 
-  return animal.imageUrl ?? animal.image ?? '';
+  return animal.imageUrl ?? '';
 }
 
 function serializeUserSnapshot(user) {
@@ -340,7 +560,7 @@ function serializeAnimalSnapshot(animal) {
     slug,
     name: animal.name ?? '',
     displayName: animal.displayName ?? animal.name ?? '',
-    species: animal.species ?? animal.type ?? '',
+    species: animal.species ?? '',
     breed: animal.breed ?? '',
     status: animal.status ?? '',
     imageUrl: getPrimaryImageUrl(animal),
@@ -360,6 +580,35 @@ function serializeInternalNotes(internalNotes = []) {
   }));
 }
 
+function serializeStatusHistory(statusHistory = []) {
+  if (!Array.isArray(statusHistory)) {
+    return [];
+  }
+
+  return statusHistory.map((entry) => ({
+    fromStatus: entry.fromStatus ?? '',
+    toStatus: entry.toStatus ?? '',
+    changedById: serializeId(entry.changedBy),
+    changedByName: entry.changedByName ?? '',
+    changedAt: normalizeDateOutput(entry.changedAt),
+  }));
+}
+
+function serializeOtherPets(otherPets = []) {
+  if (!Array.isArray(otherPets)) {
+    return [];
+  }
+
+  return otherPets.map((pet) => ({
+    species: pet.species ?? '',
+    otherSpecies: pet.otherSpecies ?? '',
+    sex: pet.sex ?? '',
+    neuteringStatus: pet.neuteringStatus ?? '',
+    vaccinationStatus: pet.vaccinationStatus ?? '',
+    approximateAge: pet.approximateAge ?? '',
+  }));
+}
+
 function canViewerSeeInternalNotes(currentUser) {
   return STAFF_ROLES.has(normalizeRole(currentUser?.role));
 }
@@ -367,7 +616,7 @@ function canViewerSeeInternalNotes(currentUser) {
 function serializeAdoptionRequest(adoptionRequest, currentUser = null) {
   const user = serializeUserSnapshot(adoptionRequest.user ?? adoptionRequest.userId);
   const animal = serializeAnimalSnapshot(adoptionRequest.animal ?? adoptionRequest.animalId);
-  const motivation = adoptionRequest.motivation ?? adoptionRequest.message ?? '';
+  const motivation = adoptionRequest.motivation ?? '';
 
   return {
     id: adoptionRequest.id ?? serializeId(adoptionRequest),
@@ -377,10 +626,26 @@ function serializeAdoptionRequest(adoptionRequest, currentUser = null) {
     animal,
     status: adoptionRequest.status,
     motivation,
-    message: motivation,
     contactPhone: adoptionRequest.contactPhone ?? '',
+    housingType: adoptionRequest.housingType ?? '',
+    housingTypeOther: adoptionRequest.housingTypeOther ?? '',
+    hasYard: adoptionRequest.hasYard ?? null,
+    yardSecurity: adoptionRequest.yardSecurity ?? null,
+    animalLivingPlace: adoptionRequest.animalLivingPlace ?? '',
+    animalLivingPlaceOther: adoptionRequest.animalLivingPlaceOther ?? '',
+    householdMembersCount: adoptionRequest.householdMembersCount ?? null,
+    hasAnimalAllergies: adoptionRequest.hasAnimalAllergies ?? '',
+    hasOtherPets: adoptionRequest.hasOtherPets ?? null,
+    otherPets: serializeOtherPets(adoptionRequest.otherPets),
+    hasPreviousPetExperience: adoptionRequest.hasPreviousPetExperience ?? null,
+    previousPetExperienceDetails: adoptionRequest.previousPetExperienceDetails ?? '',
+    acceptsUnexpectedMedicalCosts: adoptionRequest.acceptsUnexpectedMedicalCosts ?? null,
+    animalTransport: adoptionRequest.animalTransport ?? '',
     internalNotes: canViewerSeeInternalNotes(currentUser)
       ? serializeInternalNotes(adoptionRequest.internalNotes)
+      : [],
+    statusHistory: canViewerSeeInternalNotes(currentUser)
+      ? serializeStatusHistory(adoptionRequest.statusHistory)
       : [],
     createdAt: normalizeDateOutput(adoptionRequest.createdAt),
     updatedAt: normalizeDateOutput(adoptionRequest.updatedAt),
@@ -390,6 +655,52 @@ function serializeAdoptionRequest(adoptionRequest, currentUser = null) {
 function buildRequestQuery(filters = {}) {
   const status = normalizeOptionalStatus(filters.status);
   return status ? { status } : {};
+}
+
+async function buildStaffRequestQuery(filters = {}) {
+  const query = buildRequestQuery(filters);
+  const search = normalizeLookupText(filters.search);
+
+  if (!search) {
+    return query;
+  }
+
+  const regex = new RegExp(escapeRegex(search), 'i');
+  const [matchingUsers, matchingAnimals] = await Promise.all([
+    User.find({
+      $or: [
+        { firstName: regex },
+        { lastName: regex },
+        { username: regex },
+        { email: regex },
+      ],
+    })
+      .select('_id')
+      .lean(),
+    Animal.find({
+      $or: [
+        { slug: regex },
+        { name: regex },
+        { displayName: regex },
+        { species: regex },
+        { breed: regex },
+      ],
+    })
+      .select('_id')
+      .lean(),
+  ]);
+  const userIds = matchingUsers.map((user) => user._id);
+  const animalIds = matchingAnimals.map((animal) => animal._id);
+  const searchConditions = [
+    { contactPhone: regex },
+    ...(userIds.length > 0 ? [{ user: { $in: userIds } }] : []),
+    ...(animalIds.length > 0 ? [{ animal: { $in: animalIds } }] : []),
+  ];
+
+  return {
+    ...query,
+    $or: searchConditions,
+  };
 }
 
 function getRequestOwnerId(adoptionRequest) {
@@ -423,14 +734,15 @@ function getRequestAnimalStorageId(adoptionRequest) {
   return serializeId(adoptionRequest.animal ?? adoptionRequest.animalId);
 }
 
-async function getCurrentAnimalForRequest(adoptionRequest) {
+async function getCurrentAnimalForRequest(adoptionRequest, options = {}) {
   const animalId = getRequestAnimalLookupId(adoptionRequest);
 
   if (!animalId) {
     throw createHttpError(409, 'Заявката не е свързана с валидно животно.');
   }
 
-  const animal = await getAnimalById(animalId);
+  const { query } = buildAnimalLookupQuery(animalId);
+  const animal = await applySession(Animal.findOne(query), options.session).lean();
 
   if (!animal) {
     throw createHttpError(404, 'Свързаното животно не беше намерено.');
@@ -439,7 +751,7 @@ async function getCurrentAnimalForRequest(adoptionRequest) {
   return animal;
 }
 
-async function hasCompetingReservedRequest(adoptionRequest) {
+async function hasCompetingReservedRequest(adoptionRequest, options = {}) {
   const currentRequestId = serializeId(adoptionRequest);
   const animalStorageId = getRequestAnimalStorageId(adoptionRequest);
 
@@ -447,17 +759,21 @@ async function hasCompetingReservedRequest(adoptionRequest) {
     return false;
   }
 
-  const competingRequest = await AdoptionRequest.findOne({
-    _id: { $ne: currentRequestId },
-    animal: animalStorageId,
-    status: { $in: RESERVED_ANIMAL_ADOPTION_STATUSES },
-  }).lean();
+  // Check only other active requests that already reserve the same animal for staff processing.
+  const competingRequest = await applySession(
+    AdoptionRequest.findOne({
+      _id: { $ne: currentRequestId },
+      animal: animalStorageId,
+      status: { $in: RESERVED_ANIMAL_ADOPTION_STATUSES },
+    }),
+    options.session
+  ).lean();
 
   return Boolean(competingRequest);
 }
 
-async function assertNoCompetingReservedRequest(adoptionRequest) {
-  const hasCompetingRequest = await hasCompetingReservedRequest(adoptionRequest);
+async function assertNoCompetingReservedRequest(adoptionRequest, options = {}) {
+  const hasCompetingRequest = await hasCompetingReservedRequest(adoptionRequest, options);
 
   if (hasCompetingRequest) {
     throw createHttpError(
@@ -475,7 +791,9 @@ function getReturnedAnimalStatusAfterCancelledRequest(animal) {
   return isProtectedCareSpeciesValue(animal.species) ? 'protected-care' : 'available';
 }
 
-async function synchronizeAnimalForAdoptionStatus(adoptionRequest, nextStatus) {
+// Keep the animal lifecycle synchronized with adoption workflow transitions,
+// including reservation, completion and release after rejection or cancellation.
+async function synchronizeAnimalForAdoptionStatus(adoptionRequest, nextStatus, options = {}) {
   const currentStatus = adoptionRequest.status;
 
   if (!nextStatus || currentStatus === nextStatus) {
@@ -485,8 +803,8 @@ async function synchronizeAnimalForAdoptionStatus(adoptionRequest, nextStatus) {
   const animalId = getRequestAnimalLookupId(adoptionRequest);
 
   if (RESERVED_ANIMAL_ADOPTION_STATUSES.includes(nextStatus)) {
-    await assertNoCompetingReservedRequest(adoptionRequest);
-    const animal = await getCurrentAnimalForRequest(adoptionRequest);
+    await assertNoCompetingReservedRequest(adoptionRequest, options);
+    const animal = await getCurrentAnimalForRequest(adoptionRequest, options);
 
     if (animal.status === 'reserved') {
       return animal;
@@ -506,11 +824,14 @@ async function synchronizeAnimalForAdoptionStatus(adoptionRequest, nextStatus) {
       );
     }
 
-    return updateAnimalStatus(animalId, { status: 'reserved' });
+    return updateAnimalStatus(animalId, { status: 'reserved' }, null, {
+      allowSystemManagedStatuses: true,
+      session: options.session,
+    });
   }
 
   if (nextStatus === 'completed') {
-    const animal = await getCurrentAnimalForRequest(adoptionRequest);
+    const animal = await getCurrentAnimalForRequest(adoptionRequest, options);
 
     if (animal.status === 'adopted') {
       return animal;
@@ -530,26 +851,38 @@ async function synchronizeAnimalForAdoptionStatus(adoptionRequest, nextStatus) {
       );
     }
 
-    return updateAnimalStatus(animalId, { status: 'adopted' });
+    return updateAnimalStatus(animalId, { status: 'adopted' }, null, {
+      allowSystemManagedStatuses: true,
+      session: options.session,
+    });
   }
 
   if (
     ['rejected', 'cancelled'].includes(nextStatus) &&
     RESERVED_ANIMAL_ADOPTION_STATUSES.includes(currentStatus)
   ) {
-    const animal = await getCurrentAnimalForRequest(adoptionRequest);
+    const animal = await getCurrentAnimalForRequest(adoptionRequest, options);
 
     if (animal.status !== 'reserved') {
       return animal;
     }
 
-    const hasCompetingRequest = await hasCompetingReservedRequest(adoptionRequest);
+    const hasCompetingRequest = await hasCompetingReservedRequest(adoptionRequest, options);
 
+    // Keep the animal reserved when another active request still depends on the reservation.
     if (hasCompetingRequest) {
       return animal;
     }
 
-    return updateAnimalStatus(animalId, { status: getReturnedAnimalStatusAfterCancelledRequest(animal) });
+    return updateAnimalStatus(
+      animalId,
+      { status: getReturnedAnimalStatusAfterCancelledRequest(animal) },
+      null,
+      {
+        allowSystemManagedStatuses: true,
+        session: options.session,
+      }
+    );
   }
 
   return null;
@@ -583,33 +916,28 @@ async function assertNoActiveDuplicate(currentUser, animalContext) {
   }
 }
 
-async function findAdoptionRequestById(requestId) {
+async function findAdoptionRequestById(requestId, options = {}) {
   const normalizedRequestId = assertValidRequestId(requestId);
 
   if (!mongoose.isValidObjectId(normalizedRequestId)) {
     return null;
   }
 
-  return AdoptionRequest.findById(normalizedRequestId)
-    .populate('user', 'firstName lastName username email role')
-    .populate('animal', 'slug name displayName species breed status imageUrls')
-    .lean();
+  return applySession(
+    AdoptionRequest.findById(normalizedRequestId)
+      .populate('user', 'firstName lastName username email role')
+      .populate('animal', 'slug name displayName species breed status imageUrls imageUrl'),
+    options.session
+  ).lean();
 }
 
-async function getPopulatedAdoptionRequest(requestId) {
-  return AdoptionRequest.findById(requestId)
-    .populate('user', 'firstName lastName username email role')
-    .populate('animal', 'slug name displayName species breed status imageUrls')
-    .lean();
-}
-
-export function getAdoptionRequestModulePolicy(roleCandidate) {
-  return {
-    resource: 'adoptions',
-    allowedActions: getAllowedAdoptionRequestActions(roleCandidate),
-    statuses: ADOPTION_REQUEST_STATUS_VALUES,
-    activeStatuses: ACTIVE_ADOPTION_REQUEST_STATUSES,
-  };
+async function getPopulatedAdoptionRequest(requestId, options = {}) {
+  return applySession(
+    AdoptionRequest.findById(requestId)
+      .populate('user', 'firstName lastName username email role')
+      .populate('animal', 'slug name displayName species breed status imageUrls imageUrl'),
+    options.session
+  ).lean();
 }
 
 function canUseStandardAdoptionFlow(animalContext) {
@@ -654,12 +982,40 @@ export async function createAdoptionRequest(payload, currentUser) {
     user: currentUser.id,
     animal: animalContext.storageId,
     status: 'pending',
+    statusHistory: [buildStatusHistoryEntry('', 'pending', currentUser)],
     motivation: normalizedPayload.motivation,
     contactPhone: normalizedPayload.contactPhone,
+    housingType: normalizedPayload.housingType,
+    housingTypeOther: normalizedPayload.housingTypeOther,
+    hasYard: normalizedPayload.hasYard,
+    yardSecurity: normalizedPayload.yardSecurity,
+    animalLivingPlace: normalizedPayload.animalLivingPlace,
+    animalLivingPlaceOther: normalizedPayload.animalLivingPlaceOther,
+    householdMembersCount: normalizedPayload.householdMembersCount,
+    hasAnimalAllergies: normalizedPayload.hasAnimalAllergies,
+    hasOtherPets: normalizedPayload.hasOtherPets,
+    otherPets: normalizedPayload.otherPets,
+    hasPreviousPetExperience: normalizedPayload.hasPreviousPetExperience,
+    previousPetExperienceDetails: normalizedPayload.previousPetExperienceDetails,
+    acceptsUnexpectedMedicalCosts: normalizedPayload.acceptsUnexpectedMedicalCosts,
+    animalTransport: normalizedPayload.animalTransport,
   });
   const populatedRequest = await getPopulatedAdoptionRequest(createdRequest._id);
+  const serializedRequest = serializeAdoptionRequest(populatedRequest, currentUser);
+  const animalName = serializedRequest.animal.displayName || serializedRequest.animal.name || 'животно';
 
-  return serializeAdoptionRequest(populatedRequest, currentUser);
+  await runAdoptionNotification(
+    () =>
+      notifyOperationalStaff({
+        type: 'adoption-created',
+        title: 'Нова заявка за осиновяване',
+        message: `Получена е нова заявка за осиновяване на ${animalName}.`,
+        resourceId: serializedRequest.id,
+      }),
+    'operational staff adoption-created'
+  );
+
+  return serializedRequest;
 }
 
 export async function getOwnAdoptionRequestCollection(currentUser, filters = {}) {
@@ -675,13 +1031,16 @@ export async function getOwnAdoptionRequestCollection(currentUser, filters = {})
   });
   const total = await AdoptionRequest.countDocuments(mongoQuery);
   const pagination = buildPagination(total, paginationOptions);
-  const requests = await applyPagination(
-    AdoptionRequest.find(mongoQuery).sort({ createdAt: -1, _id: -1 }),
-    pagination
-  )
-    .populate('user', 'firstName lastName username email role')
-    .populate('animal', 'slug name displayName species breed status imageUrls')
-    .lean();
+  const requests = await readWorkflowCollectionPage({
+    model: AdoptionRequest,
+    query: mongoQuery,
+    pagination,
+    statusTransitions: ADOPTION_STATUS_TRANSITIONS,
+    configureQuery: (requestQuery) =>
+      requestQuery
+        .populate('user', 'firstName lastName username email role')
+        .populate('animal', 'slug name displayName species breed status imageUrls imageUrl'),
+  });
 
   return {
     items: requests.map((entry) => serializeAdoptionRequest(entry, currentUser)),
@@ -693,20 +1052,23 @@ export async function getOwnAdoptionRequestCollection(currentUser, filters = {})
 export async function getAllAdoptionRequestCollection(currentUser, filters = {}) {
   assertPermission(currentUser, 'view-all');
   assertStaffCanManage(currentUser);
-  const query = buildRequestQuery(filters);
+  const query = await buildStaffRequestQuery(filters);
   const paginationOptions = normalizePaginationOptions(filters, {
     defaultLimit: 20,
     maxLimit: 50,
   });
   const total = await AdoptionRequest.countDocuments(query);
   const pagination = buildPagination(total, paginationOptions);
-  const requests = await applyPagination(
-    AdoptionRequest.find(query).sort({ createdAt: -1, _id: -1 }),
-    pagination
-  )
-    .populate('user', 'firstName lastName username email role')
-    .populate('animal', 'slug name displayName species breed status imageUrls')
-    .lean();
+  const requests = await readWorkflowCollectionPage({
+    model: AdoptionRequest,
+    query,
+    pagination,
+    statusTransitions: ADOPTION_STATUS_TRANSITIONS,
+    configureQuery: (requestQuery) =>
+      requestQuery
+        .populate('user', 'firstName lastName username email role')
+        .populate('animal', 'slug name displayName species breed status imageUrls imageUrl'),
+  });
 
   return {
     items: requests.map((entry) => serializeAdoptionRequest(entry, currentUser)),
@@ -731,43 +1093,99 @@ export async function updateAdoptionRequestStatus(requestId, payload, currentUse
   assertStaffCanManage(currentUser);
   const normalizedRequestId = assertValidRequestId(requestId);
   const normalizedPayload = normalizeStatusUpdatePayload(payload);
-  const existingRequest = await findAdoptionRequestById(normalizedRequestId);
+  let previousStatus = '';
 
-  if (!existingRequest) {
+  const updatedRequestId = await runAdoptionTransaction(async (session) => {
+    const existingRequest = await findAdoptionRequestById(normalizedRequestId, {
+      session,
+    });
+
+    if (!existingRequest) {
+      throw createHttpError(404, 'Заявката за осиновяване не беше намерена.');
+    }
+
+    if (existingRequest.status === normalizedPayload.status) {
+      throw createHttpError(409, 'Заявката вече е с този статус.');
+    }
+
+    previousStatus = existingRequest.status;
+    assertAllowedStatusTransition(existingRequest.status, normalizedPayload.status);
+    const internalNote = buildInternalNote(normalizedPayload.internalNote, currentUser);
+    const statusHistoryEntry = buildStatusHistoryEntry(
+      existingRequest.status,
+      normalizedPayload.status,
+      currentUser
+    );
+    await synchronizeAnimalForAdoptionStatus(
+      existingRequest,
+      normalizedPayload.status,
+      { session }
+    );
+    const updateOperation = {
+      $set: {
+        status: normalizedPayload.status,
+      },
+    };
+
+    if (internalNote) {
+      updateOperation.$push = {
+        internalNotes: internalNote,
+      };
+    }
+
+    if (statusHistoryEntry) {
+      updateOperation.$push = {
+        ...(updateOperation.$push ?? {}),
+        statusHistory: statusHistoryEntry,
+      };
+    }
+
+    // Matching the status read above turns this into a compare-and-set operation between concurrent reviews.
+    const updatedRequest = await AdoptionRequest.findOneAndUpdate(
+      {
+        _id: normalizedRequestId,
+        status: existingRequest.status,
+      },
+      updateOperation,
+      {
+        returnDocument: 'after',
+        runValidators: true,
+        session,
+      }
+    ).lean();
+
+    if (!updatedRequest) {
+      throw createHttpError(409, 'Заявката е променена от друга операция. Обнови данните.');
+    }
+
+    return serializeId(updatedRequest);
+  });
+
+  const updatedRequest = await getPopulatedAdoptionRequest(updatedRequestId);
+
+  if (!updatedRequest) {
     throw createHttpError(404, 'Заявката за осиновяване не беше намерена.');
   }
 
-  assertAllowedStatusTransition(existingRequest.status, normalizedPayload.status);
-  const internalNote = buildInternalNote(normalizedPayload.internalNote, currentUser);
-  await synchronizeAnimalForAdoptionStatus(
-    existingRequest,
-    normalizedPayload.status
-  );
-  const updateOperation = {
-    $set: {
-      status: normalizedPayload.status,
-    },
-  };
+  const serializedRequest = serializeAdoptionRequest(updatedRequest, currentUser);
 
-  if (internalNote) {
-    updateOperation.$push = {
-      internalNotes: internalNote,
-    };
+  if (previousStatus !== normalizedPayload.status) {
+    const animalName = serializedRequest.animal.displayName || serializedRequest.animal.name || 'животното';
+    const statusLabel = ADOPTION_STATUS_LABELS[normalizedPayload.status] ?? normalizedPayload.status;
+
+    await runAdoptionNotification(
+      () =>
+        notifyUser(serializedRequest.userId, {
+          type: 'adoption-status-updated',
+          title: 'Промяна по заявка за осиновяване',
+          message: `Статусът на заявката ти за ${animalName} е променен на "${statusLabel}".`,
+          resourceId: serializedRequest.id,
+        }),
+      'client adoption-status-updated'
+    );
   }
 
-  const updatedRequest = await AdoptionRequest.findByIdAndUpdate(
-    normalizedRequestId,
-    updateOperation,
-    {
-      new: true,
-      runValidators: true,
-    }
-  )
-    .populate('user', 'firstName lastName username email role')
-    .populate('animal', 'slug name displayName species breed status imageUrls')
-    .lean();
-
-  return serializeAdoptionRequest(updatedRequest, currentUser);
+  return serializedRequest;
 }
 
 export async function cancelAdoptionRequest(requestId, payload, currentUser) {
@@ -788,19 +1206,32 @@ export async function cancelAdoptionRequest(requestId, payload, currentUser) {
     throw createHttpError(409, 'Може да бъде отменена само заявка със статус "pending".');
   }
 
-  const updatedRequest = await AdoptionRequest.findByIdAndUpdate(
-    normalizedRequestId,
+  const updatedRequest = await AdoptionRequest.findOneAndUpdate(
     {
-      status: 'cancelled',
+      _id: normalizedRequestId,
+      user: currentUser.id,
+      status: 'pending',
     },
     {
-      new: true,
+      $set: {
+        status: 'cancelled',
+      },
+      $push: {
+        statusHistory: buildStatusHistoryEntry(existingRequest.status, 'cancelled', currentUser),
+      },
+    },
+    {
+      returnDocument: 'after',
       runValidators: true,
     }
   )
     .populate('user', 'firstName lastName username email role')
-    .populate('animal', 'slug name displayName species breed status imageUrls')
+    .populate('animal', 'slug name displayName species breed status imageUrls imageUrl')
     .lean();
+
+  if (!updatedRequest) {
+    throw createHttpError(409, 'Заявката е променена от друга операция. Обнови данните.');
+  }
 
   return serializeAdoptionRequest(updatedRequest, currentUser);
 }

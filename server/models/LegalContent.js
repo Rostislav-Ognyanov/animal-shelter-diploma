@@ -1,33 +1,95 @@
 import mongoose from 'mongoose';
 
-export const LEGAL_CONTENT_KEY_VALUES = ['privacy', 'terms'];
-export const LEGAL_CONTENT_STATUS_VALUES = ['draft', 'published'];
+import {
+  LEGAL_CONTENT_KEY_VALUES,
+  LEGAL_CONTENT_LIMITS,
+  LEGAL_CONTENT_STATUS_VALUES,
+} from '../../shared/domain/legalContentConstants.js';
+
+function limitedText(maxlength) {
+  return { type: String, trim: true, maxlength, default: '' };
+}
+
+function limitedTextList(maxlength, maximumItems, message) {
+  return {
+    type: [{ type: String, trim: true, maxlength }],
+    default: [],
+    validate: {
+      validator: (items) => Array.isArray(items) && items.length <= maximumItems,
+      message,
+    },
+  };
+}
 
 const legalSectionSchema = new mongoose.Schema(
   {
-    title: { type: String, trim: true, default: '' },
-    paragraphs: { type: [String], default: [] },
-    items: { type: [String], default: [] },
-    closing: { type: [String], default: [] },
-    order: { type: Number, default: 0 },
+    title: limitedText(LEGAL_CONTENT_LIMITS.sectionTitle),
+    paragraphs: limitedTextList(
+      LEGAL_CONTENT_LIMITS.paragraph,
+      LEGAL_CONTENT_LIMITS.paragraphsPerSection,
+      `Една секция може да има най-много ${LEGAL_CONTENT_LIMITS.paragraphsPerSection} параграфа.`
+    ),
+    items: limitedTextList(
+      LEGAL_CONTENT_LIMITS.item,
+      LEGAL_CONTENT_LIMITS.itemsPerSection,
+      `Една секция може да има най-много ${LEGAL_CONTENT_LIMITS.itemsPerSection} елемента.`
+    ),
+    closing: limitedTextList(
+      LEGAL_CONTENT_LIMITS.paragraph,
+      LEGAL_CONTENT_LIMITS.closingParagraphsPerSection,
+      `Една секция може да има най-много ${LEGAL_CONTENT_LIMITS.closingParagraphsPerSection} заключителни параграфа.`
+    ),
+    order: {
+      type: Number,
+      min: 0,
+      default: 0,
+      validate: {
+        validator: Number.isInteger,
+        message: 'Редът на секцията трябва да бъде цяло число.',
+      },
+    },
     isVisible: { type: Boolean, default: true },
   },
   { _id: false }
 );
 
+function legalSectionListDefinition() {
+  return {
+    type: [legalSectionSchema],
+    default: [],
+    validate: {
+      validator: (sections) =>
+        Array.isArray(sections) && sections.length <= LEGAL_CONTENT_LIMITS.sections,
+      message: `Юридическото съдържание може да има най-много ${LEGAL_CONTENT_LIMITS.sections} секции.`,
+    },
+  };
+}
+
 const legalSnapshotSchema = new mongoose.Schema(
   {
-    title: { type: String, trim: true, default: '' },
-    lastUpdatedLabel: { type: String, trim: true, default: '' },
-    intro: { type: [String], default: [] },
-    sections: { type: [legalSectionSchema], default: [] },
+    title: limitedText(LEGAL_CONTENT_LIMITS.title),
+    lastUpdatedLabel: limitedText(LEGAL_CONTENT_LIMITS.lastUpdatedLabel),
+    intro: limitedTextList(
+      LEGAL_CONTENT_LIMITS.introParagraph,
+      LEGAL_CONTENT_LIMITS.introParagraphs,
+      `Юридическото съдържание може да има най-много ${LEGAL_CONTENT_LIMITS.introParagraphs} въвеждащи параграфа.`
+    ),
+    sections: legalSectionListDefinition(),
   },
   { _id: false }
 );
 
 const legalHistorySchema = new mongoose.Schema(
   {
-    version: { type: Number, required: true },
+    version: {
+      type: Number,
+      required: true,
+      min: 1,
+      validate: {
+        validator: Number.isInteger,
+        message: 'Версията трябва да бъде цяло число.',
+      },
+    },
     snapshot: { type: legalSnapshotSchema, required: true },
     publishedAt: { type: Date, default: null },
     replacedAt: { type: Date, default: Date.now },
@@ -44,18 +106,29 @@ const legalContentSchema = new mongoose.Schema(
       trim: true,
       enum: LEGAL_CONTENT_KEY_VALUES,
       unique: true,
-      index: true,
     },
-    title: { type: String, trim: true, default: '' },
-    lastUpdatedLabel: { type: String, trim: true, default: '' },
-    intro: { type: [String], default: [] },
-    sections: { type: [legalSectionSchema], default: [] },
+    title: limitedText(LEGAL_CONTENT_LIMITS.title),
+    lastUpdatedLabel: limitedText(LEGAL_CONTENT_LIMITS.lastUpdatedLabel),
+    intro: limitedTextList(
+      LEGAL_CONTENT_LIMITS.introParagraph,
+      LEGAL_CONTENT_LIMITS.introParagraphs,
+      `Юридическото съдържание може да има най-много ${LEGAL_CONTENT_LIMITS.introParagraphs} въвеждащи параграфа.`
+    ),
+    sections: legalSectionListDefinition(),
     status: {
       type: String,
       enum: LEGAL_CONTENT_STATUS_VALUES,
       default: 'draft',
     },
-    version: { type: Number, default: 0 },
+    version: {
+      type: Number,
+      min: 0,
+      default: 0,
+      validate: {
+        validator: Number.isInteger,
+        message: 'Версията трябва да бъде цяло число.',
+      },
+    },
     publishedSnapshot: { type: legalSnapshotSchema, default: null },
     publishedAt: { type: Date, default: null },
     publishedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },

@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "scripts": {
     "dev": "node node_modules/concurrently/dist/bin/concurrently.js \"npm:dev:server\" \"npm:dev:client\"",
     "dev:server": "node node_modules/nodemon/bin/nodemon.js server/server.js",
@@ -27,6 +30,7 @@
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "lucide-react": "^1.39.0",
     "mongoose": "^9.3.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

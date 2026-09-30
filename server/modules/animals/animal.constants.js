@@ -1,29 +1,25 @@
-﻿export const ANIMAL_STATUS_VALUES = [
-  'available',
-  'reserved',
-  'adopted',
-  'medical-care',
-  'under-care',
-  'protected-care',
-  'released',
-  'inactive',
-  'archived',
-];
-
-export const ANIMAL_GENDER_VALUES = ['male', 'female', 'unknown'];
-
-export const ANIMAL_SIZE_VALUES = ['small', 'medium', 'large', 'extra-large'];
-
-export const ANIMAL_SPECIES_VALUES = [
-  'dog',
-  'cat',
-  'rabbit',
-  'fox',
-  'lizard',
-  'owl',
-  'horse',
-  'hedgehog',
-];
+export {
+  ANIMAL_GENDER_LABELS,
+  ANIMAL_GENDER_VALUES,
+  ANIMAL_CREATABLE_STATUS_VALUES,
+  ANIMAL_IMAGE_DATA_MIME_TYPES,
+  ANIMAL_IMAGE_MAX_BYTES,
+  ANIMAL_IMAGE_MAX_COUNT,
+  ANIMAL_IMAGE_MAX_TOTAL_BYTES,
+  ANIMAL_IMAGE_URL_MAX_LENGTH,
+  ANIMAL_MANUAL_STATUS_VALUES,
+  ANIMAL_SIZE_LABELS,
+  ANIMAL_SIZE_VALUES,
+  ANIMAL_SPECIES_LABELS,
+  ANIMAL_SPECIES_VALUES,
+  ANIMAL_STATUS_LABELS,
+  ANIMAL_STATUS_TRANSITIONS,
+  ANIMAL_STATUS_VALUES,
+  ANIMAL_SYSTEM_MANAGED_STATUS_VALUES,
+  ANIMAL_TEXT_LIMITS,
+  PUBLIC_ANIMAL_LIST_STATUS_VALUES,
+  PROTECTED_CARE_SPECIES_VALUES,
+} from '../../../shared/domain/animalConstants.js';
 
 export const ANIMAL_ID_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -39,51 +35,3 @@ export const ANIMAL_SORT_VALUES = [
   'age-desc',
   'age-asc',
 ];
-
-export const ANIMAL_STATUS_TRANSITIONS = {
-  available: ['reserved', 'medical-care', 'under-care', 'protected-care', 'inactive', 'archived'],
-  reserved: ['available', 'adopted', 'medical-care', 'under-care', 'protected-care', 'inactive', 'archived'],
-  adopted: ['archived'],
-  'medical-care': ['available', 'under-care', 'protected-care', 'released', 'inactive', 'archived'],
-  'under-care': ['available', 'medical-care', 'protected-care', 'released', 'inactive', 'archived'],
-  'protected-care': ['under-care', 'medical-care', 'released', 'inactive', 'archived'],
-  released: ['protected-care', 'medical-care', 'archived'],
-  inactive: ['available', 'medical-care', 'under-care', 'protected-care', 'archived'],
-  archived: [],
-};
-
-export const ANIMAL_STATUS_LABELS = {
-  available: 'Готово за осиновяване',
-  reserved: 'Резервирано',
-  adopted: 'Осиновено',
-  'medical-care': 'Медицинска грижа',
-  'under-care': 'Под грижа',
-  'protected-care': 'Защитена грижа',
-  released: 'Върнато в природата',
-  inactive: 'Неактивно',
-  archived: 'Архивирано',
-};
-
-export const ANIMAL_GENDER_LABELS = {
-  male: 'Мъжки',
-  female: 'Женски',
-  unknown: 'Неуточнен',
-};
-
-export const ANIMAL_SIZE_LABELS = {
-  small: 'Малка',
-  medium: 'Средна',
-  large: 'Голяма',
-  'extra-large': 'Много голяма',
-};
-
-export const ANIMAL_SPECIES_LABELS = {
-  dog: 'Куче',
-  cat: 'Котка',
-  rabbit: 'Зайче',
-  fox: 'Лисица',
-  lizard: 'Гущер',
-  owl: 'Сова',
-  horse: 'Кон',
-  hedgehog: 'Таралеж',
-};

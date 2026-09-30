@@ -1,20 +1,18 @@
 import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
 
+import { PageErrorState, PageLoadingState } from '../../components/common/PageStatusStates.jsx';
 import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
 import { PageContentLink } from '../page-content/PageContentLink.jsx';
-import { DEFAULT_PAGE_CONTENT } from '../page-content/pageContentDefaults.js';
 import {
   buildHeroBackgroundStyle,
   getVisibleContentItems,
   splitContentText,
+  truncateContentText,
   usePageContent,
 } from '../page-content/pageContentUtils.js';
-import { DEFAULT_RESCUE_STORIES } from './rescueStoriesData.js';
 import { usePublishedRescueStories } from './useRescueStories.js';
 import { usePublishedSpeciesContentList } from './useSpeciesContent.js';
-
-const DEFAULT_OVERVIEW_STORIES = DEFAULT_RESCUE_STORIES.filter((story) => story.isFeatured).slice(0, 3);
 
 function OverviewInfoBlock({ block }) {
   const paragraphs = splitContentText(block.text);
@@ -29,7 +27,7 @@ function OverviewInfoBlock({ block }) {
       {paragraphs.map((paragraph) => (
         <p key={paragraph}>{paragraph}</p>
       ))}
-      <PageContentLink className="about-page-contact-link animals-overview-story-action" to={block.ctaTo}>
+      <PageContentLink className="page-contact-link animals-overview-story-action" to={block.ctaTo}>
         {block.ctaLabel}
       </PageContentLink>
     </article>
@@ -48,11 +46,42 @@ function OverviewInfoBlock({ block }) {
 }
 
 export function AnimalsOverviewPage() {
-  const { content } = usePageContent('animals-overview', DEFAULT_PAGE_CONTENT['animals-overview']);
-  const { speciesContent } = usePublishedSpeciesContentList();
-  const { stories } = usePublishedRescueStories({ featured: true, limit: 3 }, DEFAULT_OVERVIEW_STORIES);
+  const { content, error, isLoading, reload } = usePageContent('animals-overview');
+  const {
+    speciesContent,
+    errorMessage: speciesErrorMessage,
+    isLoading: isSpeciesLoading,
+  } = usePublishedSpeciesContentList();
+  const speciesCount = Number.isFinite(Number(content.speciesSection?.count))
+    ? Number(content.speciesSection.count)
+    : 4;
+  const storiesCount = Number.isFinite(Number(content.storiesSection?.count))
+    ? Number(content.storiesSection.count)
+    : 3;
+  const {
+    stories,
+    errorMessage: storiesErrorMessage,
+    isLoading: isStoriesLoading,
+  } = usePublishedRescueStories({
+    random: true,
+    limit: storiesCount,
+  });
   const infoBlocks = getVisibleContentItems(content.infoBlocks ?? []);
-  const featuredSpecies = speciesContent.slice(0, 4);
+  const featuredSpecies = speciesContent.slice(0, speciesCount);
+
+  if (isLoading) {
+    return <PageLoadingState className="animals-overview-shell animals-page-shell" />;
+  }
+
+  if (error) {
+    return (
+      <PageErrorState
+        className="animals-overview-shell animals-page-shell"
+        message={error}
+        onRetry={reload}
+      />
+    );
+  }
 
   return (
     <main className="route-shell animals-overview-shell animals-page-shell">
@@ -66,7 +95,7 @@ export function AnimalsOverviewPage() {
       </section>
 
       {infoBlocks.length > 0 ? (
-        <section className="about-page-story-block animals-overview-story-block">
+        <section className="about-page-story-block">
           {infoBlocks.map((block, index) => (
             <Fragment key={block.id ?? block.title}>
               {index > 0 ? <div className="about-page-story-divider" aria-hidden="true" /> : null}
@@ -77,12 +106,12 @@ export function AnimalsOverviewPage() {
       ) : null}
 
       <section className="animals-overview-species-section" id="species-showcase-section">
-        <div className="animals-overview-section-heading animals-overview-stories-heading">
+        <div className="animals-overview-section-heading">
           <div className="animals-overview-heading-copy">
             <h2>{content.speciesSection?.title}</h2>
             <p>{content.speciesSection?.description}</p>
           </div>
-          <PageContentLink className="animals-secondary-action" to={content.speciesSection?.ctaTo}>
+          <PageContentLink className="app-secondary-action" to={content.speciesSection?.ctaTo}>
             {content.speciesSection?.ctaLabel}
           </PageContentLink>
         </div>
@@ -99,28 +128,62 @@ export function AnimalsOverviewPage() {
             </Link>
           ))}
         </div>
+
+        {isSpeciesLoading ? (
+          <p className="content-state-message" role="status">
+            Зареждане...
+          </p>
+        ) : speciesErrorMessage ? (
+          <p className="content-state-message" role="alert">
+            {speciesErrorMessage}
+          </p>
+        ) : featuredSpecies.length === 0 ? (
+          <p className="content-state-message" role="status">
+            В момента няма публикувана информация за видове животни.
+          </p>
+        ) : null}
       </section>
 
       <section className="animals-overview-stories-section" id="rescue-stories-section">
-        <div className="animals-overview-section-heading animals-overview-stories-heading">
+        <div className="animals-overview-section-heading">
           <div className="animals-overview-heading-copy">
             <h2>{content.storiesSection?.title}</h2>
             <p>{content.storiesSection?.description}</p>
           </div>
-          <PageContentLink className="animals-secondary-action" to={content.storiesSection?.ctaTo}>
-            {content.storiesSection?.ctaLabel}
-          </PageContentLink>
         </div>
 
-        <div className="animals-overview-stories-grid">
+        <div className="rescue-stories-preview-grid">
           {stories.map((story) => (
-            <article key={story.id ?? story.slug ?? story.title} className="animals-overview-story-card">
-              <small>от {story.submittedBy}</small>
+            <article
+              key={story.id ?? story.slug ?? story.title}
+              className="rescue-story-preview-card"
+            >
               <h3>{story.title}</h3>
-              <p>{story.summary || story.content}</p>
+              <p>{truncateContentText(story.summary || story.content, 150)}</p>
             </article>
           ))}
         </div>
+
+        {isStoriesLoading ? (
+          <p className="content-state-message" role="status">
+            Зареждане...
+          </p>
+        ) : storiesErrorMessage ? (
+          <p className="content-state-message" role="alert">
+            {storiesErrorMessage}
+          </p>
+        ) : stories.length === 0 ? (
+          <p className="content-state-message" role="status">
+            Няма публикувани истории.
+          </p>
+        ) : null}
+
+        <PageContentLink
+          className="page-contact-link rescue-stories-preview-more-link"
+          to={content.storiesSection?.ctaTo}
+        >
+          {content.storiesSection?.ctaLabel}
+        </PageContentLink>
       </section>
     </main>
   );

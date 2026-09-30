@@ -1,20 +1,17 @@
 import { useEffect, useState } from 'react';
 
 import { fetchJson } from '../../lib/api.js';
-import {
-  DEFAULT_SPECIES_CONTENT,
-  getDefaultSpeciesContent,
-  mergeSpeciesContentWithDefault,
-} from './speciesContentData.js';
 
-export function usePublishedSpeciesContentList(limitToDefaults = true) {
-  const [speciesContent, setSpeciesContent] = useState(DEFAULT_SPECIES_CONTENT);
+export function usePublishedSpeciesContentList() {
+  const [speciesContent, setSpeciesContent] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     let isMounted = true;
 
     setIsLoading(true);
+    setErrorMessage('');
 
     fetchJson('/api/species-content')
       .then((payload) => {
@@ -24,18 +21,12 @@ export function usePublishedSpeciesContentList(limitToDefaults = true) {
 
         const items = Array.isArray(payload?.items) ? payload.items : [];
 
-        if (items.length === 0 && limitToDefaults) {
-          setSpeciesContent(DEFAULT_SPECIES_CONTENT);
-          return;
-        }
-
-        setSpeciesContent(
-          items.map((item) => mergeSpeciesContentWithDefault(getDefaultSpeciesContent(item.species), item))
-        );
+        setSpeciesContent(items);
       })
-      .catch(() => {
+      .catch((error) => {
         if (isMounted) {
-          setSpeciesContent(DEFAULT_SPECIES_CONTENT);
+          setSpeciesContent([]);
+          setErrorMessage(error.message);
         }
       })
       .finally(() => {
@@ -47,21 +38,22 @@ export function usePublishedSpeciesContentList(limitToDefaults = true) {
     return () => {
       isMounted = false;
     };
-  }, [limitToDefaults]);
+  }, []);
 
-  return { speciesContent, isLoading };
+  return { speciesContent, isLoading, errorMessage };
 }
 
 export function usePublishedSpeciesContent(species) {
-  const fallbackContent = getDefaultSpeciesContent(species);
-  const [speciesContent, setSpeciesContent] = useState(fallbackContent);
+  const [speciesContent, setSpeciesContent] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     let isMounted = true;
 
-    setSpeciesContent(fallbackContent);
+    setSpeciesContent(null);
     setIsLoading(true);
+    setErrorMessage('');
 
     if (!species) {
       setIsLoading(false);
@@ -71,12 +63,13 @@ export function usePublishedSpeciesContent(species) {
     fetchJson(`/api/species-content/${species}`)
       .then((payload) => {
         if (isMounted) {
-          setSpeciesContent(mergeSpeciesContentWithDefault(fallbackContent, payload));
+          setSpeciesContent(payload);
         }
       })
-      .catch(() => {
+      .catch((error) => {
         if (isMounted) {
-          setSpeciesContent(fallbackContent);
+          setSpeciesContent(null);
+          setErrorMessage(error.message);
         }
       })
       .finally(() => {
@@ -88,7 +81,7 @@ export function usePublishedSpeciesContent(species) {
     return () => {
       isMounted = false;
     };
-  }, [fallbackContent, species]);
+  }, [species]);
 
-  return { speciesContent, isLoading };
+  return { speciesContent, isLoading, errorMessage };
 }

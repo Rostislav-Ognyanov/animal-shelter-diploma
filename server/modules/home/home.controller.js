@@ -3,7 +3,7 @@ import { getHomePageData } from './home.service.js';
 
 export async function getHomePage(req, res, next) {
   try {
-    const roleCandidate = req.user?.role ?? req.query.role;
+    const roleCandidate = req.user?.role ?? 'guest';
     const homePageData = await getHomePageData(roleCandidate);
 
     return sendItemSuccess(res, {

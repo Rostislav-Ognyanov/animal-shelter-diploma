@@ -3,94 +3,55 @@ import mongoose from 'mongoose';
 import RescueReport from '../../models/RescueReport.js';
 import { createHttpError } from '../../utils/httpError.js';
 import {
-  applyPagination,
   buildPagination,
   normalizePaginationOptions,
 } from '../../utils/pagination.js';
+import { readWorkflowCollectionPage } from '../../utils/workflowList.js';
+import { assertAllowedFields, assertBodyObject } from '../../utils/requestValidation.js';
+import { normalizeDateOutput, serializeId } from '../../utils/serialization.js';
+import { parseBase64DataUrl } from '../../utils/dataUrl.js';
+import { EMAIL_PATTERN } from '../../../shared/domain/userConstants.js';
+import { isValidPhone } from '../../../shared/domain/contactValidation.js';
+import { hasPermission } from '../shared/rolePolicies.js';
+import { notifyOperationalStaff } from '../notifications/notifications.service.js';
 import {
-  getAllowedRescueReportActions,
-  hasPermission,
-} from '../shared/rolePolicies.js';
-import {
+  RESCUE_REPORT_IMAGE_MAX_BYTES,
+  RESCUE_REPORT_IMAGE_MIME_TYPES,
   RESCUE_REPORT_SPECIES_LABELS,
   RESCUE_REPORT_SPECIES_VALUES,
   RESCUE_REPORT_STATUS_LABELS,
   RESCUE_REPORT_STATUS_TRANSITIONS,
   RESCUE_REPORT_STATUS_VALUES,
+  RESCUE_REPORT_TEXT_LIMITS,
   RESCUE_REPORT_URGENCY_LABELS,
   RESCUE_REPORT_URGENCY_VALUES,
-} from './rescueReport.constants.js';
+} from '../../../shared/domain/rescueReportConstants.js';
 
 const RESCUE_REPORT_ID_PATTERN = /^[0-9a-f]{24}$/i;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_PATTERN = /^[0-9+\s().-]{6,32}$/;
 
 function normalizeText(value) {
   return String(value ?? '').trim();
+}
+
+function normalizeLimitedText(value, fieldName, maxLength) {
+  const normalizedValue = normalizeText(value);
+
+  if (normalizedValue.length > maxLength) {
+    throw createHttpError(
+      400,
+      `Полето "${fieldName}" може да съдържа най-много ${maxLength} символа.`
+    );
+  }
+
+  return normalizedValue;
 }
 
 function normalizeLookupText(value) {
   return normalizeText(value).toLowerCase();
 }
 
-function normalizeDateOutput(value) {
-  if (!value) {
-    return null;
-  }
-
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-
-  return value;
-}
-
-function isPlainObject(value) {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-function serializeId(value) {
-  if (!value) {
-    return '';
-  }
-
-  if (typeof value === 'object') {
-    if (value._id) {
-      return String(value._id);
-    }
-
-    if (value.id) {
-      return String(value.id);
-    }
-  }
-
-  return String(value);
-}
-
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function assertBodyObject(payload) {
-  if (!isPlainObject(payload)) {
-    throw createHttpError(400, 'Тялото на заявката трябва да бъде JSON обект.');
-  }
-
-  if (Object.keys(payload).length === 0) {
-    throw createHttpError(400, 'Тялото на заявката не може да бъде празно.');
-  }
-}
-
-function assertAllowedFields(payload, allowedFields) {
-  const allowedFieldSet = new Set(allowedFields);
-  const invalidFields = Object.keys(payload).filter((fieldName) => !allowedFieldSet.has(fieldName));
-
-  if (invalidFields.length > 0) {
-    throw createHttpError(400, 'Заявката съдържа неподдържани полета.', {
-      invalidFields,
-      allowedFields,
-    });
-  }
 }
 
 function assertStaffPermission(currentUser, action) {
@@ -135,6 +96,14 @@ function normalizeReportUrgency(value) {
   return normalizedUrgency;
 }
 
+function normalizeOptionalReportUrgency(value) {
+  if (value === undefined || value === null || value === '') {
+    return '';
+  }
+
+  return normalizeReportUrgency(value);
+}
+
 function normalizeReportSpecies(value) {
   const normalizedSpecies = normalizeLookupText(value);
 
@@ -147,6 +116,14 @@ function normalizeReportSpecies(value) {
   return normalizedSpecies;
 }
 
+function normalizeOptionalReportSpecies(value) {
+  if (value === undefined || value === null || value === '') {
+    return '';
+  }
+
+  return normalizeReportSpecies(value);
+}
+
 function normalizeOptionalImageUrl(value) {
   const imageUrl = normalizeText(value);
 
@@ -154,15 +131,17 @@ function normalizeOptionalImageUrl(value) {
     return '';
   }
 
-  if (imageUrl.length > 6_000_000) {
-    throw createHttpError(400, 'Качената снимка е твърде голяма за изпращане.');
+  const parsedImage = parseBase64DataUrl(imageUrl);
+
+  if (!parsedImage || !RESCUE_REPORT_IMAGE_MIME_TYPES.includes(parsedImage.mimeType)) {
+    throw createHttpError(400, 'Снимката трябва да бъде JPEG, PNG или WebP файл.');
   }
 
-  if (/^(?:data:|https?:|blob:)/i.test(imageUrl)) {
-    return imageUrl;
+  if (parsedImage.byteLength > RESCUE_REPORT_IMAGE_MAX_BYTES) {
+    throw createHttpError(400, 'Снимката трябва да бъде до 4 MB.');
   }
 
-  return imageUrl.replace(/^\/+/, '');
+  return imageUrl;
 }
 
 function assertValidRescueReportId(reportId) {
@@ -183,13 +162,25 @@ function normalizeCreatePayload(payload) {
   assertBodyObject(payload);
   assertAllowedFields(payload, ['name', 'email', 'phone', 'location', 'species', 'urgency', 'description', 'imageUrl']);
 
-  const name = normalizeText(payload.name);
-  const email = normalizeLookupText(payload.email);
-  const phone = normalizeText(payload.phone);
-  const location = normalizeText(payload.location);
+  const name = normalizeLimitedText(payload.name, 'name', RESCUE_REPORT_TEXT_LIMITS.name);
+  const email = normalizeLimitedText(
+    normalizeLookupText(payload.email),
+    'email',
+    RESCUE_REPORT_TEXT_LIMITS.email
+  );
+  const phone = normalizeLimitedText(payload.phone, 'phone', RESCUE_REPORT_TEXT_LIMITS.phone);
+  const location = normalizeLimitedText(
+    payload.location,
+    'location',
+    RESCUE_REPORT_TEXT_LIMITS.location
+  );
   const species = normalizeReportSpecies(payload.species);
   const urgency = normalizeReportUrgency(payload.urgency);
-  const description = normalizeText(payload.description);
+  const description = normalizeLimitedText(
+    payload.description,
+    'description',
+    RESCUE_REPORT_TEXT_LIMITS.description
+  );
   const imageUrl = normalizeOptionalImageUrl(payload.imageUrl);
 
   if (!name || !email || !phone || !location || !description) {
@@ -200,7 +191,7 @@ function normalizeCreatePayload(payload) {
     throw createHttpError(400, 'Въведи валиден имейл адрес.');
   }
 
-  if (!PHONE_PATTERN.test(phone)) {
+  if (!isValidPhone(phone)) {
     throw createHttpError(400, 'Въведи валиден телефонен номер.');
   }
 
@@ -216,14 +207,87 @@ function normalizeCreatePayload(payload) {
   };
 }
 
-function normalizeStatusUpdatePayload(payload) {
+function normalizeReviewPayload(payload) {
   assertBodyObject(payload);
   assertAllowedFields(payload, ['status', 'notes']);
 
+  const normalizedPayload = {};
+
+  if (payload.status !== undefined && payload.status !== null && payload.status !== '') {
+    normalizedPayload.status = normalizeReportStatus(payload.status);
+  }
+
+  if (payload.notes !== undefined) {
+    normalizedPayload.notes = normalizeLimitedText(
+      payload.notes,
+      'notes',
+      RESCUE_REPORT_TEXT_LIMITS.internalNote
+    );
+  }
+
+  if (normalizedPayload.status === undefined && normalizedPayload.notes === undefined) {
+    throw createHttpError(400, 'Подай нов статус или вътрешна бележка.');
+  }
+
+  return normalizedPayload;
+}
+
+function buildActorName(currentUser) {
+  const authorName = [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(' ').trim();
+  return authorName || currentUser?.username || '';
+}
+
+function buildInternalNote(text, currentUser) {
+  if (!text) {
+    return null;
+  }
+
   return {
-    status: normalizeReportStatus(payload.status),
-    notes: normalizeText(payload.notes),
+    text,
+    author: mongoose.isValidObjectId(currentUser?.id) ? currentUser.id : null,
+    authorName: buildActorName(currentUser),
+    createdAt: new Date().toISOString(),
   };
+}
+
+function buildStatusHistoryEntry(fromStatus, toStatus, currentUser) {
+  if (!toStatus || fromStatus === toStatus) {
+    return null;
+  }
+
+  return {
+    fromStatus: fromStatus ?? '',
+    toStatus,
+    changedBy: mongoose.isValidObjectId(currentUser?.id) ? currentUser.id : null,
+    changedByName: currentUser ? buildActorName(currentUser) : '',
+    changedAt: new Date().toISOString(),
+  };
+}
+
+function serializeInternalNotes(internalNotes = []) {
+  const notes = Array.isArray(internalNotes) ? internalNotes : [];
+  const serializedNotes = notes.map((note) => ({
+    text: note.text ?? '',
+    authorId: serializeId(note.author),
+    authorName: note.authorName ?? '',
+    createdAt: normalizeDateOutput(note.createdAt),
+  }));
+
+  return serializedNotes;
+}
+
+function serializeStatusHistory(statusHistory = []) {
+  if (!Array.isArray(statusHistory)) {
+    return [];
+  }
+
+  return statusHistory.map((entry) => ({
+    fromStatus: entry.fromStatus ?? '',
+    toStatus: entry.toStatus ?? '',
+    changedById: serializeId(entry.changedBy),
+    changedByName: entry.changedByName ?? '',
+    changedAt: normalizeDateOutput(entry.changedAt),
+  }));
 }
 
 function serializeRescueReport(report) {
@@ -246,9 +310,24 @@ function serializeRescueReport(report) {
     status,
     statusLabel: RESCUE_REPORT_STATUS_LABELS[status] ?? status,
     allowedStatusTransitions: RESCUE_REPORT_STATUS_TRANSITIONS[status] ?? [],
-    notes: report.notes ?? '',
+    internalNotes: serializeInternalNotes(report.internalNotes),
+    statusHistory: serializeStatusHistory(report.statusHistory),
     createdAt: normalizeDateOutput(report.createdAt),
     updatedAt: normalizeDateOutput(report.updatedAt),
+  };
+}
+
+function serializePublicRescueReportSubmission(report) {
+  const urgency = report.urgency ?? 'medium';
+  const status = report.status ?? 'pending';
+
+  return {
+    id: serializeId(report),
+    name: report.name ?? '',
+    status,
+    statusLabel: RESCUE_REPORT_STATUS_LABELS[status] ?? status,
+    urgency,
+    createdAt: normalizeDateOutput(report.createdAt),
   };
 }
 
@@ -260,37 +339,62 @@ function assertAllowedRescueReportStatusTransition(currentStatus, nextStatus) {
   const allowedTransitions = RESCUE_REPORT_STATUS_TRANSITIONS[currentStatus] ?? [];
 
   if (!allowedTransitions.includes(nextStatus)) {
-    throw createHttpError(409, `Status transition from "${currentStatus}" to "${nextStatus}" is not allowed.`, {
-      currentStatus,
-      requestedStatus: nextStatus,
-      allowedTransitions,
-    });
+    throw createHttpError(
+      409,
+      `Преходът от статус "${currentStatus}" към "${nextStatus}" не е разрешен.`,
+      {
+        currentStatus,
+        requestedStatus: nextStatus,
+        allowedTransitions,
+      }
+    );
   }
 }
 
 function serializeRescueReportListItem(report) {
-  const serializedReport = serializeRescueReport(report);
-  const { imageUrl, ...reportWithoutImage } = serializedReport;
+  const species = report.species ?? 'other';
+  const urgency = report.urgency ?? 'medium';
+  const status = report.status ?? 'pending';
 
   return {
-    ...reportWithoutImage,
-    hasImage: Boolean(imageUrl),
+    id: serializeId(report),
+    name: report.name ?? '',
+    phone: report.phone ?? '',
+    location: report.location ?? '',
+    species,
+    speciesLabel: RESCUE_REPORT_SPECIES_LABELS[species] ?? species,
+    urgency,
+    urgencyLabel: RESCUE_REPORT_URGENCY_LABELS[urgency] ?? urgency,
+    status,
+    statusLabel: RESCUE_REPORT_STATUS_LABELS[status] ?? status,
+    createdAt: normalizeDateOutput(report.createdAt),
   };
 }
 
 function buildRescueReportQuery(filters = {}) {
   const query = {};
   const status = normalizeOptionalReportStatus(filters.status);
+  const urgency = normalizeOptionalReportUrgency(filters.urgency);
+  const species = normalizeOptionalReportSpecies(filters.species);
   const search = normalizeLookupText(filters.search);
 
   if (status) {
     query.status = status;
   }
 
+  if (urgency) {
+    query.urgency = urgency;
+  }
+
+  if (species) {
+    query.species = species;
+  }
+
   if (search) {
     const regex = new RegExp(escapeRegex(search), 'i');
     query.$or = [
       { name: regex },
+      { email: regex },
       { phone: regex },
       { location: regex },
       { description: regex },
@@ -310,26 +414,30 @@ async function findRescueReportRecordById(reportId) {
   return RescueReport.findById(normalizedId).lean();
 }
 
-export function getRescueReportModulePolicy(roleCandidate) {
-  return {
-    resource: 'rescueReports',
-    allowedActions: getAllowedRescueReportActions(roleCandidate),
-    statuses: RESCUE_REPORT_STATUS_VALUES,
-    statusTransitions: RESCUE_REPORT_STATUS_TRANSITIONS,
-    urgencies: RESCUE_REPORT_URGENCY_VALUES,
-    species: RESCUE_REPORT_SPECIES_VALUES,
-  };
-}
-
 export async function createRescueReport(payload) {
   const normalizedPayload = normalizeCreatePayload(payload);
   const createdReport = await RescueReport.create({
     ...normalizedPayload,
     status: 'pending',
-    notes: '',
+    statusHistory: [buildStatusHistoryEntry('', 'pending', null)],
   });
+  const createdReportObject = createdReport.toObject();
+  const serializedReport = serializeRescueReport(createdReportObject);
+  const urgencyLabel = RESCUE_REPORT_URGENCY_LABELS[serializedReport.urgency] ?? serializedReport.urgency;
+  const isUrgent = ['high', 'critical'].includes(serializedReport.urgency);
 
-  return serializeRescueReport(createdReport.toObject());
+  try {
+    await notifyOperationalStaff({
+      type: 'rescue-report-created',
+      title: isUrgent ? `Нов сигнал с ${urgencyLabel.toLowerCase()} спешност` : 'Нов сигнал за животно',
+      message: `Получен е сигнал със спешност "${urgencyLabel}"${serializedReport.location ? ` на място: ${serializedReport.location}` : ''}.`,
+      resourceId: serializedReport.id,
+    });
+  } catch (error) {
+    console.error('[rescue-reports] rescue-report-created notification failed', error);
+  }
+
+  return serializePublicRescueReportSubmission(createdReportObject);
 }
 
 export async function getRescueReportCollection(currentUser, filters = {}) {
@@ -341,10 +449,14 @@ export async function getRescueReportCollection(currentUser, filters = {}) {
   });
   const total = await RescueReport.countDocuments(query);
   const pagination = buildPagination(total, paginationOptions);
-  const reports = await applyPagination(
-    RescueReport.find(query).sort({ createdAt: -1, _id: -1 }),
-    pagination
-  ).lean();
+  const reports = await readWorkflowCollectionPage({
+    model: RescueReport,
+    query,
+    pagination,
+    statusTransitions: RESCUE_REPORT_STATUS_TRANSITIONS,
+    configureQuery: (reportQuery) =>
+      reportQuery.select('name phone location species urgency status createdAt'),
+  });
 
   return {
     items: reports.map(serializeRescueReportListItem),
@@ -364,10 +476,10 @@ export async function getRescueReportById(reportId, currentUser) {
   return serializeRescueReport(report);
 }
 
-export async function updateRescueReportStatus(reportId, payload, currentUser) {
-  assertStaffPermission(currentUser, 'update-status');
+export async function updateRescueReportReview(reportId, payload, currentUser) {
+  assertStaffPermission(currentUser, 'review');
   const normalizedId = assertValidRescueReportId(reportId);
-  const normalizedPayload = normalizeStatusUpdatePayload(payload);
+  const normalizedPayload = normalizeReviewPayload(payload);
   const report = await findRescueReportRecordById(normalizedId);
 
   if (!report) {
@@ -375,28 +487,53 @@ export async function updateRescueReportStatus(reportId, payload, currentUser) {
   }
 
   const currentStatus = report.status ?? 'pending';
-  assertAllowedRescueReportStatusTransition(currentStatus, normalizedPayload.status);
+  const nextStatus = normalizedPayload.status ?? currentStatus;
+  assertAllowedRescueReportStatusTransition(currentStatus, nextStatus);
+  const internalNote = buildInternalNote(normalizedPayload.notes, currentUser);
+  const statusHistoryEntry = buildStatusHistoryEntry(currentStatus, nextStatus, currentUser);
+  const updatePayload = {};
+
+  if (statusHistoryEntry) {
+    updatePayload.$set = {
+      status: nextStatus,
+    };
+    updatePayload.$push = {
+      statusHistory: statusHistoryEntry,
+    };
+  }
+
+  if (internalNote) {
+    updatePayload.$push = {
+      ...(updatePayload.$push ?? {}),
+      internalNotes: internalNote,
+    };
+  }
+
+  if (Object.keys(updatePayload).length === 0) {
+    throw createHttpError(400, 'Няма промени за запис по сигнала.');
+  }
 
   const updatedReport = await RescueReport.findOneAndUpdate(
     {
       _id: normalizedId,
       status: currentStatus,
     },
+    updatePayload,
     {
-      status: normalizedPayload.status,
-      notes: normalizedPayload.notes,
-    },
-    {
-      new: true,
+      returnDocument: 'after',
       runValidators: true,
     }
   ).lean();
 
   if (!updatedReport) {
-    throw createHttpError(409, 'Rescue report status changed before the update could be saved.', {
-      currentStatus,
-      requestedStatus: normalizedPayload.status,
-    });
+    throw createHttpError(
+      409,
+      'Статусът на сигнала беше променен преди записването на заявката.',
+      {
+        currentStatus,
+        requestedStatus: nextStatus,
+      }
+    );
   }
 
   return serializeRescueReport(updatedReport);

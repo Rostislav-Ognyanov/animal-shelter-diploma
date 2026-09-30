@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 
-import { fetchJson } from '../../lib/api.js';
-import { DEFAULT_RESCUE_STORIES, normalizeRescueStoryCollection } from './rescueStoriesData.js';
+import { RESCUE_STORY_PUBLIC_PAGE_SIZE } from '../../../../shared/domain/rescueStoryConstants.js';
+import { buildEmptyPagination } from '../../components/common/PaginationControls.jsx';
+import { fetchApiResponse } from '../../lib/api.js';
+import { normalizeRescueStoryCollection } from './rescueStoriesPublicData.js';
 
 function buildRescueStoriesQuery(filters = {}) {
   const params = new URLSearchParams();
@@ -16,29 +18,47 @@ function buildRescueStoriesQuery(filters = {}) {
   return queryString ? `/api/rescue-stories?${queryString}` : '/api/rescue-stories';
 }
 
-export function usePublishedRescueStories(filters = {}, fallbackItems = DEFAULT_RESCUE_STORIES) {
-  const [stories, setStories] = useState(fallbackItems);
+export function usePublishedRescueStories(filters = {}) {
+  const [stories, setStories] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [pagination, setPagination] = useState(() =>
+    buildEmptyPagination(RESCUE_STORY_PUBLIC_PAGE_SIZE)
+  );
+  const [loadedQuery, setLoadedQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
   const query = buildRescueStoriesQuery(filters);
 
   useEffect(() => {
     let isMounted = true;
 
     setIsLoading(true);
+    setErrorMessage('');
 
-    fetchJson(query)
+    fetchApiResponse(query)
       .then((payload) => {
         if (isMounted) {
-          setStories(normalizeRescueStoryCollection(payload?.items, fallbackItems));
+          const nextTotal = Number(payload.data?.total ?? 0);
+
+          setStories(normalizeRescueStoryCollection(payload.data?.items));
+          setTotal(nextTotal);
+          setPagination(
+            payload.meta?.pagination ??
+              buildEmptyPagination(RESCUE_STORY_PUBLIC_PAGE_SIZE, nextTotal)
+          );
         }
       })
-      .catch(() => {
+      .catch((error) => {
         if (isMounted) {
-          setStories(fallbackItems);
+          setStories([]);
+          setTotal(0);
+          setPagination(buildEmptyPagination(RESCUE_STORY_PUBLIC_PAGE_SIZE));
+          setErrorMessage(error.message);
         }
       })
       .finally(() => {
         if (isMounted) {
+          setLoadedQuery(query);
           setIsLoading(false);
         }
       });
@@ -46,7 +66,13 @@ export function usePublishedRescueStories(filters = {}, fallbackItems = DEFAULT_
     return () => {
       isMounted = false;
     };
-  }, [fallbackItems, query]);
+  }, [query]);
 
-  return { stories, isLoading };
+  return {
+    stories,
+    total,
+    pagination,
+    isLoading: isLoading || loadedQuery !== query,
+    errorMessage,
+  };
 }

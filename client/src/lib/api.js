@@ -1,5 +1,3 @@
-﻿import { readStoredToken } from '../auth/authStorage.js';
-
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 const AUTH_REQUIRED_EVENT = 'app:auth-required';
 
@@ -17,16 +15,9 @@ function unwrapApiPayload(payload) {
 }
 
 function buildRequestHeaders(headers = {}) {
-  const authToken = readStoredToken();
-  const requestHeaders = {
+  return {
     ...headers,
   };
-
-  if (authToken) {
-    requestHeaders.Authorization = `Bearer ${authToken}`;
-  }
-
-  return requestHeaders;
 }
 
 function shouldBroadcastAuthRequired(pathname, status) {
@@ -51,7 +42,7 @@ function notifyAuthRequired(message) {
   );
 }
 
-async function requestApi(pathname, options = {}) {
+async function requestApiResponse(pathname, options = {}) {
   const response = await fetch(`${API_BASE_URL}${pathname}`, {
     credentials: 'include',
     ...options,
@@ -59,7 +50,7 @@ async function requestApi(pathname, options = {}) {
   });
 
   if (!response.ok) {
-    let errorMessage = `Request failed with status ${response.status}.`;
+    let errorMessage = `Заявката беше неуспешна със статус ${response.status}.`;
     let errorPayload = null;
 
     try {
@@ -97,12 +88,12 @@ async function requestApi(pathname, options = {}) {
 }
 
 async function requestJson(pathname, options = {}) {
-  const payload = await requestApi(pathname, options);
+  const payload = await requestApiResponse(pathname, options);
   return unwrapApiPayload(payload);
 }
 
-export async function fetchApi(pathname) {
-  return requestApi(pathname);
+export async function fetchApiResponse(pathname) {
+  return requestApiResponse(pathname);
 }
 
 export async function fetchJson(pathname) {

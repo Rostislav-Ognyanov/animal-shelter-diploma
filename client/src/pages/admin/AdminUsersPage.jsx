@@ -1,12 +1,28 @@
-﻿import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 
-import { useAuth } from '../../auth/AuthProvider.jsx';
-import { ConfirmDialog } from '../../components/common/ConfirmDialog.jsx';
-import { fetchApi, fetchJson, patchJson, postJson } from '../../lib/api.js';
+import {
+  USER_EMAIL_MAX_LENGTH,
+  USER_FIRST_NAME_MAX_LENGTH,
+  USER_LAST_NAME_MAX_LENGTH,
+  USER_PASSWORD_MAX_LENGTH,
+  USER_PASSWORD_MIN_LENGTH,
+  USERNAME_HTML_PATTERN,
+  USERNAME_MAX_LENGTH,
+  USERNAME_MIN_LENGTH,
+} from '../../../../shared/domain/userConstants.js';
+import { PaginationControls } from '../../components/common/PaginationControls.jsx';
+import { useDebouncedSearchFilter } from '../../hooks/useDebouncedSearchFilter.js';
+import { usePaginatedManagementList } from '../../hooks/usePaginatedManagementList.js';
+import { postJson } from '../../lib/api.js';
 import { createEmptyFeedback, createErrorFeedback, createSuccessFeedback } from '../../lib/feedback.js';
 import {
-  buildUserCollectionMetrics,
+  buildManagementListSearchParams,
+  normalizePageParam,
+  readManagementListSearchParams,
+} from '../../lib/searchParams.js';
+import {
+  EMPTY_USER_SUMMARY,
   formatUserDate,
   getUserDisplayName,
   getUserRoleLabel,
@@ -16,13 +32,6 @@ import {
   USER_ROLE_OPTIONS,
   USER_STATUS_OPTIONS,
 } from '../users/usersUi.js';
-
-const EMPTY_EDIT_FORM = {
-  firstName: '',
-  lastName: '',
-  email: '',
-  role: 'client',
-};
 
 const EMPTY_CREATE_FORM = {
   firstName: '',
@@ -34,27 +43,65 @@ const EMPTY_CREATE_FORM = {
   isActive: true,
 };
 
-function buildEmptyPagination() {
+const DEFAULT_USERS_PAGE_SIZE = 10;
+const USER_LIST_EXTRA_FILTER_KEYS = ['role'];
+
+function normalizeUserLimitParam(value) {
+  const numericLimit = Number(value ?? DEFAULT_USERS_PAGE_SIZE);
+
+  return USER_PAGE_SIZE_OPTIONS.includes(numericLimit) ? numericLimit : DEFAULT_USERS_PAGE_SIZE;
+}
+
+function readUserFilters(searchParams) {
   return {
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-    hasNextPage: false,
-    hasPreviousPage: false,
+    ...readManagementListSearchParams(searchParams, { extraKeys: USER_LIST_EXTRA_FILTER_KEYS }),
+    limit: normalizeUserLimitParam(searchParams.get('limit')),
   };
 }
 
-function buildEditForm(user) {
+function buildUserSearchParams(currentFilters, nextValues) {
+  const nextParams = buildManagementListSearchParams(currentFilters, nextValues, {
+    extraKeys: USER_LIST_EXTRA_FILTER_KEYS,
+  });
+  const nextLimit = Object.prototype.hasOwnProperty.call(nextValues, 'limit')
+    ? normalizeUserLimitParam(nextValues.limit)
+    : normalizeUserLimitParam(currentFilters.limit);
+
+  if (nextLimit !== DEFAULT_USERS_PAGE_SIZE) {
+    nextParams.set('limit', String(nextLimit));
+  }
+
+  return nextParams;
+}
+
+function buildUsersQuery(filters) {
+  const params = new URLSearchParams();
+
+  if (filters.role) {
+    params.set('role', filters.role);
+  }
+
+  if (filters.status) {
+    params.set('status', filters.status);
+  }
+
+  if (filters.search) {
+    params.set('search', filters.search);
+  }
+
+  params.set('page', String(normalizePageParam(filters.page)));
+  params.set('limit', String(normalizeUserLimitParam(filters.limit)));
+
+  return `/api/users?${params.toString()}`;
+}
+
+function selectUserListAdditionalState(payload) {
   return {
-    firstName: user?.firstName ?? '',
-    lastName: user?.lastName ?? '',
-    email: user?.email ?? '',
-    role: user?.role ?? 'client',
+    summary: payload?.data?.summary ?? EMPTY_USER_SUMMARY,
   };
 }
 
-function buildFilterSummary(filters, total) {
+function buildFilterSummary(filters, shownCount, total) {
   const summaryParts = [];
 
   if (filters.role) {
@@ -70,275 +117,75 @@ function buildFilterSummary(filters, total) {
   }
 
   if (summaryParts.length === 0) {
-    return `Няма активни филтри. Виждат се ${total} записа за текущата страница.`;
+    return `Няма активни филтри. ${shownCount} показани от общо ${total} потребители.`;
   }
 
-  return `${summaryParts.join(' · ')} · ${total} записа за текущата страница.`;
+  return `${summaryParts.join(' · ')} · ${shownCount} показани от ${total} резултата.`;
 }
 
 export function AdminUsersPage() {
-  const { currentUser, updateCurrentUser } = useAuth();
-  const [filters, setFilters] = useState({
-    role: '',
-    status: '',
-    search: '',
-    page: 1,
-    limit: 10,
-  });
-  const [searchInput, setSearchInput] = useState('');
-  const [reloadToken, setReloadToken] = useState(0);
-  const [listState, setListState] = useState({
-    items: [],
-    total: 0,
-    pagination: buildEmptyPagination(),
-    policy: null,
-    isLoading: true,
-    error: '',
-  });
-  const [selectedUserId, setSelectedUserId] = useState('');
-  const [detailsReloadToken, setDetailsReloadToken] = useState(0);
-  const [detailsState, setDetailsState] = useState({
-    item: null,
-    isLoading: false,
-    error: '',
-  });
-  const [editForm, setEditForm] = useState(EMPTY_EDIT_FORM);
-  const [editState, setEditState] = useState({
-    isSubmitting: false,
-    feedback: createEmptyFeedback(),
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filters = useMemo(() => readUserFilters(searchParams), [searchParams]);
+  const updateFilters = useCallback(
+    (nextValues) => {
+      setSearchParams(buildUserSearchParams(filters, nextValues), { replace: true });
+    },
+    [filters, setSearchParams]
+  );
+  const commitSearchFilter = useCallback(
+    (value) => updateFilters({ search: value }),
+    [updateFilters]
+  );
+  const [searchDraft, setSearchDraft] = useDebouncedSearchFilter(
+    filters.search,
+    commitSearchFilter
+  );
+  const handlePageSync = useCallback((page) => updateFilters({ page }), [updateFilters]);
+  const { pageState: listState, reload: reloadUsers } = usePaginatedManagementList({
+    buildQuery: buildUsersQuery,
+    defaultLimit: filters.limit,
+    filters,
+    onPageSync: handlePageSync,
+    selectAdditionalState: selectUserListAdditionalState,
   });
   const [createForm, setCreateForm] = useState(EMPTY_CREATE_FORM);
   const [createState, setCreateState] = useState({
     isSubmitting: false,
     feedback: createEmptyFeedback(),
   });
-  const [statusState, setStatusState] = useState({
-    isSubmitting: false,
-    feedback: createEmptyFeedback(),
-  });
-  const [confirmState, setConfirmState] = useState(null);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadUsers() {
-      try {
-        setListState((currentValue) => ({
-          ...currentValue,
-          isLoading: true,
-          error: '',
-        }));
-
-        const params = new URLSearchParams();
-
-        if (filters.role) {
-          params.set('role', filters.role);
-        }
-
-        if (filters.status) {
-          params.set('status', filters.status);
-        }
-
-        if (filters.search) {
-          params.set('search', filters.search);
-        }
-
-        params.set('page', String(filters.page));
-        params.set('limit', String(filters.limit));
-
-        const payload = await fetchApi(`/api/users?${params.toString()}`);
-
-        if (!isMounted) {
-          return;
-        }
-
-        const pagination = payload.meta?.pagination ?? buildEmptyPagination();
-
-        setListState({
-          items: payload.data?.items ?? [],
-          total: payload.data?.total ?? 0,
-          pagination,
-          policy: payload.data?.policy ?? null,
-          isLoading: false,
-          error: '',
-        });
-
-        const syncedPage = Number(pagination.page ?? filters.page);
-
-        if (Number.isInteger(syncedPage) && syncedPage > 0 && syncedPage !== filters.page) {
-          setFilters((currentValue) =>
-            currentValue.page === syncedPage ? currentValue : { ...currentValue, page: syncedPage }
-          );
-        }
-      } catch (error) {
-        if (!isMounted) {
-          return;
-        }
-
-        setListState((currentValue) => ({
-          ...currentValue,
-          items: [],
-          total: 0,
-          pagination: buildEmptyPagination(),
-          isLoading: false,
-          error: error.message,
-        }));
-      }
-    }
-
-    loadUsers();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [filters, reloadToken]);
-
-  useEffect(() => {
-    if (!selectedUserId) {
-      setDetailsState({
-        item: null,
-        isLoading: false,
-        error: '',
-      });
-      setEditForm(EMPTY_EDIT_FORM);
-      setEditState((currentValue) => ({
-        ...currentValue,
-        feedback: createEmptyFeedback(),
-      }));
-      setStatusState((currentValue) => ({
-        ...currentValue,
-        feedback: createEmptyFeedback(),
-      }));
-      return;
-    }
-
-    let isMounted = true;
-
-    async function loadSelectedUser() {
-      try {
-        setDetailsState({
-          item: null,
-          isLoading: true,
-          error: '',
-        });
-
-        const payload = await fetchJson(`/api/users/${selectedUserId}`);
-
-        if (!isMounted) {
-          return;
-        }
-
-        setDetailsState({
-          item: payload,
-          isLoading: false,
-          error: '',
-        });
-        setEditForm(buildEditForm(payload));
-      } catch (error) {
-        if (!isMounted) {
-          return;
-        }
-
-        setDetailsState({
-          item: null,
-          isLoading: false,
-          error: error.message,
-        });
-      }
-    }
-
-    loadSelectedUser();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedUserId, detailsReloadToken]);
-
-  const selectedUser = detailsState.item;
-  const managedRoles = useMemo(() => {
-    return listState.policy?.managedRoles ?? ['client', 'employee', 'admin'];
-  }, [listState.policy]);
-  const collectionMetrics = useMemo(() => buildUserCollectionMetrics(listState.items), [listState.items]);
+  const userSummary = listState.summary ?? EMPTY_USER_SUMMARY;
   const filterSummary = useMemo(
-    () => buildFilterSummary(filters, listState.items.length),
-    [filters, listState.items.length]
+    () => buildFilterSummary(filters, listState.items.length, listState.total),
+    [filters, listState.items.length, listState.total]
   );
-  const isEditingSelf = selectedUser?.id === currentUser?.id;
-  const isEditDirty = useMemo(() => {
-    if (!selectedUser) {
-      return false;
-    }
-
-    return (
-      editForm.firstName !== (selectedUser.firstName ?? '') ||
-      editForm.lastName !== (selectedUser.lastName ?? '') ||
-      editForm.email !== (selectedUser.email ?? '') ||
-      editForm.role !== (selectedUser.role ?? 'client')
-    );
-  }, [editForm.email, editForm.firstName, editForm.lastName, editForm.role, selectedUser]);
-
-  function syncUserEverywhere(updatedUser) {
-    setListState((currentValue) => ({
-      ...currentValue,
-      items: currentValue.items.map((item) => (item.id === updatedUser.id ? { ...item, ...updatedUser } : item)),
-    }));
-    setDetailsState((currentValue) => ({
-      ...currentValue,
-      item: updatedUser,
-    }));
-    setEditForm(buildEditForm(updatedUser));
-
-    if (updatedUser.id === currentUser?.id) {
-      updateCurrentUser(updatedUser);
-    }
-  }
+  const hasActiveFilters = Boolean(filters.role || filters.status || filters.search);
 
   function handleFilterChange(fieldName, value) {
-    setFilters((currentValue) => ({
-      ...currentValue,
-      [fieldName]: value,
-      page: fieldName === 'page' ? value : 1,
-    }));
+    updateFilters({ [fieldName]: value });
   }
 
   function handleSearchSubmit(event) {
     event.preventDefault();
-
-    setFilters((currentValue) => ({
-      ...currentValue,
-      search: searchInput.trim(),
-      page: 1,
-    }));
+    updateFilters({ search: searchDraft });
   }
 
   function handleClearFilters() {
-    setSearchInput('');
-    setFilters((currentValue) => ({
-      ...currentValue,
+    setSearchDraft('');
+    updateFilters({
       role: '',
       status: '',
       search: '',
       page: 1,
-    }));
+    });
   }
 
-  function handleSelectUser(userId) {
-    setSelectedUserId(userId);
-    setEditState((currentValue) => ({
-      ...currentValue,
-      feedback: createEmptyFeedback(),
-    }));
-    setStatusState((currentValue) => ({
-      ...currentValue,
-      feedback: createEmptyFeedback(),
-    }));
-  }
+  function handlePageChange(nextPage) {
+    if (nextPage < 1 || nextPage === filters.page) {
+      return;
+    }
 
-  function handleEditFieldChange(fieldName, value) {
-    setEditForm((currentValue) => ({
-      ...currentValue,
-      [fieldName]: value,
-    }));
+    updateFilters({ page: nextPage });
   }
 
   function handleCreateFieldChange(fieldName, value) {
@@ -348,45 +195,16 @@ export function AdminUsersPage() {
     }));
   }
 
-  function handleEditReset() {
-    setEditForm(buildEditForm(selectedUser));
-    setEditState((currentValue) => ({
-      ...currentValue,
-      feedback: createEmptyFeedback(),
-    }));
-  }
-
-  async function handleEditSubmit(event) {
-    event.preventDefault();
-
-    if (!selectedUser) {
-      return;
-    }
-
-    try {
-      setEditState({
-        isSubmitting: true,
-        feedback: createEmptyFeedback(),
-      });
-
-      const updatedUser = await patchJson(`/api/users/${selectedUser.id}`, editForm);
-
-      syncUserEverywhere(updatedUser);
-      setEditState({
-        isSubmitting: false,
-        feedback: createSuccessFeedback('Данните за потребителя са обновени успешно.'),
-      });
-      setReloadToken((currentValue) => currentValue + 1);
-    } catch (error) {
-      setEditState({
-        isSubmitting: false,
-        feedback: createErrorFeedback(error.message),
-      });
-    }
-  }
-
   async function handleCreateSubmit(event) {
     event.preventDefault();
+
+    if (createForm.password !== createForm.confirmPassword) {
+      setCreateState({
+        isSubmitting: false,
+        feedback: createErrorFeedback('Паролата и потвърждението не съвпадат.'),
+      });
+      return;
+    }
 
     try {
       setCreateState({
@@ -394,76 +212,16 @@ export function AdminUsersPage() {
         feedback: createEmptyFeedback(),
       });
 
-      const createdEmployee = await postJson('/api/users/employees', createForm);
+      await postJson('/api/users/employees', createForm);
 
       setCreateForm(EMPTY_CREATE_FORM);
       setCreateState({
         isSubmitting: false,
         feedback: createSuccessFeedback('Новият служител е създаден успешно.'),
       });
-      setSelectedUserId(createdEmployee.id);
-      setDetailsState({
-        item: createdEmployee,
-        isLoading: false,
-        error: '',
-      });
-      setEditForm(buildEditForm(createdEmployee));
-      setReloadToken((currentValue) => currentValue + 1);
+      reloadUsers();
     } catch (error) {
       setCreateState({
-        isSubmitting: false,
-        feedback: createErrorFeedback(error.message),
-      });
-    }
-  }
-
-  function handleStatusActionRequest() {
-    if (!selectedUser) {
-      return;
-    }
-
-    const nextIsActive = !selectedUser.isActive;
-
-    setConfirmState({
-      nextIsActive,
-      title: nextIsActive ? 'Активиране на профил' : 'Деактивиране на профил',
-      description: nextIsActive
-        ? `Сигурен ли си, че искаш да активираш профила на ${getUserDisplayName(selectedUser)}?`
-        : `Сигурен ли си, че искаш да деактивираш профила на ${getUserDisplayName(selectedUser)}?`,
-      confirmLabel: nextIsActive ? 'Активирай' : 'Деактивирай',
-      tone: nextIsActive ? 'primary' : 'danger',
-    });
-  }
-
-  async function handleConfirmStatusChange() {
-    if (!selectedUser || !confirmState) {
-      return;
-    }
-
-    try {
-      setStatusState({
-        isSubmitting: true,
-        feedback: createEmptyFeedback(),
-      });
-
-      const updatedUser = await patchJson(`/api/users/${selectedUser.id}/status`, {
-        isActive: confirmState.nextIsActive,
-      });
-
-      syncUserEverywhere(updatedUser);
-      setConfirmState(null);
-      setStatusState({
-        isSubmitting: false,
-        feedback: createSuccessFeedback(
-          confirmState.nextIsActive
-            ? 'Профилът е активиран успешно.'
-            : 'Профилът е деактивиран успешно.'
-        ),
-      });
-      setReloadToken((currentValue) => currentValue + 1);
-    } catch (error) {
-      setConfirmState(null);
-      setStatusState({
         isSubmitting: false,
         feedback: createErrorFeedback(error.message),
       });
@@ -474,56 +232,60 @@ export function AdminUsersPage() {
     <main className="route-shell users-admin-shell">
       <section className="users-admin-hero">
         <div>
-                    <h1>Административно управление на потребители</h1>
-          <p>
-            Списък, филтри и действия.
-          </p>
+          <h1>Административно управление на потребители</h1>
+          <p>Списък, филтри и действия.</p>
         </div>
 
         <div className="users-admin-hero-metrics">
           <div className="users-admin-metric-card">
             <strong>{listState.total}</strong>
-            <span>общо потребители</span>
+            <span>резултати по текущите критерии</span>
           </div>
           <div className="users-admin-metric-card">
-            <strong>{listState.pagination.page}</strong>
-            <span>текуща страница</span>
+            <strong>{listState.items.length}</strong>
+            <span>показани на тази страница</span>
           </div>
         </div>
       </section>
 
       <section className="users-admin-dashboard">
         <article className="route-card users-admin-overview-card">
-          <p className="route-meta">Visible Slice</p>
-          <strong>{collectionMetrics.active}</strong>
-          <span>активни в текущата извадка</span>
+          <p className="route-meta">Общо</p>
+          <strong>{userSummary.total}</strong>
+          <span>потребители в системата</span>
         </article>
         <article className="route-card users-admin-overview-card">
-          <p className="route-meta">Clients</p>
-          <strong>{collectionMetrics.clients}</strong>
-          <span>клиентски профили на текущата страница</span>
+          <p className="route-meta">Активни</p>
+          <strong>{userSummary.active}</strong>
+          <span>активни потребители в системата</span>
         </article>
         <article className="route-card users-admin-overview-card">
-          <p className="route-meta">Employees</p>
-          <strong>{collectionMetrics.employees}</strong>
-          <span>служители в текущата извадка</span>
+          <p className="route-meta">Неактивни</p>
+          <strong>{userSummary.inactive}</strong>
+          <span>деактивирани профили</span>
         </article>
         <article className="route-card users-admin-overview-card">
-          <p className="route-meta">Admins</p>
-          <strong>{collectionMetrics.admins}</strong>
+          <p className="route-meta">Клиенти</p>
+          <strong>{userSummary.clients}</strong>
+          <span>клиентски профили</span>
+        </article>
+        <article className="route-card users-admin-overview-card">
+          <p className="route-meta">Служители</p>
+          <strong>{userSummary.employees}</strong>
+          <span>служителски профили</span>
+        </article>
+        <article className="route-card users-admin-overview-card">
+          <p className="route-meta">Администратори</p>
+          <strong>{userSummary.admins}</strong>
           <span>администраторски профили</span>
         </article>
         <article className="route-card users-admin-context-card">
-          <p className="route-meta">Current Focus</p>
+          <p className="route-meta">Текущ фокус</p>
           <h2>Текущ контекст</h2>
           <p>{filterSummary}</p>
-          {selectedUser ? (
-            <Link className="animals-secondary-action" to={`/admin/users/${selectedUser.id}`}>
-              Отвори детайлна страница за {getUserDisplayName(selectedUser)}
-            </Link>
-          ) : (
-            <span className="users-admin-context-hint">Избери профил.</span>
-          )}
+          <span className="users-admin-context-hint">
+            Управлението на конкретен профил се извършва от детайлната страница.
+          </span>
         </article>
       </section>
 
@@ -531,11 +293,11 @@ export function AdminUsersPage() {
         <form className="users-admin-search" onSubmit={handleSearchSubmit}>
           <input
             type="search"
-            value={searchInput}
+            value={searchDraft}
             placeholder="Търси по име, username или имейл"
-            onChange={(event) => setSearchInput(event.target.value)}
+            onChange={(event) => setSearchDraft(event.target.value)}
           />
-          <button type="submit" className="animals-primary-action" disabled={listState.isLoading}>
+          <button type="submit" className="app-primary-action" disabled={listState.isLoading}>
             Търси
           </button>
         </form>
@@ -586,9 +348,11 @@ export function AdminUsersPage() {
             </select>
           </label>
 
-          <button type="button" className="animals-secondary-action" onClick={handleClearFilters}>
-            Изчисти
-          </button>
+          {hasActiveFilters ? (
+            <button type="button" className="app-secondary-action" onClick={handleClearFilters}>
+              Изчисти
+            </button>
+          ) : null}
         </div>
       </section>
 
@@ -596,7 +360,7 @@ export function AdminUsersPage() {
         <article className="route-card users-admin-list-card">
           <div className="users-admin-list-heading">
             <div>
-              <p className="route-meta">Users List</p>
+              <p className="route-meta">Списък</p>
               <h2>Всички потребители</h2>
             </div>
             <span className="users-admin-list-summary">
@@ -610,8 +374,8 @@ export function AdminUsersPage() {
               <p>{listState.error}</p>
               <button
                 type="button"
-                className="animals-primary-action"
-                onClick={() => setReloadToken((currentValue) => currentValue + 1)}
+                className="app-primary-action"
+                onClick={reloadUsers}
               >
                 Опитай отново
               </button>
@@ -629,16 +393,21 @@ export function AdminUsersPage() {
             <div className="users-admin-empty-state">
               <h3>Няма потребители за тези критерии</h3>
               <p>Промени филтрите или изчисти търсенето, за да видиш повече записи.</p>
+              {hasActiveFilters ? (
+                <button type="button" className="app-secondary-action" onClick={handleClearFilters}>
+                  Изчисти
+                </button>
+              ) : null}
             </div>
           ) : null}
 
           {!listState.error && !listState.isLoading && listState.items.length > 0 ? (
-            <div className="users-admin-list">
+            <div
+              id="admin-users-results-start"
+              className="users-admin-list pagination-scroll-target"
+            >
               {listState.items.map((user) => (
-                <article
-                  key={user.id}
-                  className={`users-admin-row ${selectedUserId === user.id ? 'is-selected' : ''}`}
-                >
+                <article key={user.id} className="users-admin-row">
                   <div className="users-admin-row-main">
                     <div className="users-admin-row-top">
                       <h3>{getUserDisplayName(user)}</h3>
@@ -656,15 +425,8 @@ export function AdminUsersPage() {
                   </div>
 
                   <div className="users-admin-row-actions">
-                    <button
-                      type="button"
-                      className="animals-secondary-action"
-                      onClick={() => handleSelectUser(user.id)}
-                    >
-                      {selectedUserId === user.id ? 'Бърз панел' : 'Бързо управление'}
-                    </button>
-                    <Link className="animals-primary-action" to={`/admin/users/${user.id}`}>
-                      Отделна страница
+                    <Link className="app-primary-action" to={`/admin/users/${user.id}`}>
+                      Детайли
                     </Link>
                   </div>
                 </article>
@@ -672,241 +434,30 @@ export function AdminUsersPage() {
             </div>
           ) : null}
 
-          {!listState.error && !listState.isLoading && listState.items.length > 0 ? (
-            <div className="animals-pagination users-admin-pagination">
-              <button
-                type="button"
-                className="animals-secondary-action"
-                disabled={!listState.pagination.hasPreviousPage}
-                onClick={() => handleFilterChange('page', filters.page - 1)}
-              >
-                Предишна
-              </button>
-
-              <div className="animals-pagination-info">
-                <strong>Страница {listState.pagination.page}</strong>
-                <span>от {Math.max(listState.pagination.totalPages, 1)}</span>
-              </div>
-
-              <button
-                type="button"
-                className="animals-primary-action"
-                disabled={!listState.pagination.hasNextPage}
-                onClick={() => handleFilterChange('page', filters.page + 1)}
-              >
-                Следваща
-              </button>
-            </div>
-          ) : null}
+          <PaginationControls
+            pagination={listState.pagination}
+            isLoading={listState.isLoading}
+            onPageChange={handlePageChange}
+            scrollTargetId="admin-users-results-start"
+          />
         </article>
 
         <div className="users-admin-side">
-          <article className="route-card users-admin-detail-card">
-            <div className="users-admin-detail-heading">
-              <div>
-                <p className="route-meta">Quick Manage</p>
-                <h2>Бърз панел за профил</h2>
-              </div>
-              {selectedUser ? (
-                <div className="users-admin-detail-actions">
-                  <Link className="animals-secondary-action" to={`/admin/users/${selectedUser.id}`}>
-                    Към детайлна страница
-                  </Link>
-                  <button
-                    type="button"
-                    className="animals-secondary-action"
-                    onClick={() => setDetailsReloadToken((currentValue) => currentValue + 1)}
-                  >
-                    Презареди
-                  </button>
-                </div>
-              ) : null}
-            </div>
-
-            {!selectedUserId ? (
-              <div className="users-admin-empty-state">
-                <h3>Избери потребител от списъка</h3>
-                <p>Бързо управление на избрания профил.</p>
-              </div>
-            ) : null}
-
-            {selectedUserId && detailsState.isLoading ? (
-              <div className="users-admin-empty-state">
-                <h3>Зареждане на профила</h3>
-                <p>Моля, изчакай.</p>
-              </div>
-            ) : null}
-
-            {selectedUserId && detailsState.error ? (
-              <div className="users-admin-empty-state">
-                <h3>Профилът не можа да се зареди</h3>
-                <p>{detailsState.error}</p>
-              </div>
-            ) : null}
-
-            {selectedUser ? (
-              <>
-                <div className="users-admin-selected-summary">
-                  <div>
-                    <h3>{getUserDisplayName(selectedUser)}</h3>
-                    <p>{selectedUser.email}</p>
-                  </div>
-
-                  <div className="users-admin-row-badges">
-                    <span className="profile-role-pill">{getUserRoleLabel(selectedUser.role)}</span>
-                    <span className={`profile-status-pill ${getUserStatusTone(selectedUser.isActive)}`}>
-                      {getUserStatusLabel(selectedUser.isActive)}
-                    </span>
-                  </div>
-                </div>
-
-                <dl className="profile-summary-list users-admin-summary-list">
-                  <div>
-                    <dt>Username</dt>
-                    <dd>{selectedUser.username}</dd>
-                  </div>
-                  <div>
-                    <dt>Създаден профил</dt>
-                    <dd>{formatUserDate(selectedUser.createdAt)}</dd>
-                  </div>
-                  <div>
-                    <dt>Последно влизане</dt>
-                    <dd>{formatUserDate(selectedUser.lastLoginAt)}</dd>
-                  </div>
-                  <div>
-                    <dt>Последна промяна</dt>
-                    <dd>{formatUserDate(selectedUser.updatedAt)}</dd>
-                  </div>
-                </dl>
-
-                {editState.feedback.message ? (
-                  <div
-                    className={`auth-status ${editState.feedback.type === 'error' ? 'auth-status-error' : 'auth-status-info'}`}
-                  >
-                    {editState.feedback.message}
-                  </div>
-                ) : null}
-
-                <form className="profile-form-grid" onSubmit={handleEditSubmit}>
-                  <label>
-                    <span>Име</span>
-                    <input
-                      type="text"
-                      value={editForm.firstName}
-                      onChange={(event) => handleEditFieldChange('firstName', event.target.value)}
-                      disabled={editState.isSubmitting}
-                    />
-                  </label>
-
-                  <label>
-                    <span>Фамилия</span>
-                    <input
-                      type="text"
-                      value={editForm.lastName}
-                      onChange={(event) => handleEditFieldChange('lastName', event.target.value)}
-                      disabled={editState.isSubmitting}
-                    />
-                  </label>
-
-                  <label className="profile-form-grid-wide">
-                    <span>Имейл</span>
-                    <input
-                      type="email"
-                      value={editForm.email}
-                      onChange={(event) => handleEditFieldChange('email', event.target.value)}
-                      disabled={editState.isSubmitting}
-                    />
-                  </label>
-
-                  <label className="profile-form-grid-wide">
-                    <span>Роля</span>
-                    <select
-                      value={editForm.role}
-                      onChange={(event) => handleEditFieldChange('role', event.target.value)}
-                      disabled={editState.isSubmitting || isEditingSelf}
-                    >
-                      {managedRoles.map((role) => (
-                        <option key={role} value={role}>
-                          {getUserRoleLabel(role)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  {isEditingSelf ? (
-                    <p className="users-admin-inline-note">
-                      Собственият администраторски профил може да се редактира, но ролята му не може
-                      да се сменя оттук.
-                    </p>
-                  ) : null}
-
-                  <div className="profile-form-actions profile-form-grid-wide">
-                    <button
-                      type="submit"
-                      className="animals-primary-action"
-                      disabled={editState.isSubmitting || !isEditDirty}
-                    >
-                      {editState.isSubmitting ? 'Запис...' : 'Запази промените'}
-                    </button>
-                    <button
-                      type="button"
-                      className="animals-secondary-action"
-                      onClick={handleEditReset}
-                      disabled={editState.isSubmitting || !isEditDirty}
-                    >
-                      Върни стойностите
-                    </button>
-                  </div>
-                </form>
-
-                {statusState.feedback.message ? (
-                  <div
-                    className={`auth-status ${statusState.feedback.type === 'error' ? 'auth-status-error' : 'auth-status-info'}`}
-                  >
-                    {statusState.feedback.message}
-                  </div>
-                ) : null}
-
-                <div className="users-admin-status-panel">
-                  <div>
-                    <strong>Статус на профила</strong>
-                    <p>
-                      {selectedUser.isActive
-                        ? 'Активен достъп до системата.'
-                        : 'Без достъп до системата.'}
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    className={selectedUser.isActive ? 'animals-secondary-action animal-danger-action' : 'animals-primary-action'}
-                    disabled={statusState.isSubmitting || (isEditingSelf && selectedUser.isActive)}
-                    onClick={handleStatusActionRequest}
-                  >
-                    {statusState.isSubmitting
-                      ? 'Запис...'
-                      : selectedUser.isActive
-                        ? 'Деактивирай профила'
-                        : 'Активирай профила'}
-                  </button>
-                </div>
-              </>
-            ) : null}
-          </article>
-
           <article className="route-card users-admin-create-card">
             <div className="users-admin-detail-heading">
               <div>
-                <p className="route-meta">Create Employee</p>
+                <p className="route-meta">Нов служител</p>
                 <h2>Добави служител</h2>
               </div>
             </div>
 
-
-
             {createState.feedback.message ? (
               <div
-                className={`auth-status ${createState.feedback.type === 'error' ? 'auth-status-error' : 'auth-status-info'}`}
+                className={`feedback-message ${
+                  createState.feedback.type === 'error'
+                    ? 'feedback-message-error'
+                    : 'feedback-message-info'
+                }`}
               >
                 {createState.feedback.message}
               </div>
@@ -918,8 +469,10 @@ export function AdminUsersPage() {
                 <input
                   type="text"
                   value={createForm.firstName}
+                  maxLength={USER_FIRST_NAME_MAX_LENGTH}
                   onChange={(event) => handleCreateFieldChange('firstName', event.target.value)}
                   disabled={createState.isSubmitting}
+                  required
                 />
               </label>
 
@@ -928,8 +481,10 @@ export function AdminUsersPage() {
                 <input
                   type="text"
                   value={createForm.lastName}
+                  maxLength={USER_LAST_NAME_MAX_LENGTH}
                   onChange={(event) => handleCreateFieldChange('lastName', event.target.value)}
                   disabled={createState.isSubmitting}
+                  required
                 />
               </label>
 
@@ -938,8 +493,14 @@ export function AdminUsersPage() {
                 <input
                   type="text"
                   value={createForm.username}
+                  minLength={USERNAME_MIN_LENGTH}
+                  maxLength={USERNAME_MAX_LENGTH}
+                  pattern={USERNAME_HTML_PATTERN}
+                  title="Може да съдържа букви, цифри, точка, тире и долна черта."
+                  autoComplete="username"
                   onChange={(event) => handleCreateFieldChange('username', event.target.value)}
                   disabled={createState.isSubmitting}
+                  required
                 />
               </label>
 
@@ -948,8 +509,11 @@ export function AdminUsersPage() {
                 <input
                   type="email"
                   value={createForm.email}
+                  maxLength={USER_EMAIL_MAX_LENGTH}
+                  autoComplete="email"
                   onChange={(event) => handleCreateFieldChange('email', event.target.value)}
                   disabled={createState.isSubmitting}
+                  required
                 />
               </label>
 
@@ -958,8 +522,12 @@ export function AdminUsersPage() {
                 <input
                   type="password"
                   value={createForm.password}
+                  minLength={USER_PASSWORD_MIN_LENGTH}
+                  maxLength={USER_PASSWORD_MAX_LENGTH}
+                  autoComplete="new-password"
                   onChange={(event) => handleCreateFieldChange('password', event.target.value)}
                   disabled={createState.isSubmitting}
+                  required
                 />
               </label>
 
@@ -968,8 +536,12 @@ export function AdminUsersPage() {
                 <input
                   type="password"
                   value={createForm.confirmPassword}
+                  minLength={USER_PASSWORD_MIN_LENGTH}
+                  maxLength={USER_PASSWORD_MAX_LENGTH}
+                  autoComplete="new-password"
                   onChange={(event) => handleCreateFieldChange('confirmPassword', event.target.value)}
                   disabled={createState.isSubmitting}
+                  required
                 />
               </label>
 
@@ -984,7 +556,7 @@ export function AdminUsersPage() {
               </label>
 
               <div className="profile-form-actions profile-form-grid-wide">
-                <button type="submit" className="animals-primary-action" disabled={createState.isSubmitting}>
+                <button type="submit" className="app-primary-action" disabled={createState.isSubmitting}>
                   {createState.isSubmitting ? 'Създаване...' : 'Създай служител'}
                 </button>
               </div>
@@ -992,36 +564,6 @@ export function AdminUsersPage() {
           </article>
         </div>
       </section>
-
-      <ConfirmDialog
-        isOpen={Boolean(confirmState)}
-        title={confirmState?.title ?? ''}
-        description={confirmState?.description ?? ''}
-        confirmLabel={confirmState?.confirmLabel ?? 'Потвърди'}
-        cancelLabel="Отказ"
-        tone={confirmState?.tone ?? 'danger'}
-        isSubmitting={statusState.isSubmitting}
-        onConfirm={handleConfirmStatusChange}
-        onClose={() => {
-          if (!statusState.isSubmitting) {
-            setConfirmState(null);
-          }
-        }}
-      />
     </main>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

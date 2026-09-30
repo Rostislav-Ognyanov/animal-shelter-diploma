@@ -15,6 +15,9 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: devServerPort,
+    fs: {
+      allow: [path.resolve(__dirname, '..')],
+    },
     proxy: devApiTarget
       ? {
           '/api': {

@@ -1,41 +1,43 @@
 import { useEffect, useState } from 'react';
 
+import { SITE_SETTINGS_DEFAULTS } from '../../../../shared/domain/siteSettingsConstants.js';
 import { fetchJson } from '../../lib/api.js';
 
-export const DEFAULT_SITE_SETTINGS = {
-  siteName: 'Animal Shelter',
-  logoUrl: 'images/logo.jpg',
-  copyright: '© 2026 Animal Shelter',
-  footerSecondary: 'Всички права запазени.',
-  phone: '+359 888 123 456',
-  email: 'contact@animal-shelter.bg',
-  address: 'гр. София, ул. Зелена грижа 12',
-  workingHours: 'Понеделник - събота, 09:00 - 18:00',
-  socialLinks: [],
-  publicBanner: {
-    isVisible: false,
-    text: '',
-  },
-};
+function mergeSiteSettings(defaultSettings, payload = {}) {
+  return {
+    ...defaultSettings,
+    ...payload,
+    socialLinks: Array.isArray(payload.socialLinks)
+      ? payload.socialLinks.map((link) => ({ ...link }))
+      : [...defaultSettings.socialLinks],
+    publicBanner: {
+      ...defaultSettings.publicBanner,
+      ...(payload.publicBanner ?? {}),
+    },
+  };
+}
 
-export function useSiteSettings(defaultSettings = DEFAULT_SITE_SETTINGS) {
-  const [settings, setSettings] = useState(defaultSettings);
+export function useSiteSettings(defaultSettings = SITE_SETTINGS_DEFAULTS) {
+  const [settings, setSettings] = useState(() => mergeSiteSettings(defaultSettings));
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
 
     setIsLoading(true);
+    setError('');
 
     fetchJson('/api/site-settings')
       .then((payload) => {
         if (isMounted) {
-          setSettings({ ...defaultSettings, ...payload });
+          setSettings(mergeSiteSettings(defaultSettings, payload));
         }
       })
-      .catch(() => {
+      .catch((requestError) => {
         if (isMounted) {
-          setSettings(defaultSettings);
+          setError(requestError.message);
         }
       })
       .finally(() => {
@@ -47,7 +49,13 @@ export function useSiteSettings(defaultSettings = DEFAULT_SITE_SETTINGS) {
     return () => {
       isMounted = false;
     };
-  }, [defaultSettings]);
+  }, [defaultSettings, reloadToken]);
 
-  return { settings, isLoading, setSettings };
+  return {
+    settings,
+    isLoading,
+    error,
+    reload: () => setReloadToken((currentValue) => currentValue + 1),
+    setSettings,
+  };
 }

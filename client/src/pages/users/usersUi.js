@@ -1,7 +1,9 @@
-﻿export const USER_ROLE_LABELS = {
-  client: 'Клиент',
-  employee: 'Служител',
-  admin: 'Администратор',
+﻿import { ROLE_LABELS } from '../../auth/roleUi.js';
+
+export const USER_ROLE_LABELS = {
+  client: ROLE_LABELS.client,
+  employee: ROLE_LABELS.employee,
+  admin: ROLE_LABELS.admin,
 };
 
 export const USER_STATUS_LABELS = {
@@ -23,6 +25,31 @@ export const USER_STATUS_OPTIONS = [
 ];
 
 export const USER_PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
+
+export const EMPTY_USER_SUMMARY = {
+  total: 0,
+  active: 0,
+  inactive: 0,
+  clients: 0,
+  employees: 0,
+  admins: 0,
+};
+
+export const EMPTY_USER_EDIT_FORM = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  role: 'client',
+};
+
+export function buildUserEditForm(user) {
+  return {
+    firstName: user?.firstName ?? '',
+    lastName: user?.lastName ?? '',
+    email: user?.email ?? '',
+    role: user?.role ?? 'client',
+  };
+}
 
 export function getUserRoleLabel(role) {
   return USER_ROLE_LABELS[role] ?? 'Потребител';
@@ -46,40 +73,6 @@ export function getUserDisplayName(user) {
   return user?.username || 'Потребител';
 }
 
-export function buildUserCollectionMetrics(users = []) {
-  return users.reduce(
-    (summary, user) => {
-      const nextSummary = {
-        ...summary,
-        total: summary.total + 1,
-        active: summary.active + (user?.isActive ? 1 : 0),
-        inactive: summary.inactive + (user?.isActive ? 0 : 1),
-      };
-
-      if (user?.role === 'client') {
-        nextSummary.clients += 1;
-      }
-
-      if (user?.role === 'employee') {
-        nextSummary.employees += 1;
-      }
-
-      if (user?.role === 'admin') {
-        nextSummary.admins += 1;
-      }
-
-      return nextSummary;
-    },
-    {
-      total: 0,
-      active: 0,
-      inactive: 0,
-      clients: 0,
-      employees: 0,
-      admins: 0,
-    }
-  );
-}
 
 export function formatUserDate(value) {
   if (!value) {

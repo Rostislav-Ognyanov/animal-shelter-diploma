@@ -1,0 +1,481 @@
+.profile-form-actions,
+.users-admin-row-actions,
+.users-admin-detail-actions {
+  align-items: center;
+}
+
+.profile-shell,
+.users-admin-shell {
+  display: grid;
+  gap: 24px;
+}
+
+.profile-hero,
+.users-admin-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.profile-hero-badges,
+.users-admin-hero-metrics,
+.users-admin-row-badges {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.profile-status-pill,
+.profile-role-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: rgba(34, 92, 64, 0.12);
+  color: #1e563e;
+  font-weight: 700;
+}
+
+.profile-status-pill.is-inactive {
+  background: rgba(148, 62, 62, 0.12);
+  color: #8b3434;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(340px, 1.1fr);
+  gap: 24px;
+}
+
+.profile-summary-card,
+.profile-panel-card,
+.users-admin-list-card,
+.users-admin-detail-card,
+.users-admin-create-card,
+.users-admin-toolbar {
+  border-radius: 28px;
+}
+
+.profile-summary-top,
+.profile-panel-heading,
+.users-admin-detail-heading,
+.users-admin-list-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.profile-summary-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+
+.profile-summary-list div {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(245, 248, 244, 0.95);
+}
+
+.profile-summary-list dt {
+  margin-bottom: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+
+.profile-summary-list dd {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.profile-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.profile-form-grid label,
+.users-admin-filters label {
+  display: grid;
+  gap: 8px;
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.profile-form-grid input,
+.profile-form-grid select,
+.users-admin-search input,
+.users-admin-filters select {
+  width: 100%;
+  min-height: 50px;
+  padding: 0 14px;
+  border: 1px solid rgba(31, 54, 44, 0.16);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--color-ink);
+  font: inherit;
+}
+
+.profile-form-grid-wide {
+  grid-column: 1 / -1;
+}
+
+.profile-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.profile-loading-card {
+  display: grid;
+  gap: 14px;
+}
+
+@media (max-width: 980px) {
+  .profile-grid,
+  .users-admin-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .profile-form-grid,
+  .profile-summary-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+.profile-status-pill,
+.profile-role-pill {
+  box-shadow: inset 0 0 0 1px rgba(47, 111, 78, 0.08);
+}
+
+.profile-shortcuts {
+  margin-top: -0.5rem;
+}
+
+.users-admin-overview-card,
+.users-admin-context-card,
+.users-detail-side-card,
+.users-detail-loading-card {
+  border-radius: 28px;
+}
+
+.users-admin-context-card h2,
+.users-detail-loading-card h1 {
+  margin: 0;
+}
+
+.users-admin-context-card p,
+.users-admin-context-hint,
+.users-detail-note-card p,
+.users-detail-loading-card p {
+  margin: 0;
+  color: var(--color-ink-soft);
+}
+
+.users-admin-empty-state,
+.profile-loading-card,
+.users-detail-loading-card {
+  border: 1px solid rgba(47, 111, 78, 0.12);
+  box-shadow: 0 12px 24px rgba(24, 48, 34, 0.06);
+}
+
+.users-admin-empty-state h3,
+.profile-loading-card h1,
+.users-detail-loading-card h1 {
+  color: var(--primary);
+}
+
+.users-admin-row {
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.users-admin-row:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 36px rgba(24, 48, 34, 0.1);
+}
+
+.users-admin-toolbar {
+  display: grid;
+  gap: 18px;
+}
+
+.users-admin-search {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.users-admin-search input {
+  flex: 1 1 260px;
+}
+
+.users-admin-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: end;
+}
+
+.users-admin-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.users-admin-list {
+  display: grid;
+  gap: 14px;
+}
+
+.users-admin-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(31, 54, 44, 0.08);
+  background: rgba(252, 253, 251, 0.96);
+}
+
+.users-admin-row.is-selected {
+  border-color: rgba(34, 92, 64, 0.28);
+  box-shadow: 0 12px 30px rgba(34, 92, 64, 0.08);
+}
+
+.users-admin-row-main {
+  display: grid;
+  gap: 6px;
+}
+
+.users-admin-row-top {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.users-admin-row-top h3,
+.users-admin-selected-summary h3 {
+  margin: 0;
+}
+
+.users-admin-row-main p,
+.users-admin-selected-summary p,
+.users-admin-empty-state p,
+.users-admin-status-panel p,
+.users-admin-create-copy,
+.profile-panel-heading p,
+.profile-summary-top p {
+  margin: 0;
+  color: var(--color-ink-soft);
+}
+
+.users-admin-row-main small {
+  color: var(--color-ink-soft);
+}
+
+.users-admin-side {
+  display: grid;
+  gap: 24px;
+}
+
+.users-admin-empty-state {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(245, 248, 244, 0.95);
+}
+
+.users-admin-selected-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.users-admin-summary-list {
+  margin-bottom: 20px;
+}
+
+.users-admin-inline-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--color-ink-soft);
+}
+
+.users-admin-status-panel {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(245, 248, 244, 0.95);
+}
+
+.users-admin-checkbox {
+  display: flex !important;
+  align-items: center;
+  gap: 12px;
+}
+
+.users-admin-checkbox input {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+}
+
+.users-admin-metric-card {
+  min-width: 140px;
+  padding: 18px 20px;
+  border-radius: 22px;
+  background: rgba(245, 248, 244, 0.95);
+  display: grid;
+  gap: 6px;
+}
+
+.users-admin-metric-card strong {
+  font-size: 1.9rem;
+  line-height: 1;
+}
+
+.users-admin-list-summary {
+  color: var(--color-ink-soft);
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .users-admin-search,
+  .users-admin-filters,
+  .users-admin-status-panel,
+  .users-admin-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.users-admin-dashboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 18px;
+}
+
+.users-admin-overview-card {
+  display: grid;
+  gap: 8px;
+}
+
+.users-admin-overview-card strong {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.users-admin-context-card {
+  display: grid;
+  grid-column: span 2;
+  gap: 12px;
+}
+
+.users-admin-row-actions,
+.users-admin-detail-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.users-detail-shell {
+  display: grid;
+  gap: 24px;
+}
+
+.users-detail-topbar {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.users-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(340px, 1.1fr) minmax(280px, 0.9fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.users-detail-note-list {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.users-detail-note-card {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(245, 248, 244, 0.95);
+}
+
+.users-detail-note-card strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--color-ink);
+}
+
+@media (max-width: 1180px) {
+  .users-admin-dashboard,
+  .users-detail-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .users-admin-context-card,
+  .users-detail-side-card {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 980px) {
+  .users-admin-dashboard,
+  .users-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.profile-form-grid textarea {
+  width: 100%;
+  min-height: 150px;
+  padding: 0.9rem 1rem;
+  border: 1px solid #d1dfd5;
+  border-radius: 16px;
+  background: #ffffff;
+  color: var(--text-main);
+  font: inherit;
+  resize: vertical;
+}
+
+.profile-form-grid label span {
+  color: var(--text-main);
+}
+
+.profile-form-grid label > span + span {
+  color: #b13838;
+  font-size: 0.86rem;
+}

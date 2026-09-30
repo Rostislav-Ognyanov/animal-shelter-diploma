@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-export const DEFAULT_MONGO_URI = 'mongodb://127.0.0.1:27017/animal_shelter';
+export const DEFAULT_MONGO_URI = 'mongodb://127.0.0.1:27017/animal_shelter?replicaSet=rs0';
 
 export function getConfiguredMongoUri() {
   if (process.env.DB_URL !== undefined) {

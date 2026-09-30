@@ -1,6 +1,18 @@
 ﻿import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
+import {
+  USER_EMAIL_MAX_LENGTH,
+  USER_FIRST_NAME_MAX_LENGTH,
+  USER_LAST_NAME_MAX_LENGTH,
+  USER_PASSWORD_MAX_LENGTH,
+  USER_PASSWORD_MIN_LENGTH,
+  USERNAME_HTML_PATTERN,
+  USERNAME_MAX_LENGTH,
+  USERNAME_MIN_LENGTH,
+} from '../../../../shared/domain/userConstants.js';
+
+import { getAuthRedirectPath } from '../../auth/authNavigation.js';
 import { useAuth } from '../../auth/AuthProvider.jsx';
 import { AuthPageLayout } from '../../components/layout/AuthPageLayout.jsx';
 
@@ -16,7 +28,10 @@ const INITIAL_FORM = {
 
 export function RegisterPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { register } = useAuth();
+  const redirectTarget = location.state?.from;
+  const redirectPath = getAuthRedirectPath(redirectTarget);
 
   const [formState, setFormState] = useState(INITIAL_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,7 +73,7 @@ export function RegisterPage() {
         acceptTerms: formState.acceptTerms,
       });
 
-      navigate('/', { replace: true });
+      navigate(redirectPath, { replace: true });
     } catch (error) {
       setErrorMessage(error.message);
     } finally {
@@ -70,12 +85,16 @@ export function RegisterPage() {
     <AuthPageLayout
       kicker="Регистрация"
       title="Създай клиентски профил"
-      description="Попълни основните данни и ще активираме нов клиентски достъп в платформата."
+      description="Попълни основните данни, за да създадеш клиентски профил и да използваш всички възможности на платформата."
       supportLinks={
         <>
           <p>
             Вече имаш профил?{' '}
-            <Link to="/login" className="auth-text-link">
+            <Link
+              to="/login"
+              state={redirectTarget ? { from: redirectTarget } : undefined}
+              className="auth-text-link"
+            >
               Вход
             </Link>
           </p>
@@ -99,6 +118,8 @@ export function RegisterPage() {
               value={formState.firstName}
               onChange={(event) => updateField('firstName', event.target.value)}
               placeholder="Въведи име"
+              maxLength={USER_FIRST_NAME_MAX_LENGTH}
+              required
             />
           </label>
 
@@ -111,6 +132,8 @@ export function RegisterPage() {
               value={formState.lastName}
               onChange={(event) => updateField('lastName', event.target.value)}
               placeholder="Въведи фамилия"
+              maxLength={USER_LAST_NAME_MAX_LENGTH}
+              required
             />
           </label>
         </div>
@@ -124,6 +147,10 @@ export function RegisterPage() {
             value={formState.username}
             onChange={(event) => updateField('username', event.target.value)}
             placeholder="Избери потребителско име"
+            minLength={USERNAME_MIN_LENGTH}
+            maxLength={USERNAME_MAX_LENGTH}
+            pattern={USERNAME_HTML_PATTERN}
+            required
           />
         </label>
 
@@ -136,6 +163,8 @@ export function RegisterPage() {
             value={formState.email}
             onChange={(event) => updateField('email', event.target.value)}
             placeholder="Въведи имейл адрес"
+            maxLength={USER_EMAIL_MAX_LENGTH}
+            required
           />
         </label>
 
@@ -149,6 +178,9 @@ export function RegisterPage() {
               value={formState.password}
               onChange={(event) => updateField('password', event.target.value)}
               placeholder="Създай парола"
+              minLength={USER_PASSWORD_MIN_LENGTH}
+              maxLength={USER_PASSWORD_MAX_LENGTH}
+              required
             />
             <button
               type="button"
@@ -158,6 +190,9 @@ export function RegisterPage() {
               {showPassword ? 'Скрий' : 'Покажи'}
             </button>
           </div>
+          <small className="auth-field-helper">
+            Мин. {USER_PASSWORD_MIN_LENGTH} символа, буква и цифра.
+          </small>
         </label>
 
         <label>
@@ -170,6 +205,9 @@ export function RegisterPage() {
               value={formState.confirmPassword}
               onChange={(event) => updateField('confirmPassword', event.target.value)}
               placeholder="Повтори паролата"
+              minLength={USER_PASSWORD_MIN_LENGTH}
+              maxLength={USER_PASSWORD_MAX_LENGTH}
+              required
             />
             <button
               type="button"
@@ -187,10 +225,11 @@ export function RegisterPage() {
               type="checkbox"
               checked={formState.acceptTerms}
               onChange={(event) => updateField('acceptTerms', event.target.checked)}
+              required
             />
             <span>
               Приемам{' '}
-              <Link to="/terms" target="_blank" rel="noreferrer">
+              <Link to="/obshti-uslovia" target="_blank" rel="noreferrer">
                 условията за ползване
               </Link>
             </span>
@@ -198,7 +237,7 @@ export function RegisterPage() {
         </div>
 
         {errorMessage ? (
-          <div className="auth-status auth-status-error" aria-live="polite">
+          <div className="feedback-message feedback-message-error" aria-live="polite">
             {errorMessage}
           </div>
         ) : null}

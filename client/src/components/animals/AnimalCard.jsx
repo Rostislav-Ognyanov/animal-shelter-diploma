@@ -1,4 +1,4 @@
-﻿import { Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 import { FavoriteToggleButton } from './FavoriteToggleButton.jsx';
 import { AnimalImage } from './AnimalImage.jsx';
@@ -6,12 +6,12 @@ import { AnimalStatusBadge } from './AnimalStatusBadge.jsx';
 
 export function AnimalCard({ animal, showManageLink = false }) {
   const visibleName = animal.displayName ?? animal.name;
-  const description = animal.description ?? animal.shortDescription ?? 'Очаква описание от екипа на приюта.';
+  const description = animal.description ?? 'Очаква описание от екипа на приюта.';
 
   return (
     <article className="animal-card">
       <div className="animal-card-media">
-        <AnimalImage src={animal.imageUrl ?? animal.image} alt={visibleName} />
+        <AnimalImage src={animal.imageUrl} species={animal.species} alt={visibleName} />
         <FavoriteToggleButton animal={animal} variant="card" className="animal-card-favorite-toggle" />
       </div>
 

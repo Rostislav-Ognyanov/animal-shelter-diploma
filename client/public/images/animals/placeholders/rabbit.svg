@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-label="Rabbit placeholder">
+  <rect width="320" height="240" fill="#f2f8f4"/>
+  <circle cx="258" cy="60" r="38" fill="#dceee4"/>
+  <ellipse cx="172" cy="151" rx="80" ry="48" fill="#2f6f4e"/>
+  <circle cx="106" cy="116" r="38" fill="#3d7a57"/>
+  <ellipse cx="88" cy="61" rx="15" ry="52" fill="#6d8f77" transform="rotate(-12 88 61)"/>
+  <ellipse cx="119" cy="60" rx="15" ry="52" fill="#6d8f77" transform="rotate(12 119 60)"/>
+  <circle cx="94" cy="112" r="5" fill="#f7fbf8"/>
+  <circle cx="118" cy="112" r="5" fill="#f7fbf8"/>
+  <path d="M104 127c5 4 10 4 15 0" fill="none" stroke="#f7fbf8" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="246" cy="143" r="16" fill="#6d8f77"/>
+  <path d="M136 195v-23M195 195v-23" stroke="#2f6f4e" stroke-width="13" stroke-linecap="round"/>
+</svg>

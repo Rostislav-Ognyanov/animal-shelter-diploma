@@ -1,14 +1,16 @@
-﻿import 'dotenv/config';
+import 'dotenv/config';
 
 import mongoose from 'mongoose';
 
 import { connectToDatabase } from '../config/db.js';
 import AdoptionRequest from '../models/AdoptionRequest.js';
 import Animal from '../models/Animal.js';
+import Favorite from '../models/Favorite.js';
 import User from '../models/User.js';
 import { hashPassword } from '../modules/auth/auth.security.js';
 import { DEMO_ANIMALS } from '../seeds/demoAnimals.js';
 
+// Fixed identities and timestamps make reruns deterministic while covering representative roles and workflows.
 const DEMO_NOW = '2026-04-23T09:00:00.000Z';
 const INACTIVE_ANIMAL_STATUSES = new Set(['inactive', 'archived']);
 
@@ -162,6 +164,40 @@ const DEMO_ADOPTION_BLUEPRINTS = [
   },
 ];
 
+function buildDemoAdoptionDetails(blueprint) {
+  const usesHouse = blueprint.animalSlug.includes('dog');
+
+  return {
+    housingType: usesHouse ? 'house' : 'apartment',
+    housingTypeOther: '',
+    hasYard: usesHouse,
+    yardSecurity: usesHouse ? 'secured' : null,
+    animalLivingPlace: usesHouse ? 'mostly-indoors' : 'indoors',
+    animalLivingPlaceOther: '',
+    householdMembersCount: usesHouse ? 4 : 2,
+    hasAnimalAllergies: 'no',
+    hasOtherPets: usesHouse,
+    otherPets: usesHouse
+      ? [
+          {
+            species: 'dog',
+            otherSpecies: '',
+            sex: 'female',
+            neuteringStatus: 'yes',
+            vaccinationStatus: 'yes',
+            approximateAge: '5 години',
+          },
+        ]
+      : [],
+    hasPreviousPetExperience: true,
+    previousPetExperienceDetails: usesHouse
+      ? 'Семейството има предишен опит с кучета и ежедневни разходки.'
+      : 'Кандидатът има предишен опит с домашни котки.',
+    acceptsUnexpectedMedicalCosts: blueprint.status !== 'cancelled',
+    animalTransport: usesHouse ? 'own' : 'can-arrange',
+  };
+}
+
 function normalizeLookup(value) {
   return String(value ?? '').trim().toLowerCase();
 }
@@ -262,11 +298,36 @@ function createAdoptionRequests(demoUsers, demoAnimals) {
       status: blueprint.status,
       motivation: blueprint.motivation,
       contactPhone: blueprint.contactPhone,
+      ...buildDemoAdoptionDetails(blueprint),
       internalNotes: blueprint.internalNotes,
       createdAt: blueprint.createdAt,
       updatedAt: blueprint.updatedAt,
     };
   });
+}
+
+function buildDemoAdoptionStatusHistory(adoptionRequest) {
+  const statusHistory = [
+    {
+      fromStatus: '',
+      toStatus: 'pending',
+      changedBy: null,
+      changedByName: 'Demo seed',
+      changedAt: adoptionRequest.createdAt,
+    },
+  ];
+
+  if (adoptionRequest.status !== 'pending') {
+    statusHistory.push({
+      fromStatus: 'pending',
+      toStatus: adoptionRequest.status,
+      changedBy: null,
+      changedByName: 'Demo seed',
+      changedAt: adoptionRequest.updatedAt,
+    });
+  }
+
+  return statusHistory;
 }
 
 async function upsertMongoDemoUsers(demoUsers) {
@@ -288,10 +349,11 @@ async function upsertMongoDemoUsers(demoUsers) {
         lastLoginAt: null,
       },
       {
-        new: true,
+        returnDocument: 'after',
         upsert: true,
         runValidators: true,
         setDefaultsOnInsert: true,
+        strict: false,
       }
     );
 
@@ -308,30 +370,31 @@ async function upsertMongoDemoAnimals(demoAnimals) {
     const updatedAnimal = await Animal.findOneAndUpdate(
       { slug: animal.slug },
       {
-        slug: animal.slug,
-        name: animal.name,
-        displayName: animal.displayName ?? '',
-        species: animal.species,
-        breed: animal.breed,
-        age: Number(animal.age ?? 0),
-        gender: animal.gender,
-        size: animal.size,
-        status: animal.status,
-        isActive: animal.isActive,
-        intakeDate: animal.intakeDate,
-        healthStatus: animal.healthStatus,
-        healthCareItems: Array.isArray(animal.healthCareItems) ? animal.healthCareItems : [],
-        vaccinated: animal.vaccinated ?? false,
-        neutered: animal.neutered ?? false,
-        description: animal.description,
-        story: animal.story ?? '',
-        historyAndCharacter: animal.historyAndCharacter ?? '',
-        details: animal.details ?? '',
-        careConditions: animal.careConditions ?? '',
-        imageUrls: animal.imageUrls,
+        $set: {
+          slug: animal.slug,
+          name: animal.name,
+          displayName: animal.displayName ?? '',
+          species: animal.species,
+          breed: animal.breed,
+          age: Number(animal.age ?? 0),
+          gender: animal.gender,
+          size: animal.size,
+          status: animal.status,
+          isActive: animal.isActive,
+          intakeDate: animal.intakeDate,
+          healthStatus: animal.healthStatus,
+          vaccinated: animal.vaccinated ?? false,
+          neutered: animal.neutered ?? false,
+          description: animal.description,
+          story: animal.story ?? '',
+          historyAndCharacter: animal.historyAndCharacter ?? '',
+          details: animal.details ?? '',
+          careConditions: animal.careConditions ?? '',
+          imageUrls: animal.imageUrls,
+        },
       },
       {
-        new: true,
+        returnDocument: 'after',
         upsert: true,
         runValidators: true,
         setDefaultsOnInsert: true,
@@ -359,6 +422,10 @@ async function seedMongoDemoData(demoUsers, demoAnimals, demoAdoptions) {
     animal: { $in: demoAnimalIds },
   });
 
+  await Favorite.deleteMany({
+    userId: { $in: demoUserIds },
+  });
+
   await AdoptionRequest.insertMany(
     demoAdoptions.map((adoptionRequest) => {
       const userDocument = userDocumentsByDemoId.get(adoptionRequest.userId);
@@ -370,6 +437,20 @@ async function seedMongoDemoData(demoUsers, demoAnimals, demoAdoptions) {
         status: adoptionRequest.status,
         motivation: adoptionRequest.motivation,
         contactPhone: adoptionRequest.contactPhone,
+        housingType: adoptionRequest.housingType,
+        housingTypeOther: adoptionRequest.housingTypeOther,
+        hasYard: adoptionRequest.hasYard,
+        yardSecurity: adoptionRequest.yardSecurity,
+        animalLivingPlace: adoptionRequest.animalLivingPlace,
+        animalLivingPlaceOther: adoptionRequest.animalLivingPlaceOther,
+        householdMembersCount: adoptionRequest.householdMembersCount,
+        hasAnimalAllergies: adoptionRequest.hasAnimalAllergies,
+        hasOtherPets: adoptionRequest.hasOtherPets,
+        otherPets: adoptionRequest.otherPets,
+        hasPreviousPetExperience: adoptionRequest.hasPreviousPetExperience,
+        previousPetExperienceDetails: adoptionRequest.previousPetExperienceDetails,
+        acceptsUnexpectedMedicalCosts: adoptionRequest.acceptsUnexpectedMedicalCosts,
+        animalTransport: adoptionRequest.animalTransport,
         internalNotes: adoptionRequest.internalNotes.map((note) => {
           const authorDocument = userDocumentsByDemoId.get(note.authorId);
 
@@ -380,6 +461,7 @@ async function seedMongoDemoData(demoUsers, demoAnimals, demoAdoptions) {
             createdAt: note.createdAt,
           };
         }),
+        statusHistory: buildDemoAdoptionStatusHistory(adoptionRequest),
         createdAt: adoptionRequest.createdAt,
         updatedAt: adoptionRequest.updatedAt,
       };
@@ -412,6 +494,7 @@ async function seedDemoData() {
   console.log(
     `MongoDB demo seed complete. Users: ${mongoResult.users}, animals: ${mongoResult.animals}, adoption requests: ${mongoResult.adoptions}.`
   );
+  console.log('Demo favorites for seeded users were cleared so old slug-based records are not reused.');
 
   printCredentials();
 }

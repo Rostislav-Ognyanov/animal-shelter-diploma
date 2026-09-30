@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/AuthProvider.jsx';
@@ -9,10 +9,128 @@ import {
   getAdoptionStatusGuidance,
   getAdoptionStatusLabel,
   getAdoptionStatusTransitions,
+  getAnimalAllergyLabel,
   getAnimalDisplayName,
+  getAnimalLivingPlaceLabel,
+  getAnimalTransportLabel,
+  getCareStatusLabel,
+  getHousingTypeLabel,
+  getOtherPetSpeciesLabel,
+  getPetSexLabel,
   getUserDisplayName,
+  getYardSecurityLabel,
+  getYesNoLabel,
   isStaffRole,
 } from './adoptionUi.js';
+import { ADOPTION_TEXT_LIMITS } from '../../../../shared/domain/adoptionConstants.js';
+
+const CONFIRM_STATUS_VALUES = new Set(['approved', 'rejected', 'cancelled', 'completed']);
+
+function getStatusConfirmation(status) {
+  switch (status) {
+    case 'approved':
+      return {
+        title: 'Одобряване на заявка',
+        description: 'Одобряването потвърждава, че кандидатът може да продължи към финалните стъпки по осиновяването.',
+        confirmLabel: 'Одобри заявката',
+        tone: 'default',
+      };
+    case 'rejected':
+      return {
+        title: 'Отхвърляне на заявка',
+        description: 'Заявката ще бъде приключена с отказ и клиентът ще вижда този статус в профила си.',
+        confirmLabel: 'Отхвърли заявката',
+        tone: 'danger',
+      };
+    case 'cancelled':
+      return {
+        title: 'Отмяна на заявка',
+        description: 'Заявката ще бъде отменена служебно и няма да участва в активния процес по осиновяване.',
+        confirmLabel: 'Отмени заявката',
+        tone: 'danger',
+      };
+    case 'completed':
+      return {
+        title: 'Завършване на осиновяване',
+        description: 'Завършването на заявката ще отбележи животното като осиновено.',
+        confirmLabel: 'Завърши осиновяването',
+        tone: 'default',
+      };
+    default:
+      return null;
+  }
+}
+
+function formatOptionalValue(value) {
+  const normalizedValue = String(value ?? '').trim();
+  return normalizedValue || 'Няма данни';
+}
+
+function DetailInfoList({ items }) {
+  return (
+    <dl className="adoptions-info-list">
+      {items.map((item) => (
+        <div key={item.label}>
+          <dt>{item.label}</dt>
+          <dd>{item.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function OtherPetsList({ pets = [] }) {
+  if (!Array.isArray(pets) || pets.length === 0) {
+    return <p className="adoptions-muted-note">Не са посочени други животни в дома.</p>;
+  }
+
+  return (
+    <div className="adoptions-pet-list">
+      {pets.map((pet, index) => (
+        <article key={`${pet.species}-${index}`} className="adoptions-pet-card">
+          <div className="adoptions-pet-card-heading">
+            <strong>{getOtherPetSpeciesLabel(pet.species, pet.otherSpecies)}</strong>
+            {pet.approximateAge ? <span>{pet.approximateAge}</span> : null}
+          </div>
+          <DetailInfoList
+            items={[
+              { label: 'Пол', value: getPetSexLabel(pet.sex) },
+              { label: 'Кастрация', value: getCareStatusLabel(pet.neuteringStatus) },
+              { label: 'Ваксинации', value: getCareStatusLabel(pet.vaccinationStatus) },
+            ]}
+          />
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function StatusHistoryList({ entries = [] }) {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return <p>Няма записана история на статусите.</p>;
+  }
+
+  return (
+    <div className="adoptions-notes-list">
+      {entries.map((entry, index) => {
+        const fromLabel = entry.fromStatus ? getAdoptionStatusLabel(entry.fromStatus) : 'Създадена';
+        const toLabel = getAdoptionStatusLabel(entry.toStatus);
+
+        return (
+          <div key={`${entry.changedAt}-${index}`} className="adoptions-note-entry">
+            <div className="adoptions-note-meta">
+              <strong>
+                {fromLabel} → {toLabel}
+              </strong>
+              <span>{entry.changedByName || 'Система'}</span>
+            </div>
+            <small>{formatAdoptionDate(entry.changedAt)}</small>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export function AdoptionRequestDetailsPage() {
   const { requestId } = useParams();
@@ -33,6 +151,7 @@ export function AdoptionRequestDetailsPage() {
     success: '',
   });
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [pendingStatusSubmission, setPendingStatusSubmission] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -75,24 +194,20 @@ export function AdoptionRequestDetailsPage() {
       ? '/admin/adoptions'
       : '/staff/adoptions'
     : '/adoptions/my';
+  const adoptionMotivation = request?.motivation || '';
+  const statusConfirmation = getStatusConfirmation(pendingStatusSubmission?.status);
 
-  async function handleStatusSubmit(event) {
-    event.preventDefault();
-
-    if (!statusForm.status) {
-      setSubmitState({ isSubmitting: false, error: 'Избери нов статус.', success: '' });
-      return;
-    }
-
+  async function submitStatusChange(nextForm) {
     try {
       setSubmitState({ isSubmitting: true, error: '', success: '' });
       const updatedRequest = await patchJson(`/api/adoptions/${requestId}/status`, {
-        status: statusForm.status,
-        internalNote: statusForm.internalNote,
+        status: nextForm.status,
+        internalNote: nextForm.internalNote,
       });
 
       setPageState((currentValue) => ({ ...currentValue, item: updatedRequest }));
       setStatusForm({ status: '', internalNote: '' });
+      setPendingStatusSubmission(null);
       setSubmitState({
         isSubmitting: false,
         error: '',
@@ -100,7 +215,29 @@ export function AdoptionRequestDetailsPage() {
       });
     } catch (error) {
       setSubmitState({ isSubmitting: false, error: error.message, success: '' });
+      setPendingStatusSubmission(null);
     }
+  }
+
+  function handleStatusSubmit(event) {
+    event.preventDefault();
+
+    const nextForm = {
+      status: statusForm.status,
+      internalNote: statusForm.internalNote,
+    };
+
+    if (!nextForm.status) {
+      setSubmitState({ isSubmitting: false, error: 'Избери нов статус.', success: '' });
+      return;
+    }
+
+    if (CONFIRM_STATUS_VALUES.has(nextForm.status)) {
+      setPendingStatusSubmission(nextForm);
+      return;
+    }
+
+    submitStatusChange(nextForm);
   }
 
   async function handleCancel() {
@@ -140,7 +277,7 @@ export function AdoptionRequestDetailsPage() {
           <p>{pageState.error}</p>
           <button
             type="button"
-            className="animals-primary-action"
+            className="app-primary-action"
             onClick={() => setReloadToken((currentValue) => currentValue + 1)}
           >
             Опитай отново
@@ -150,21 +287,50 @@ export function AdoptionRequestDetailsPage() {
     );
   }
 
+  const progressMetaItems = canManageRequest
+    ? [
+        { label: 'Текущ статус', value: getAdoptionStatusLabel(request.status) },
+        { label: 'Подадена', value: formatAdoptionDate(request.createdAt) },
+        { label: 'Последна промяна', value: formatAdoptionDate(request.updatedAt) },
+      ]
+    : [{ label: 'Последна промяна', value: formatAdoptionDate(request.updatedAt) }];
+  const requestInfoItems = canManageRequest
+    ? [
+        {
+          label: 'Животно',
+          value: <Link to={`/animals/${request.animalId}`}>{getAnimalDisplayName(request.animal)}</Link>,
+        },
+        { label: 'Клиент', value: getUserDisplayName(request.user) },
+        { label: 'Имейл', value: formatOptionalValue(request.user?.email) },
+        { label: 'Телефон', value: formatOptionalValue(request.contactPhone) },
+        { label: 'Статус', value: getAdoptionStatusLabel(request.status) },
+        { label: 'Създадена', value: formatAdoptionDate(request.createdAt) },
+        { label: 'Последна промяна', value: formatAdoptionDate(request.updatedAt) },
+      ]
+    : [
+        {
+          label: 'Животно',
+          value: <Link to={`/animals/${request.animalId}`}>{getAnimalDisplayName(request.animal)}</Link>,
+        },
+        { label: 'Имейл за контакт', value: formatOptionalValue(request.user?.email) },
+        { label: 'Телефон за контакт', value: formatOptionalValue(request.contactPhone) },
+      ];
+
   return (
     <main className="route-shell adoptions-shell">
       <div className="route-actions">
-        <Link className="animals-secondary-action" to={requestListPath}>
+        <Link className="app-secondary-action" to={requestListPath}>
           Към списъка със заявки
         </Link>
-        <Link className="animals-primary-action" to={`/animals/${request.animalId}`}>
+        <Link className="app-primary-action" to={`/animals/${request.animalId}`}>
           Към животното
         </Link>
       </div>
 
       <section className="adoptions-hero">
         <div>
-                    <h1>Заявка за {getAnimalDisplayName(request.animal)}</h1>
-          <p>{request.motivation}</p>
+          <h1>Заявка за {getAnimalDisplayName(request.animal)}</h1>
+          <p>Преглед на подадената информация, условията и текущия статус на заявката.</p>
         </div>
 
         <div className="adoptions-detail-status">
@@ -175,59 +341,106 @@ export function AdoptionRequestDetailsPage() {
         </div>
       </section>
 
-      {submitState.error ? <div className="auth-status auth-status-error">{submitState.error}</div> : null}
-      {submitState.success ? <div className="auth-status auth-status-info">{submitState.success}</div> : null}
+      {submitState.error ? <div className="feedback-message feedback-message-error">{submitState.error}</div> : null}
+      {submitState.success ? <div className="feedback-message feedback-message-info">{submitState.success}</div> : null}
 
       <section className="adoptions-detail-grid">
         <article className="adoptions-card adoptions-progress-card">
           <h2>Текущ етап</h2>
           <p>{statusGuidance}</p>
           <div className="adoptions-progress-meta">
-            <div>
-              <strong>Текущ статус</strong>
-              <span>{getAdoptionStatusLabel(request.status)}</span>
-            </div>
-            <div>
-              <strong>Подадена</strong>
-              <span>{formatAdoptionDate(request.createdAt)}</span>
-            </div>
-            <div>
-              <strong>Последна промяна</strong>
-              <span>{formatAdoptionDate(request.updatedAt)}</span>
-            </div>
+            {progressMetaItems.map((item) => (
+              <div key={item.label}>
+                <strong>{item.label}</strong>
+                <span>{item.value}</span>
+              </div>
+            ))}
           </div>
         </article>
 
         <article className="adoptions-card">
           <h2>Данни за заявката</h2>
-          <dl className="adoptions-info-list">
-            <div>
-              <dt>Животно</dt>
-              <dd>
-                <Link to={`/animals/${request.animalId}`}>{getAnimalDisplayName(request.animal)}</Link>
-              </dd>
+          <DetailInfoList items={requestInfoItems} />
+        </article>
+
+        <article className="adoptions-card adoptions-detail-wide">
+          <h2>Жилищни условия</h2>
+          <DetailInfoList
+            items={[
+              {
+                label: 'Тип жилище',
+                value:
+                  request.housingType === 'other'
+                    ? formatOptionalValue(request.housingTypeOther)
+                    : getHousingTypeLabel(request.housingType),
+              },
+              {
+                label: 'Двор',
+                value: request.housingType === 'house' ? getYesNoLabel(request.hasYard) : 'Не е приложимо',
+              },
+              {
+                label: 'Обезопасен двор',
+                value: request.hasYard ? getYardSecurityLabel(request.yardSecurity) : 'Не е приложимо',
+              },
+              {
+                label: 'Място за животното',
+                value:
+                  request.animalLivingPlace === 'other'
+                    ? formatOptionalValue(request.animalLivingPlaceOther)
+                    : getAnimalLivingPlaceLabel(request.animalLivingPlace),
+              },
+            ]}
+          />
+        </article>
+
+        <article className="adoptions-card adoptions-detail-wide">
+          <h2>Домакинство</h2>
+          <DetailInfoList
+            items={[
+              {
+                label: 'Постоянно живеещи хора',
+                value:
+                  request.householdMembersCount || request.householdMembersCount === 0
+                    ? `${request.householdMembersCount}`
+                    : 'Няма данни',
+              },
+              { label: 'Човек с алергии към животни', value: getAnimalAllergyLabel(request.hasAnimalAllergies) },
+              { label: 'Други животни', value: getYesNoLabel(request.hasOtherPets) },
+            ]}
+          />
+          {request.hasOtherPets ? <OtherPetsList pets={request.otherPets} /> : null}
+        </article>
+
+        <article className="adoptions-card adoptions-detail-wide">
+          <h2>Опит и готовност</h2>
+          <DetailInfoList
+            items={[
+              { label: 'Предишен опит', value: getYesNoLabel(request.hasPreviousPetExperience) },
+              {
+                label: 'Непредвидени ветеринарномедицински разходи',
+                value: getYesNoLabel(request.acceptsUnexpectedMedicalCosts),
+              },
+              { label: 'Транспорт', value: getAnimalTransportLabel(request.animalTransport) },
+            ]}
+          />
+          {request.previousPetExperienceDetails ? (
+            <div className="adoptions-detail-copy-block">
+              <strong>Допълнение за опита</strong>
+              <p>{request.previousPetExperienceDetails}</p>
             </div>
-            <div>
-              <dt>Клиент</dt>
-              <dd>{getUserDisplayName(request.user)}</dd>
+          ) : null}
+          {adoptionMotivation ? (
+            <div className="adoptions-detail-copy-block">
+              <strong>Мотивация</strong>
+              <p>{adoptionMotivation}</p>
             </div>
-            <div>
-              <dt>Телефон</dt>
-              <dd>{request.contactPhone}</dd>
-            </div>
-            <div>
-              <dt>Статус</dt>
-              <dd>{getAdoptionStatusLabel(request.status)}</dd>
-            </div>
-            <div>
-              <dt>Създадена</dt>
-              <dd>{formatAdoptionDate(request.createdAt)}</dd>
-            </div>
-            <div>
-              <dt>Последна промяна</dt>
-              <dd>{formatAdoptionDate(request.updatedAt)}</dd>
-            </div>
-          </dl>
+          ) : null}
+          {canManageRequest && request.acceptsUnexpectedMedicalCosts === false ? (
+            <p className="adoptions-warning-note">
+              Кандидатът не е потвърдил готовност за непредвидени ветеринарномедицински разходи.
+              Това не блокира заявката, но е добре да бъде обсъдено при следващ контакт.
+            </p>
+          ) : null}
         </article>
 
         {canManageRequest ? (
@@ -243,7 +456,7 @@ export function AdoptionRequestDetailsPage() {
                     setStatusForm((currentValue) => ({ ...currentValue, status: event.target.value }))
                   }
                 >
-                  <option value="">
+                  <option value="" disabled>
                     {transitions.length > 0 ? 'Избери статус' : 'Няма разрешени преходи'}
                   </option>
                   {transitions.map((status) => (
@@ -258,6 +471,7 @@ export function AdoptionRequestDetailsPage() {
                 Вътрешна бележка
                 <textarea
                   value={statusForm.internalNote}
+                  maxLength={ADOPTION_TEXT_LIMITS.internalNote}
                   placeholder="Кратка служебна бележка към промяната, ако е нужна."
                   disabled={submitState.isSubmitting}
                   onChange={(event) =>
@@ -268,7 +482,7 @@ export function AdoptionRequestDetailsPage() {
 
               <button
                 type="submit"
-                className="animals-primary-action"
+                className="app-primary-action"
                 disabled={transitions.length === 0 || submitState.isSubmitting}
               >
                 {submitState.isSubmitting ? 'Запис...' : 'Запази статуса'}
@@ -278,17 +492,24 @@ export function AdoptionRequestDetailsPage() {
         ) : null}
 
         {canCancelOwnPending ? (
-          <article className="adoptions-card">
+          <article className="adoptions-card adoptions-detail-wide">
             <h2>Отмяна</h2>
             <p>Само при статус „В очакване“.</p>
             <button
               type="button"
-              className="animals-secondary-action animal-danger-action"
+              className="app-secondary-action app-danger-action"
               disabled={submitState.isSubmitting}
               onClick={() => setIsCancelDialogOpen(true)}
             >
               {submitState.isSubmitting ? 'Отмяна...' : 'Отмени заявката'}
             </button>
+          </article>
+        ) : null}
+
+        {canManageRequest ? (
+          <article className="adoptions-card adoptions-notes-card">
+            <h2>История на статусите</h2>
+            <StatusHistoryList entries={request.statusHistory} />
           </article>
         ) : null}
 
@@ -327,6 +548,26 @@ export function AdoptionRequestDetailsPage() {
         onClose={() => {
           if (!submitState.isSubmitting) {
             setIsCancelDialogOpen(false);
+          }
+        }}
+      />
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingStatusSubmission)}
+        title={statusConfirmation?.title ?? 'Промяна на статус'}
+        description={statusConfirmation?.description ?? 'Потвърди промяната на статуса на заявката.'}
+        confirmLabel={statusConfirmation?.confirmLabel ?? 'Потвърди'}
+        cancelLabel="Назад"
+        tone={statusConfirmation?.tone ?? 'default'}
+        isSubmitting={submitState.isSubmitting}
+        onConfirm={() => {
+          if (pendingStatusSubmission) {
+            submitStatusChange(pendingStatusSubmission);
+          }
+        }}
+        onClose={() => {
+          if (!submitState.isSubmitting) {
+            setPendingStatusSubmission(null);
           }
         }}
       />

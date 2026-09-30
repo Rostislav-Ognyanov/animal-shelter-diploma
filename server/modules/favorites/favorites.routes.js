@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 
 import { permissionMiddleware } from '../auth/auth.middleware.js';
 import {
@@ -11,6 +11,6 @@ const router = Router();
 
 router.get('/', permissionMiddleware('favorites', 'list-own'), listOwnFavorites);
 router.post('/:animalId', permissionMiddleware('favorites', 'create-own'), createFavoriteEntry);
-router.delete('/:animalId', permissionMiddleware('favorites', 'remove-own'), deleteFavoriteEntry);
+router.delete('/:favoriteId', permissionMiddleware('favorites', 'remove-own'), deleteFavoriteEntry);
 
 export default router;

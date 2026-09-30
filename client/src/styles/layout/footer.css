@@ -1,0 +1,134 @@
+footer {
+  flex-shrink: 0;
+  margin-top: 24px;
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.footer-container {
+  width: min(100%, var(--page-max-width));
+  margin: 0 auto;
+  padding: 3rem 24px;
+  display: grid;
+  grid-template-columns: minmax(220px, auto) minmax(0, 1fr) minmax(190px, auto) minmax(220px, auto);
+  align-items: start;
+  gap: 1.5rem;
+}
+
+.footer-brand-block {
+  display: grid;
+  gap: 0.7rem;
+  justify-items: start;
+}
+
+.footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.footer-brand img {
+  width: 42px;
+  border-radius: 14px;
+}
+
+.footer-nav {
+  justify-self: end;
+}
+
+.footer-nav ul {
+  list-style: none;
+  display: grid;
+  gap: 0.45rem;
+  justify-items: end;
+  margin: 0;
+  padding: 0;
+}
+
+.footer-nav li {
+  display: block;
+}
+
+.footer-nav a,
+.footer-links a {
+  display: inline-flex;
+  align-items: center;
+  padding-bottom: 0.2rem;
+  border-bottom: 2px solid transparent;
+  color: #ffffff;
+  font-weight: 400;
+  transition:
+    border-color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.footer-nav a:hover,
+.footer-links a:hover {
+  border-color: rgba(255, 255, 255, 0.85);
+  opacity: 0.95;
+}
+
+.footer-info {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.footer-info p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.footer-info a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.footer-links {
+  display: grid;
+  gap: 0.45rem;
+  justify-items: end;
+  margin-left: 8rem;
+}
+
+@media (max-width: 780px) {
+  .footer-container {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .footer-brand-block,
+  .footer-links {
+    justify-items: center;
+  }
+
+  .footer-links {
+    margin-left: 0;
+  }
+
+  .footer-spacer {
+    display: none;
+  }
+
+  .footer-info {
+    justify-self: center;
+    text-align: center;
+  }
+}
+
+.footer-social-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.75rem;
+}
+
+.footer-social-links a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

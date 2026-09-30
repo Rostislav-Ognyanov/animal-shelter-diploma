@@ -1,9 +1,9 @@
-﻿import { useState } from 'react';
+﻿import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { getRoleLabel } from '../../auth/roleUi.js';
 import { AnimalEntryForm } from '../../components/animals/AnimalEntryForm.jsx';
 import { createSuccessFeedback } from '../../lib/feedback.js';
+import { focusErrorFeedback, focusFirstInvalidField } from '../../lib/formFocus.js';
 import { postJson } from '../../lib/api.js';
 import {
   ANIMAL_FORM_VALIDATION_MESSAGE,
@@ -13,6 +13,7 @@ import {
 } from './animalFormConfig.js';
 
 export function CreateAnimalPage({ role }) {
+  const errorFeedbackRef = useRef(null);
   const [formValues, setFormValues] = useState(getInitialAnimalFormValues);
   const [formErrors, setFormErrors] = useState({});
   const [submitState, setSubmitState] = useState({
@@ -21,8 +22,6 @@ export function CreateAnimalPage({ role }) {
     success: '',
     createdAnimal: null,
   });
-
-  const pageRoleLabel = getRoleLabel(role);
 
   function handleFieldChange(field, value) {
     setFormValues((currentValue) => ({
@@ -64,6 +63,7 @@ export function CreateAnimalPage({ role }) {
         error: ANIMAL_FORM_VALIDATION_MESSAGE,
         success: '',
       }));
+      focusFirstInvalidField(event.currentTarget, validationErrors);
       return;
     }
 
@@ -93,26 +93,21 @@ export function CreateAnimalPage({ role }) {
         success: '',
         createdAnimal: null,
       });
+      focusErrorFeedback(errorFeedbackRef);
     }
   }
 
   return (
     <main className="route-shell animal-form-shell">
       <div className="animal-form-back-row">
-        <Link className="animals-secondary-action" to="/search">
+        <Link className="app-secondary-action" to="/animals">
           Към списъка с животни
         </Link>
       </div>
 
       <section className="animal-form-hero">
         <div>
-                    <h1>Създаване на ново животно</h1>
-
-        </div>
-
-        <div className="animal-form-hero-note">
-          <strong>Роля: {pageRoleLabel}</strong>
-          <span>Достъп само за служители и администратори.</span>
+          <h1>Създаване на ново животно</h1>
         </div>
       </section>
 
@@ -124,16 +119,25 @@ export function CreateAnimalPage({ role }) {
           </div>
         </div>
 
-        {submitState.error ? <div className="auth-status auth-status-error">{submitState.error}</div> : null}
+        {submitState.error ? (
+          <div
+            ref={errorFeedbackRef}
+            className="feedback-message feedback-message-error"
+            role="alert"
+            tabIndex={-1}
+          >
+            {submitState.error}
+          </div>
+        ) : null}
         {submitState.success ? (
-          <div className="auth-status auth-status-info animal-form-success-box">
+          <div className="feedback-message feedback-message-info animal-form-success-box">
             <div>
               <strong>{submitState.success}</strong>
               <p>Записът е готов и може да бъде отворен веднага.</p>
             </div>
             <div className="animal-form-success-actions">
               <Link
-                className="animals-primary-action"
+                className="app-primary-action"
                 to={`/animals/${submitState.createdAnimal?.id}`}
                 state={{
                   feedback: createSuccessFeedback(submitState.success),
@@ -141,7 +145,7 @@ export function CreateAnimalPage({ role }) {
               >
                 Виж детайли
               </Link>
-              <button type="button" className="animals-secondary-action" onClick={handleReset}>
+              <button type="button" className="app-secondary-action" onClick={handleReset}>
                 Нов запис
               </button>
             </div>
@@ -157,6 +161,7 @@ export function CreateAnimalPage({ role }) {
           submitLabel="Създай животно"
           resetLabel="Изчисти формата"
           isSubmitting={submitState.isSubmitting}
+          role={role}
         />
       </section>
     </main>

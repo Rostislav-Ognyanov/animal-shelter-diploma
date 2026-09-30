@@ -1,74 +1,44 @@
 ﻿import { createHttpError } from '../../utils/httpError.js';
-import { findUserById, serializePublicUser } from '../users/users.repository.js';
+import { findUserById, serializeUserView } from '../users/users.repository.js';
 import { hasPermission } from '../shared/rolePolicies.js';
 import { AUTH_COOKIE_NAME, getAuthCookieClearOptions, verifyAuthToken } from './auth.security.js';
 
-function parseCookies(cookieHeader = '') {
-  return cookieHeader
+function extractAuthToken(req) {
+  const authCookie = String(req.headers.cookie ?? '')
     .split(';')
     .map((chunk) => chunk.trim())
-    .filter(Boolean)
-    .reduce((cookieMap, chunk) => {
-      const separatorIndex = chunk.indexOf('=');
+    .find((chunk) => chunk.slice(0, chunk.indexOf('=')).trim() === AUTH_COOKIE_NAME);
 
-      if (separatorIndex === -1) {
-        return cookieMap;
-      }
-
-      const key = chunk.slice(0, separatorIndex).trim();
-      const value = chunk.slice(separatorIndex + 1).trim();
-      cookieMap[key] = decodeURIComponent(value);
-      return cookieMap;
-    }, {});
-}
-
-function extractBearerToken(authorizationHeader = '') {
-  const [scheme, token] = String(authorizationHeader).trim().split(/\s+/);
-
-  if (!/^Bearer$/i.test(scheme) || !token) {
-    return '';
+  if (!authCookie) {
+    return { token: '', isMalformed: false };
   }
 
-  return token;
-}
+  const encodedValue = authCookie.slice(authCookie.indexOf('=') + 1).trim();
 
-function extractAuthToken(req) {
-  const headerToken = extractBearerToken(req.headers.authorization);
-
-  if (headerToken) {
+  try {
     return {
-      token: headerToken,
-      source: 'header',
+      token: decodeURIComponent(encodedValue),
+      isMalformed: false,
     };
+  } catch {
+    return { token: '', isMalformed: true };
   }
-
-  const cookies = parseCookies(req.headers.cookie);
-  const cookieToken = cookies[AUTH_COOKIE_NAME] ?? '';
-
-  if (cookieToken) {
-    return {
-      token: cookieToken,
-      source: 'cookie',
-    };
-  }
-
-  return {
-    token: '',
-    source: null,
-  };
 }
 
 function resetAuthContext(req) {
   req.user = null;
-  req.authToken = '';
-  req.authTokenSource = null;
   req.authFailureReason = '';
 }
 
-function clearAuthCookieIfNeeded(res, authContext) {
-  if (authContext?.source === 'cookie') {
-    res.clearCookie(AUTH_COOKIE_NAME, getAuthCookieClearOptions());
-  }
+function clearAuthCookie(res) {
+  res.clearCookie(AUTH_COOKIE_NAME, getAuthCookieClearOptions());
+}
+
+function isAuthVersionValid(tokenPayload, user) {
+  const tokenVersion = Number(tokenPayload?.ver ?? 0);
+  const userVersion = Number(user?.authVersion ?? 0);
+
+  return Number.isInteger(tokenVersion) && tokenVersion === userVersion;
 }
 
 function buildUnauthorizedError(req) {
@@ -87,63 +57,64 @@ function buildUnauthorizedError(req) {
 }
 
 export async function attachCurrentUser(req, res, next) {
+  resetAuthContext(req);
+
+  const { token: authToken, isMalformed } = extractAuthToken(req);
+
+  if (isMalformed) {
+    req.authFailureReason = 'invalid';
+    clearAuthCookie(res);
+    return next();
+  }
+
+  if (!authToken) {
+    return next();
+  }
+
+  let tokenPayload = null;
+
   try {
-    resetAuthContext(req);
+    tokenPayload = verifyAuthToken(authToken);
+  } catch {
+    req.authFailureReason = 'invalid';
+    clearAuthCookie(res);
+    return next();
+  }
 
-    const authContext = extractAuthToken(req);
-
-    if (!authContext.token) {
-      return next();
-    }
-
-    const tokenPayload = verifyAuthToken(authContext.token);
+  try {
     const user = await findUserById(tokenPayload.sub);
 
     if (!user) {
       req.authFailureReason = 'invalid';
-      clearAuthCookieIfNeeded(res, authContext);
+      clearAuthCookie(res);
       return next();
     }
 
     if (!user.isActive) {
       req.authFailureReason = 'inactive';
-      clearAuthCookieIfNeeded(res, authContext);
+      clearAuthCookie(res);
       return next();
     }
 
-    req.user = serializePublicUser(user);
-    req.authToken = authContext.token;
-    req.authTokenSource = authContext.source;
+    if (!isAuthVersionValid(tokenPayload, user)) {
+      req.authFailureReason = 'invalid';
+      clearAuthCookie(res);
+      return next();
+    }
+
+    req.user = serializeUserView(user);
     return next();
-  } catch {
-    const authContext = extractAuthToken(req);
-    resetAuthContext(req);
-    req.authFailureReason = authContext.token ? 'invalid' : '';
-    clearAuthCookieIfNeeded(res, authContext);
-    return next();
+  } catch (error) {
+    return next(error);
   }
 }
 
-export function authMiddleware(req, res, next) {
+export function requireAuth(req, res, next) {
   if (!req.user) {
     return next(buildUnauthorizedError(req));
   }
 
   return next();
-}
-
-export function roleMiddleware(...allowedRoles) {
-  return (req, res, next) => {
-    if (!req.user) {
-      return next(buildUnauthorizedError(req));
-    }
-
-    if (!allowedRoles.includes(req.user.role)) {
-      return next(createHttpError(403, 'Нямаш необходимите права за този ресурс.'));
-    }
-
-    return next();
-  };
 }
 
 export function permissionMiddleware(resource, action) {
@@ -159,7 +130,3 @@ export function permissionMiddleware(resource, action) {
     return next();
   };
 }
-
-export const requireAuth = authMiddleware;
-export const requireRole = roleMiddleware;
-export const requirePermission = permissionMiddleware;

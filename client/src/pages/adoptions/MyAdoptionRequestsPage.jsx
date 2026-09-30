@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { ConfirmDialog } from '../../components/common/ConfirmDialog.jsx';
 import {
@@ -7,19 +7,36 @@ import {
   PaginationControls,
 } from '../../components/common/PaginationControls.jsx';
 import { createEmptyFeedback, createErrorFeedback, createSuccessFeedback } from '../../lib/feedback.js';
-import { fetchApi, patchJson } from '../../lib/api.js';
+import { fetchApiResponse, patchJson } from '../../lib/api.js';
 import {
   ADOPTION_STATUS_OPTIONS,
-  buildAdoptionStatusQuery,
+  buildAdoptionListQuery,
   formatAdoptionDate,
   getAdoptionStatusGuidance,
   getAdoptionStatusLabel,
   getAnimalDisplayName,
+  isAdoptionTerminalStatus,
 } from './adoptionUi.js';
 
 const OWN_ADOPTION_REQUESTS_PAGE_SIZE = 10;
 
+function readCreatedAdoptionNotice(locationState) {
+  const adoptionCreated = locationState?.adoptionCreated;
+  const animalName = String(adoptionCreated?.animalName ?? '').trim();
+
+  if (!animalName) {
+    return null;
+  }
+
+  return {
+    requestId: String(adoptionCreated.requestId ?? ''),
+    animalName,
+  };
+}
+
 export function MyAdoptionRequestsPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [reloadToken, setReloadToken] = useState(0);
@@ -31,8 +48,28 @@ export function MyAdoptionRequestsPage() {
     error: '',
   });
   const [feedback, setFeedback] = useState(createEmptyFeedback);
+  const [createdAdoptionNotice, setCreatedAdoptionNotice] = useState(() =>
+    readCreatedAdoptionNotice(location.state)
+  );
   const [cancellingId, setCancellingId] = useState('');
   const [requestToCancel, setRequestToCancel] = useState(null);
+
+  useEffect(() => {
+    if (!location.state?.adoptionCreated) {
+      return;
+    }
+
+    navigate(
+      {
+        pathname: location.pathname,
+        search: location.search,
+      },
+      {
+        replace: true,
+        state: null,
+      }
+    );
+  }, [location.pathname, location.search, location.state, navigate]);
 
   useEffect(() => {
     let isMounted = true;
@@ -40,8 +77,8 @@ export function MyAdoptionRequestsPage() {
     async function loadRequests() {
       try {
         setPageState((currentValue) => ({ ...currentValue, isLoading: true, error: '' }));
-        const payload = await fetchApi(
-          `/api/adoptions/my${buildAdoptionStatusQuery(
+        const payload = await fetchApiResponse(
+          `/api/adoptions/my${buildAdoptionListQuery(
             statusFilter,
             currentPage,
             OWN_ADOPTION_REQUESTS_PAGE_SIZE
@@ -92,6 +129,10 @@ export function MyAdoptionRequestsPage() {
   function handleStatusFilterChange(value) {
     setStatusFilter(value);
     setCurrentPage(1);
+  }
+
+  function clearStatusFilter() {
+    handleStatusFilterChange('');
   }
 
   function handlePageChange(nextPage) {
@@ -148,16 +189,34 @@ export function MyAdoptionRequestsPage() {
       </section>
 
       <div className="route-actions">
-        <Link className="animals-primary-action" to="/search">
+        <Link className="app-primary-action" to="/animals">
           Разгледай животните
         </Link>
-        <Link className="animals-secondary-action" to="/profile">
+        <Link className="app-secondary-action" to="/profile">
           Моят профил
         </Link>
       </div>
 
+      {createdAdoptionNotice ? (
+        <div className="feedback-message feedback-message-info adoption-created-feedback" role="status">
+          <div>
+            <strong>Заявката за {createdAdoptionNotice.animalName} е изпратена успешно.</strong>
+            <p>Екипът ще прегледа информацията и ще се свърже с теб при нужда от уточнения.</p>
+          </div>
+          <button
+            type="button"
+            className="adoption-created-feedback-dismiss"
+            aria-label="Затвори съобщението"
+            title="Затвори"
+            onClick={() => setCreatedAdoptionNotice(null)}
+          >
+            <span aria-hidden="true">×</span>
+          </button>
+        </div>
+      ) : null}
+
       {feedback.message ? (
-        <div className={`auth-status ${feedback.type === 'error' ? 'auth-status-error' : 'auth-status-info'}`}>
+        <div className={`feedback-message ${feedback.type === 'error' ? 'feedback-message-error' : 'feedback-message-info'}`}>
           {feedback.message}
         </div>
       ) : null}
@@ -176,7 +235,7 @@ export function MyAdoptionRequestsPage() {
             <p>{pageState.error}</p>
             <button
               type="button"
-              className="animals-primary-action"
+              className="app-primary-action"
               onClick={() => setReloadToken((currentValue) => currentValue + 1)}
             >
               Опитай отново
@@ -187,24 +246,40 @@ export function MyAdoptionRequestsPage() {
         {!pageState.isLoading && !pageState.error && pageState.items.length === 0 ? (
           <div className="adoptions-empty-state">
             <h2>{statusFilter ? 'Няма заявки по избрания статус' : 'Все още няма заявки'}</h2>
-            <p>
-              {statusFilter
-                ? 'Смени филтъра.'
-                : 'Подай заявка от страница на животно.'}
-            </p>
-            <Link className="animals-primary-action" to="/search">
-              Разгледай животните
-            </Link>
+            <p>{statusFilter ? 'Изчисти филтъра, за да видиш всички заявки.' : 'Подай заявка от страница на животно.'}</p>
+            {statusFilter ? (
+              <button type="button" className="app-primary-action" onClick={clearStatusFilter}>
+                Изчисти филтъра
+              </button>
+            ) : (
+              <Link className="app-primary-action" to="/animals">
+                Разгледай животните
+              </Link>
+            )}
           </div>
         ) : null}
 
         {!pageState.isLoading && !pageState.error && pageState.items.length > 0 ? (
-          <div className="adoptions-list">
+          <div
+            id="my-adoption-requests-results-start"
+            className="adoptions-list pagination-scroll-target"
+          >
             {pageState.items.map((request) => {
               const animalName = getAnimalDisplayName(request.animal);
 
               return (
-                <article key={request.id} className="adoption-request-card">
+                <article
+                  key={request.id}
+                  className={[
+                    'adoption-request-card',
+                    request.id === createdAdoptionNotice?.requestId ? 'is-newly-created' : '',
+                    isAdoptionTerminalStatus(request.status)
+                      ? 'workflow-list-item--terminal'
+                      : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                >
                   <div className="adoption-request-main">
                     <span className={`adoption-status is-${request.status}`}>
                       {getAdoptionStatusLabel(request.status)}
@@ -212,22 +287,22 @@ export function MyAdoptionRequestsPage() {
                     <h2>{animalName}</h2>
                     <p>{request.motivation}</p>
                     <small>Подадена на {formatAdoptionDate(request.createdAt)}</small>
-                    <p className="adoption-request-guidance">
+                    <p className="management-status-guidance">
                       {getAdoptionStatusGuidance(request.status)}
                     </p>
                   </div>
 
                   <div className="adoption-request-actions">
-                    <Link className="animals-primary-action" to={`/adoptions/${request.id}`}>
+                    <Link className="app-primary-action" to={`/adoptions/${request.id}`}>
                       Детайли
                     </Link>
-                    <Link className="animals-secondary-action" to={`/animals/${request.animalId}`}>
+                    <Link className="app-secondary-action" to={`/animals/${request.animalId}`}>
                       Животно
                     </Link>
                     {request.status === 'pending' ? (
                       <button
                         type="button"
-                        className="animals-secondary-action animal-danger-action"
+                        className="app-secondary-action app-danger-action"
                         disabled={cancellingId === request.id}
                         onClick={() => setRequestToCancel(request)}
                       >
@@ -241,13 +316,12 @@ export function MyAdoptionRequestsPage() {
           </div>
         ) : null}
 
-        {!pageState.isLoading && !pageState.error && pageState.items.length > 0 ? (
-          <PaginationControls
-            pagination={pageState.pagination}
-            isLoading={pageState.isLoading}
-            onPageChange={handlePageChange}
-          />
-        ) : null}
+        <PaginationControls
+          pagination={pageState.pagination}
+          isLoading={pageState.isLoading}
+          onPageChange={handlePageChange}
+          scrollTargetId="my-adoption-requests-results-start"
+        />
       </section>
 
       <ConfirmDialog

@@ -1,226 +1,96 @@
-﻿export const ROLE_VALUES = ['guest', 'client', 'employee', 'admin'];
-export const MANAGED_USER_ROLE_VALUES = ['client', 'employee', 'admin'];
+import {
+  MANAGED_USER_ROLE_VALUES,
+  ROLE_LABELS,
+  ROLE_VALUES,
+} from '../../../shared/domain/roleConstants.js';
 
-export const ROLE_LABELS = {
-  guest: 'Гост',
-  client: 'Клиент',
-  employee: 'Служител',
-  admin: 'Администратор',
-};
+export { MANAGED_USER_ROLE_VALUES, ROLE_LABELS, ROLE_VALUES };
 
-export const ADOPTION_REQUEST_STATUS_VALUES = [
-  'pending',
-  'under-review',
-  'approved',
-  'rejected',
-  'cancelled',
-  'completed',
-];
-
-export const ROLE_RULES = {
+const ROLE_RULES = {
   guest: {
     description: 'Нелогнат потребител с публичен достъп до платформата.',
-    permissions: {
-      home: ['view', 'view-shelter-info'],
-      animals: ['list', 'detail', 'filter-search'],
-      volunteers: ['apply'],
-      donations: ['create'],
-      rescueReports: ['create'],
-      auth: ['login', 'register'],
-    },
+    permissions: {},
   },
   client: {
     description: 'Регистриран публичен потребител с личен профил и достъп до осиновяване.',
     permissions: {
-      home: ['view', 'view-shelter-info'],
-      animals: ['list', 'detail', 'filter-search'],
-      volunteers: ['apply'],
-      donations: ['create'],
-      rescueReports: ['create'],
       profile: ['view-own', 'edit-own', 'change-own-password'],
+      notifications: ['list-own', 'mark-own-read'],
       favorites: ['list-own', 'create-own', 'remove-own'],
       adoptions: [
         'create-own-request',
         'list-own',
         'detail-own',
-        'track-own-status',
         'cancel-own-pending',
       ],
-      activity: ['view-own-history'],
-      auth: ['logout'],
     },
   },
   employee: {
-    description: 'Служител, създаден от администратор, с оперативни права върху животни и заявки.',
+    description:
+      'Служител, създаден от администратор, с оперативни права върху животни, заявки, запитвания и публично съдържание.',
     permissions: {
-      home: ['view', 'view-shelter-info'],
-      animals: ['list', 'detail', 'filter-search', 'create', 'edit', 'change-status', 'view-all'],
-      volunteers: ['apply', 'view-all', 'detail', 'update-status', 'add-notes'],
-      donations: ['create', 'view-all', 'detail'],
-      rescueReports: ['create', 'view-all', 'detail', 'update-status', 'add-notes'],
+      animals: ['view-all', 'create', 'edit', 'change-status'],
+      volunteers: ['view-all', 'detail', 'review'],
+      donations: ['view-all', 'detail'],
+      rescueReports: ['view-all', 'detail', 'review'],
+      contactInquiries: ['view-all', 'detail', 'update-status'],
       profile: ['view-own', 'edit-own', 'change-own-password'],
-      staff: ['access-service-area'],
-      content: ['view-all', 'view-detail', 'create', 'update', 'reorder', 'manage-images'],
+      notifications: ['list-own', 'mark-own-read'],
+      content: ['update'],
       speciesContent: ['view-draft', 'update'],
       rescueStories: ['view-all', 'create', 'update', 'archive'],
-      siteSettings: ['view'],
-      adoptions: [
-        'view-all',
-        'filter-by-status',
-        'update-status',
-        'process',
-        'add-internal-note',
-      ],
-      activity: ['view-own-history'],
-      reports: ['view-operational', 'animals-by-status', 'requests-by-status'],
-      auth: ['logout'],
+      adoptions: ['view-all', 'update-status'],
     },
   },
   admin: {
-    description: 'Администратор с пълен контрол върху системата и потребителите.',
+    description:
+      'Администратор с пълен контрол върху системата, потребителите, отчетите, настройките и съдържанието.',
     permissions: {
-      home: ['view', 'view-shelter-info'],
-      animals: [
-        'list',
-        'detail',
-        'filter-search',
-        'create',
-        'edit',
-        'change-status',
-        'view-all',
-        'deactivate',
-        'archive',
-        'full-access',
-      ],
-      volunteers: ['apply', 'view-all', 'detail', 'update-status', 'add-notes', 'full-access'],
-      donations: ['create', 'view-all', 'detail', 'full-access'],
-      rescueReports: ['create', 'view-all', 'detail', 'update-status', 'add-notes', 'full-access'],
+      animals: ['view-all', 'create', 'edit', 'change-status', 'deactivate'],
+      volunteers: ['view-all', 'detail', 'review'],
+      donations: ['view-all', 'detail', 'update-status'],
+      rescueReports: ['view-all', 'detail', 'review'],
+      contactInquiries: ['view-all', 'detail', 'update-status'],
       profile: ['view-own', 'edit-own', 'change-own-password'],
-      staff: ['access-service-area'],
-      content: [
+      notifications: ['list-own', 'mark-own-read'],
+      content: ['update', 'manage-settings', 'manage-legal'],
+      speciesContent: ['view-draft', 'update', 'publish', 'archive'],
+      rescueStories: [
         'view-all',
-        'view-detail',
         'create',
         'update',
-        'reorder',
-        'manage-images',
         'publish',
         'unpublish',
         'archive',
-        'manage-settings',
-        'manage-legal',
       ],
-      speciesContent: ['view-draft', 'update', 'publish', 'archive', 'full-access'],
-      rescueStories: ['view-all', 'create', 'update', 'archive', 'full-access'],
-      siteSettings: ['view', 'full-access'],
-      adoptions: [
-        'view-all',
-        'filter-by-status',
-        'update-status',
-        'process',
-        'add-internal-note',
-        'view-statistics',
-        'full-review',
-      ],
-      activity: ['view-own-history'],
+      adoptions: ['view-all', 'update-status'],
       users: [
         'list',
-        'filter-by-role',
-        'filter-by-status',
         'detail',
         'create-employee',
-        'edit-employee',
-        'deactivate-employee',
-        'promote-to-admin',
-        'create-admin',
-        'manage-roles',
-        'activate',
-        'deactivate',
+        'manage-users',
         'manage-sensitive-access',
       ],
-      reports: [
-        'view-operational',
-        'animals-by-status',
-        'requests-by-status',
-        'animals-by-species',
-        'adoptions-overview',
-        'requests-by-period',
-        'users-by-role',
-        'active-inactive-users',
-        'full-access',
-      ],
-      admin: ['access-dashboard', 'view-internal-sections', 'system-administration'],
-      auth: ['logout'],
+      reports: ['view-operational'],
     },
   },
 };
 
-export const ANIMAL_ACTIONS_BY_ROLE = {
-  guest: ['list', 'detail', 'filter-search'],
-  client: ['list', 'detail', 'filter-search'],
-  employee: ['list', 'detail', 'filter-search', 'create', 'edit', 'change-status', 'view-all'],
-  admin: [
-    'list',
-    'detail',
-    'filter-search',
-    'create',
-    'edit',
-    'change-status',
-    'view-all',
-    'deactivate',
-    'archive',
-    'full-access',
-  ],
-};
+Object.values(ROLE_RULES).forEach((roleRules) => {
+  Object.values(roleRules.permissions).forEach(Object.freeze);
+  Object.freeze(roleRules.permissions);
+  Object.freeze(roleRules);
+});
+Object.freeze(ROLE_RULES);
 
-export const ADOPTION_REQUEST_ACTIONS_BY_ROLE = {
-  guest: [],
-  client: [
-    'create-own-request',
-    'list-own',
-    'detail-own',
-    'track-own-status',
-    'cancel-own-pending',
-  ],
-  employee: ['view-all', 'filter-by-status', 'detail-any', 'update-status', 'add-internal-note'],
-  admin: [
-    'view-all',
-    'filter-by-status',
-    'detail-any',
-    'update-status',
-    'add-internal-note',
-    'view-statistics',
-    'full-review',
-  ],
-};
-
-export const VOLUNTEER_APPLICATION_ACTIONS_BY_ROLE = {
-  guest: ['apply'],
-  client: ['apply'],
-  employee: ['apply', 'view-all', 'detail', 'update-status', 'add-notes'],
-  admin: ['apply', 'view-all', 'detail', 'update-status', 'add-notes', 'full-access'],
-};
-
-export const FAVORITE_ACTIONS_BY_ROLE = {
-  guest: [],
-  client: ['list-own', 'create-own', 'remove-own'],
-  employee: [],
-  admin: [],
-};
-
-export const DONATION_ACTIONS_BY_ROLE = {
-  guest: ['create'],
-  client: ['create'],
-  employee: ['create', 'view-all', 'detail'],
-  admin: ['create', 'view-all', 'detail', 'full-access'],
-};
-
-export const RESCUE_REPORT_ACTIONS_BY_ROLE = {
-  guest: ['create'],
-  client: ['create'],
-  employee: ['create', 'view-all', 'detail', 'update-status', 'add-notes'],
-  admin: ['create', 'view-all', 'detail', 'update-status', 'add-notes', 'full-access'],
-};
+function clonePermissions(permissions = {}) {
+  return Object.fromEntries(
+    Object.entries(permissions).map(([resource, actions]) => [
+      resource,
+      [...actions],
+    ])
+  );
+}
 
 export function normalizeRole(roleCandidate) {
   const normalizedRole = String(roleCandidate ?? 'guest').trim().toLowerCase();
@@ -229,54 +99,28 @@ export function normalizeRole(roleCandidate) {
 
 export function getRoleDefinition(roleCandidate) {
   const role = normalizeRole(roleCandidate);
+  const roleRules = ROLE_RULES[role];
 
   return {
     role,
     roleLabel: ROLE_LABELS[role],
-    ...ROLE_RULES[role],
+    description: roleRules.description,
+    permissions: clonePermissions(roleRules.permissions),
   };
 }
 
 export function getPermissionsByRole(roleCandidate) {
-  return getRoleDefinition(roleCandidate).permissions;
+  const role = normalizeRole(roleCandidate);
+  return clonePermissions(ROLE_RULES[role].permissions);
+}
+
+export function getAllowedActions(roleCandidate, resource) {
+  const role = normalizeRole(roleCandidate);
+  return [...(ROLE_RULES[role].permissions?.[resource] ?? [])];
 }
 
 export function hasPermission(roleCandidate, resource, action) {
-  const permissions = getPermissionsByRole(roleCandidate);
-  const allowedActions = permissions[resource] ?? [];
-  return allowedActions.includes(action);
+  // Access is deny-by-default: an action is allowed only when explicitly
+  // granted to the current role.
+  return getAllowedActions(roleCandidate, resource).includes(action);
 }
-
-export function getAllowedAnimalActions(roleCandidate) {
-  const role = normalizeRole(roleCandidate);
-  return ANIMAL_ACTIONS_BY_ROLE[role];
-}
-
-export function getAllowedAdoptionRequestActions(roleCandidate) {
-  const role = normalizeRole(roleCandidate);
-  return ADOPTION_REQUEST_ACTIONS_BY_ROLE[role];
-}
-
-export function getAllowedVolunteerApplicationActions(roleCandidate) {
-  const role = normalizeRole(roleCandidate);
-  return VOLUNTEER_APPLICATION_ACTIONS_BY_ROLE[role];
-}
-
-export function getAllowedFavoriteActions(roleCandidate) {
-  const role = normalizeRole(roleCandidate);
-  return FAVORITE_ACTIONS_BY_ROLE[role];
-}
-
-export function getAllowedDonationActions(roleCandidate) {
-  const role = normalizeRole(roleCandidate);
-  return DONATION_ACTIONS_BY_ROLE[role];
-}
-
-export function getAllowedRescueReportActions(roleCandidate) {
-  const role = normalizeRole(roleCandidate);
-  return RESCUE_REPORT_ACTIONS_BY_ROLE[role];
-}
-
-
-
-

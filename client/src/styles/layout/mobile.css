@@ -1,0 +1,170 @@
+@media (max-width: 640px) {
+  .hero,
+  .about-page-hero,
+  .support-page-hero,
+  .animals-overview-page-hero,
+  .animals-info-page-hero,
+  .species-info-page-hero,
+  .adoption-page-hero,
+  .volunteers-page-hero,
+  .donations-page-hero,
+  .rescue-stories-page-hero,
+  .contact-page-hero {
+    min-height: 340px;
+    padding: 3.5rem 0;
+  }
+
+  .about-page-hero h1,
+  .support-page-hero > div,
+  .animals-overview-page-hero > div,
+  .animals-info-page-hero > div,
+  .species-info-page-hero > div,
+  .adoption-page-hero > div,
+  .volunteers-page-hero > div,
+  .donations-page-hero > div,
+  .rescue-stories-page-hero > div,
+  .contact-page-hero > div {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .hero h1,
+  .about-page-hero h1,
+  .support-page-hero h1,
+  .animals-overview-page-hero h1,
+  .animals-info-page-hero h1,
+  .species-info-page-hero h1,
+  .adoption-page-hero h1,
+  .volunteers-page-hero h1,
+  .donations-page-hero h1,
+  .rescue-stories-page-hero h1,
+  .contact-page-hero h1,
+  .legal-page-hero h1 {
+    font-size: 2.15rem;
+    line-height: 1.1;
+  }
+
+  .support-page-action-row {
+    grid-template-columns: 1fr;
+  }
+
+  .support-page-action-image {
+    justify-self: stretch;
+  }
+}
+
+@media (max-width: 480px) {
+  .section-container,
+  .about-page-split-inner,
+  .about-page-story-divider {
+    width: min(calc(100% - 32px), var(--content-max-width));
+  }
+
+  .route-shell {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .route-card,
+  .app-status-card {
+    padding: 1.25rem;
+    border-radius: 20px;
+  }
+
+  .app-status-screen {
+    padding: 16px;
+  }
+
+  .hero-content {
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  .about {
+    padding: 3.5rem 0;
+  }
+
+  .about-image-wrap,
+  .about-page-split-image,
+  .support-page-action-image,
+  .species-info-detail-image,
+  .rescue-stories-page-image,
+  .animal-details-main-image {
+    height: auto;
+    min-height: 0;
+    aspect-ratio: 4 / 3;
+  }
+
+  .rescue-stories-page-image {
+    max-height: none;
+  }
+
+  .animal-details-main-image img {
+    min-height: 0;
+  }
+
+  .animal-card img {
+    height: auto;
+    aspect-ratio: 4 / 3;
+  }
+
+  .home-help-panel {
+    min-height: 320px;
+    padding: 24px;
+  }
+
+  .header-container {
+    padding-right: 16px;
+    padding-left: 16px;
+    gap: 0.65rem;
+  }
+
+  .header-left,
+  .logo,
+  .logo span {
+    min-width: 0;
+  }
+
+  .logo {
+    max-width: 100%;
+  }
+
+  .logo img {
+    width: 38px;
+    flex: 0 0 auto;
+  }
+
+  .logo span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .main-nav-toggle {
+    width: 40px;
+    height: 40px;
+  }
+
+  .header-right {
+    min-width: 0;
+  }
+
+  .page-content-admin-image-preview {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .page-content-admin-image-preview img {
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+
+  .page-content-admin-image-preview button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .page-content-admin-block-actions button {
+    min-height: 44px;
+  }
+}

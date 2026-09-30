@@ -3,16 +3,32 @@ import mongoose from 'mongoose';
 import Donation from '../../models/Donation.js';
 import { createHttpError } from '../../utils/httpError.js';
 import {
-  applyPagination,
   buildPagination,
   normalizePaginationOptions,
 } from '../../utils/pagination.js';
-import { getAllowedDonationActions, hasPermission } from '../shared/rolePolicies.js';
+import { readWorkflowCollectionPage } from '../../utils/workflowList.js';
+import { assertAllowedFields, assertBodyObject } from '../../utils/requestValidation.js';
+import { normalizeDateOutput, serializeId } from '../../utils/serialization.js';
+import { notifyOperationalStaff } from '../notifications/notifications.service.js';
+import { hasPermission } from '../shared/rolePolicies.js';
+import { isValidPhone } from '../../../shared/domain/contactValidation.js';
+import {
+  DONATION_AMOUNT_LIMITS,
+  DONATION_CURRENCY,
+  DONATION_STATUS_TRANSITIONS,
+  DONATION_STATUS_VALUES,
+  DONATION_TEXT_LIMITS,
+} from '../../../shared/domain/donationConstants.js';
 
 const DONATION_ID_PATTERN = /^[0-9a-f]{24}$/i;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_PATTERN = /^[0-9+\s().-]{6,32}$/;
-const MAX_DONATION_AMOUNT = 100000;
+const DEFAULT_DONATION_STATUS = 'pledged';
+const DONATION_FIELD_LABELS = Object.freeze({
+  name: 'Име',
+  email: 'Имейл',
+  phone: 'Телефон',
+  message: 'Съобщение',
+});
 
 function normalizeText(value) {
   return String(value ?? '').trim();
@@ -22,64 +38,27 @@ function normalizeLookupText(value) {
   return normalizeText(value).toLowerCase();
 }
 
-function normalizeDateOutput(value) {
-  if (!value) {
-    return null;
-  }
-
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-
-  return value;
-}
-
-function isPlainObject(value) {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-function serializeId(value) {
-  if (!value) {
-    return '';
-  }
-
-  if (typeof value === 'object') {
-    if (value._id) {
-      return String(value._id);
-    }
-
-    if (value.id) {
-      return String(value.id);
-    }
-  }
-
-  return String(value);
-}
-
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function assertBodyObject(payload) {
-  if (!isPlainObject(payload)) {
-    throw createHttpError(400, 'Тялото на заявката трябва да бъде JSON обект.');
+function normalizeLimitedText(value, fieldName, maxLength) {
+  const normalizedValue = normalizeText(value);
+
+  if (normalizedValue.length > maxLength) {
+    const fieldLabel = DONATION_FIELD_LABELS[fieldName] ?? fieldName;
+
+    throw createHttpError(
+      400,
+      `Полето "${fieldLabel}" не може да бъде по-дълго от ${maxLength} символа.`
+    );
   }
 
-  if (Object.keys(payload).length === 0) {
-    throw createHttpError(400, 'Тялото на заявката не може да бъде празно.');
-  }
+  return normalizedValue;
 }
 
-function assertAllowedFields(payload, allowedFields) {
-  const allowedFieldSet = new Set(allowedFields);
-  const invalidFields = Object.keys(payload).filter((fieldName) => !allowedFieldSet.has(fieldName));
-
-  if (invalidFields.length > 0) {
-    throw createHttpError(400, 'Заявката съдържа неподдържани полета.', {
-      invalidFields,
-      allowedFields,
-    });
-  }
+function getUserDisplayName(user) {
+  return [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() || user?.username || '';
 }
 
 function assertStaffPermission(currentUser, action) {
@@ -92,18 +71,55 @@ function assertStaffPermission(currentUser, action) {
   }
 }
 
-function normalizeDonationAmount(value) {
+function normalizeDonationAmountCents(value) {
   const numericValue = Number(value);
 
-  if (!Number.isFinite(numericValue) || numericValue < 1) {
-    throw createHttpError(400, 'Сумата на дарението трябва да бъде поне 1 евро.');
+  if (!Number.isFinite(numericValue) || numericValue < DONATION_AMOUNT_LIMITS.min) {
+    throw createHttpError(400, 'Сумата на заявката за дарение трябва да бъде поне 1 евро.');
   }
 
-  if (numericValue > MAX_DONATION_AMOUNT) {
-    throw createHttpError(400, `Сумата на дарението не може да надвишава ${MAX_DONATION_AMOUNT} евро.`);
+  if (numericValue > DONATION_AMOUNT_LIMITS.max) {
+    throw createHttpError(
+      400,
+      `Сумата на заявката за дарение не може да надвишава ${DONATION_AMOUNT_LIMITS.max} евро.`
+    );
   }
 
-  return Number(numericValue.toFixed(2));
+  const cents = Math.round(numericValue * 100);
+  const roundedAmount = cents / 100;
+
+  if (Math.abs(numericValue - roundedAmount) > 0.0000001) {
+    throw createHttpError(400, 'Сумата на заявката за дарение може да има най-много два знака след десетичната запетая.');
+  }
+
+  return cents;
+}
+
+function normalizeDonationStatus(value) {
+  const status = normalizeLookupText(value || DEFAULT_DONATION_STATUS);
+
+  if (!DONATION_STATUS_VALUES.includes(status)) {
+    throw createHttpError(400, 'Статусът на заявката за дарение е невалиден.', {
+      allowedStatuses: DONATION_STATUS_VALUES,
+    });
+  }
+
+  return status;
+}
+
+function assertAllowedDonationStatusTransition(currentStatus, nextStatus) {
+  if (currentStatus === nextStatus) {
+    throw createHttpError(409, 'Заявката за дарение вече е с този статус.');
+  }
+
+  const allowedTransitions = DONATION_STATUS_TRANSITIONS[currentStatus] ?? [];
+
+  if (!allowedTransitions.includes(nextStatus)) {
+    throw createHttpError(
+      409,
+      `Преходът от "${currentStatus}" към "${nextStatus}" не е разрешен.`
+    );
+  }
 }
 
 function assertValidDonationId(donationId) {
@@ -120,25 +136,45 @@ function assertValidDonationId(donationId) {
   return normalizedId;
 }
 
+function buildStatusHistoryEntry(fromStatus, toStatus, currentUser = null) {
+  return {
+    fromStatus: fromStatus ?? '',
+    toStatus,
+    changedBy: currentUser?.id ?? null,
+    changedByName: getUserDisplayName(currentUser),
+    changedAt: new Date(),
+  };
+}
+
+function serializeStatusHistoryEntry(entry) {
+  return {
+    fromStatus: entry?.fromStatus ?? '',
+    toStatus: entry?.toStatus ?? '',
+    changedBy: serializeId(entry?.changedBy) || null,
+    changedByName: entry?.changedByName ?? '',
+    changedAt: normalizeDateOutput(entry?.changedAt),
+  };
+}
+
 function normalizeCreatePayload(payload) {
   assertBodyObject(payload);
   assertAllowedFields(payload, ['name', 'email', 'phone', 'amount', 'message']);
 
-  const name = normalizeText(payload.name);
-  const email = normalizeLookupText(payload.email);
-  const phone = normalizeText(payload.phone);
-  const amount = normalizeDonationAmount(payload.amount);
-  const message = normalizeText(payload.message);
+  const name = normalizeLimitedText(payload.name, 'name', DONATION_TEXT_LIMITS.name);
+  const email = normalizeLimitedText(payload.email, 'email', DONATION_TEXT_LIMITS.email).toLowerCase();
+  const phone = normalizeLimitedText(payload.phone, 'phone', DONATION_TEXT_LIMITS.phone);
+  const amountCents = normalizeDonationAmountCents(payload.amount);
+  const message = normalizeLimitedText(payload.message, 'message', DONATION_TEXT_LIMITS.message);
 
   if (!name || !email) {
-    throw createHttpError(400, 'Попълни името, имейла и сумата на дарението.');
+    throw createHttpError(400, 'Попълни името, имейла и сумата на заявката за дарение.');
   }
 
   if (!EMAIL_PATTERN.test(email)) {
     throw createHttpError(400, 'Въведи валиден имейл адрес.');
   }
 
-  if (phone && !PHONE_PATTERN.test(phone)) {
+  if (phone && !isValidPhone(phone)) {
     throw createHttpError(400, 'Въведи валиден телефонен номер.');
   }
 
@@ -146,20 +182,70 @@ function normalizeCreatePayload(payload) {
     name,
     email,
     phone,
-    amount,
+    amountCents,
     message,
+    status: DEFAULT_DONATION_STATUS,
+    receivedAt: null,
+    statusHistory: [buildStatusHistoryEntry('', DEFAULT_DONATION_STATUS)],
   };
 }
 
+function normalizeStatusUpdatePayload(payload = {}, currentDonation) {
+  assertBodyObject(payload);
+  assertAllowedFields(payload, ['status']);
+
+  const nextStatus = normalizeDonationStatus(payload.status);
+  const currentStatus = normalizeDonationStatus(currentDonation?.status);
+
+  assertAllowedDonationStatusTransition(currentStatus, nextStatus);
+
+  return {
+    status: nextStatus,
+  };
+}
+
+function buildDonationStatusMatchFilter(donation, currentStatus) {
+  if (normalizeLookupText(donation?.status)) {
+    return {
+      status: currentStatus,
+    };
+  }
+
+  return {
+    $or: [
+      { status: currentStatus },
+      { status: { $exists: false } },
+      { status: '' },
+      { status: null },
+    ],
+  };
+}
+
+function getDonationAmountCents(donation) {
+  if (Number.isInteger(donation?.amountCents)) {
+    return donation.amountCents;
+  }
+
+  return 0;
+}
+
 function serializeDonation(donation) {
+  const status = normalizeDonationStatus(donation.status);
+  const amountCents = getDonationAmountCents(donation);
+
   return {
     id: serializeId(donation),
     name: donation.name ?? '',
     email: donation.email ?? '',
     phone: donation.phone ?? '',
-    amount: donation.amount ?? 0,
-    currency: 'EUR',
+    amount: amountCents / 100,
+    amountCents,
+    currency: DONATION_CURRENCY,
     message: donation.message ?? '',
+    status,
+    allowedStatusTransitions: DONATION_STATUS_TRANSITIONS[status] ?? [],
+    statusHistory: (donation.statusHistory ?? []).map(serializeStatusHistoryEntry),
+    receivedAt: normalizeDateOutput(donation.receivedAt),
     createdAt: normalizeDateOutput(donation.createdAt),
     updatedAt: normalizeDateOutput(donation.updatedAt),
   };
@@ -167,15 +253,21 @@ function serializeDonation(donation) {
 
 function buildDonationQuery(filters = {}) {
   const search = normalizeLookupText(filters.search);
+  const status = normalizeLookupText(filters.status);
+  const query = {};
+
+  if (status) {
+    query.status = normalizeDonationStatus(status);
+  }
 
   if (!search) {
-    return {};
+    return query;
   }
 
   const regex = new RegExp(escapeRegex(search), 'i');
-  return {
-    $or: [{ name: regex }, { email: regex }, { phone: regex }, { message: regex }],
-  };
+  query.$or = [{ name: regex }, { email: regex }, { phone: regex }, { message: regex }];
+
+  return query;
 }
 
 async function findDonationRecordById(donationId) {
@@ -188,16 +280,30 @@ async function findDonationRecordById(donationId) {
   return Donation.findById(normalizedId).lean();
 }
 
-export function getDonationModulePolicy(roleCandidate) {
-  return {
-    resource: 'donations',
-    allowedActions: getAllowedDonationActions(roleCandidate),
-  };
+async function notifyDonationCreated(serializedDonation) {
+  try {
+    await notifyOperationalStaff({
+      type: 'donation-created',
+      title: 'Нова заявка за дарение',
+      message: `Получена е нова заявка за дарение от ${serializedDonation.name}.`,
+      resourceId: serializedDonation.id,
+    });
+  } catch (error) {
+    console.error('[donations] donation-created notification failed', error);
+  }
+}
+
+export function canUpdateDonationStatus(roleCandidate) {
+  return hasPermission(roleCandidate, 'donations', 'update-status');
 }
 
 export async function createDonation(payload) {
   const createdDonation = await Donation.create(normalizeCreatePayload(payload));
-  return serializeDonation(createdDonation.toObject());
+  const serializedDonation = serializeDonation(createdDonation.toObject());
+
+  await notifyDonationCreated(serializedDonation);
+
+  return serializedDonation;
 }
 
 export async function getDonationCollection(currentUser, filters = {}) {
@@ -209,10 +315,12 @@ export async function getDonationCollection(currentUser, filters = {}) {
   });
   const total = await Donation.countDocuments(query);
   const pagination = buildPagination(total, paginationOptions);
-  const donations = await applyPagination(
-    Donation.find(query).sort({ createdAt: -1, _id: -1 }),
-    pagination
-  ).lean();
+  const donations = await readWorkflowCollectionPage({
+    model: Donation,
+    query,
+    pagination,
+    statusTransitions: DONATION_STATUS_TRANSITIONS,
+  });
 
   return {
     items: donations.map(serializeDonation),
@@ -230,4 +338,50 @@ export async function getDonationById(donationId, currentUser) {
   }
 
   return serializeDonation(donation);
+}
+
+export async function updateDonationStatus(donationId, payload, currentUser) {
+  assertStaffPermission(currentUser, 'update-status');
+  const normalizedId = assertValidDonationId(donationId);
+  const donation = await Donation.findById(normalizedId).lean();
+
+  if (!donation) {
+    throw createHttpError(404, 'Дарението не беше намерено.');
+  }
+
+  const normalizedPayload = normalizeStatusUpdatePayload(payload, donation);
+  const currentStatus = normalizeDonationStatus(donation.status);
+
+  const statusHistoryEntry = buildStatusHistoryEntry(
+    currentStatus,
+    normalizedPayload.status,
+    currentUser
+  );
+  const updateOperation = {
+    $set: {
+      status: normalizedPayload.status,
+      ...(normalizedPayload.status === 'received' ? { receivedAt: statusHistoryEntry.changedAt } : {}),
+    },
+    $push: {
+      statusHistory: statusHistoryEntry,
+    },
+  };
+
+  const updatedDonation = await Donation.findOneAndUpdate(
+    {
+      _id: normalizedId,
+      ...buildDonationStatusMatchFilter(donation, currentStatus),
+    },
+    updateOperation,
+    {
+      returnDocument: 'after',
+      runValidators: true,
+    }
+  ).lean();
+
+  if (!updatedDonation) {
+    throw createHttpError(409, 'Статусът на заявката за дарение е променен преди обновяването да бъде записано.');
+  }
+
+  return serializeDonation(updatedDonation);
 }

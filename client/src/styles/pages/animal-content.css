@@ -1,0 +1,467 @@
+.animals-page-shell {
+  padding-top: 0;
+}
+
+.animals-overview-page-hero {
+  width: 100vw;
+  min-height: 460px;
+  margin-left: calc(50% - 50vw);
+  margin-top: 0;
+  padding: 6rem 0;
+  display: flex;
+  align-items: center;
+  border: none;
+  border-radius: 0;
+  color: #ffffff;
+  background:
+    linear-gradient(90deg, rgba(28, 67, 47, 0.86), rgba(47, 111, 78, 0.34)),
+    url('/images/page_images/about_animals_page.jpg');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.animals-info-page-hero {
+  width: 100vw;
+  min-height: 460px;
+  margin-left: calc(50% - 50vw);
+  padding: 6rem 0;
+  display: flex;
+  align-items: center;
+  color: #ffffff;
+  background:
+    linear-gradient(90deg, rgba(28, 67, 47, 0.86), rgba(47, 111, 78, 0.34)),
+    url('/images/page_images/animal_info_page.jpg');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.animals-overview-page-hero > div {
+  width: min(100%, var(--content-max-width));
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.animals-info-page-hero > div {
+  width: min(100%, var(--content-max-width));
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.animals-overview-page-hero h1 {
+  width: min(100%, 720px);
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  line-height: 1;
+  text-wrap: balance;
+}
+
+.animals-info-page-hero h1 {
+  width: min(100%, 820px);
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  line-height: 1;
+  text-wrap: balance;
+}
+
+.animals-overview-story-copy {
+  max-width: none;
+}
+
+.animals-overview-story-action {
+  display: inline-flex;
+  align-items: center;
+}
+
+.animals-overview-story-row {
+  grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+}
+
+.animals-overview-story-row.about-page-story-row-reversed {
+  grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.05fr);
+}
+
+.animals-overview-story-row .about-page-split-image {
+  width: 100%;
+  height: 430px;
+}
+
+.animals-overview-species-section,
+.animals-overview-stories-section {
+  border: 1px solid var(--border-soft);
+  border-radius: 24px;
+  background: var(--surface-color);
+  box-shadow: 0 16px 32px rgba(24, 48, 34, 0.08);
+}
+
+.animals-overview-section-heading h1,
+.animals-overview-section-heading h2 {
+  margin: 0;
+  color: var(--primary);
+}
+
+.animals-overview-species-section,
+.animals-overview-stories-section {
+  display: grid;
+  gap: 1rem;
+  padding: 1.35rem;
+}
+
+.animals-overview-species-intro {
+  display: grid;
+  gap: 0.55rem;
+  justify-items: center;
+  text-align: center;
+}
+
+.animals-overview-species-intro h1,
+.animals-overview-species-intro h2 {
+  margin: 0;
+  color: var(--primary);
+  font-size: clamp(1.55rem, 2.4vw, 2.15rem);
+  font-weight: 800;
+}
+
+.animals-overview-species-intro p {
+  max-width: 78ch;
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.75;
+}
+
+.animals-info-page-shell .animals-overview-species-intro p {
+  width: 100%;
+  max-width: none;
+}
+
+.animals-overview-species-intro strong {
+  color: var(--text-main);
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.animals-overview-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.animals-overview-heading-copy {
+  flex: 1;
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+  max-width: none;
+}
+
+.animals-overview-heading-copy p {
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.65;
+}
+
+.animals-overview-species-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.animals-overview-species-card {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 18px;
+  color: #ffffff;
+  text-decoration: none;
+  isolation: isolate;
+}
+
+.animals-overview-species-card img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  transition: transform 180ms ease;
+}
+
+.animals-overview-species-card::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 42%;
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.68));
+  z-index: 1;
+}
+
+.animals-overview-species-card span {
+  position: absolute;
+  left: 1rem;
+  right: 1rem;
+  bottom: 0.95rem;
+  z-index: 2;
+  color: #ffffff;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.animals-overview-species-card:hover img,
+.animals-overview-species-card:focus-visible img {
+  transform: scale(1.04);
+}
+
+@media (max-width: 900px) {
+  .animals-overview-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .animals-overview-species-grid,
+  .species-info-detail-row,
+  .species-info-detail-row.is-reversed {
+    grid-template-columns: 1fr;
+  }
+}
+
+.animals-overview-shell {
+  display: grid;
+  gap: 1.5rem;
+}
+
+#species-showcase-section {
+  scroll-margin-top: calc(var(--header-scroll-offset) + 24px);
+}
+
+.rescue-story-animal {
+  color: var(--text-main);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.rescue-story-status {
+  width: fit-content;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.rescue-story-status.is-adopted {
+  border-color: rgba(39, 110, 68, 0.24);
+  background: #e8f5ec;
+  color: #245f3c;
+}
+
+.rescue-story-status.is-recovered {
+  border-color: rgba(42, 91, 141, 0.24);
+  background: #eaf2fa;
+  color: #27577f;
+}
+
+.rescue-story-status.is-released {
+  border-color: rgba(154, 101, 24, 0.26);
+  background: #fff4dc;
+  color: #795016;
+}
+
+.species-info-shell {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.species-info-detailed-shell {
+  padding-top: 0;
+}
+
+.species-info-page-hero {
+  width: 100vw;
+  min-height: 460px;
+  margin-left: calc(50% - 50vw);
+  padding: 6rem 0;
+  display: flex;
+  align-items: center;
+  color: #ffffff;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.species-info-page-hero > div {
+  width: min(100%, var(--content-max-width));
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.species-info-page-hero h1 {
+  width: min(100%, 720px);
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  line-height: 1;
+  text-wrap: balance;
+}
+
+.species-info-not-found {
+  border: 1px solid var(--border-soft);
+  border-radius: 24px;
+  background: var(--surface-color);
+  box-shadow: 0 16px 32px rgba(24, 48, 34, 0.08);
+}
+
+.species-info-not-found p {
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.75;
+}
+
+.species-info-detail-sections {
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  border-radius: 24px;
+  background: var(--surface-color);
+  box-shadow: 0 16px 32px rgba(24, 48, 34, 0.08);
+}
+
+.species-info-detail-actions {
+  padding: 0 3rem 3rem;
+}
+
+.species-info-detail-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.95fr);
+  grid-template-areas: 'copy image';
+  gap: clamp(2rem, 4vw, 4rem);
+  align-items: center;
+  padding: 3rem;
+}
+
+.species-info-detail-row + .species-info-detail-row {
+  border-top: 1px solid var(--primary);
+}
+
+.species-info-detail-row.is-reversed {
+  grid-template-columns: minmax(300px, 0.95fr) minmax(0, 1.05fr);
+  grid-template-areas: 'image copy';
+}
+
+.species-info-detail-row.is-centered {
+  grid-template-columns: minmax(0, 900px);
+  grid-template-areas: 'copy';
+  justify-content: center;
+}
+
+.species-info-detail-row.is-centered .species-info-detail-copy {
+  width: 100%;
+  justify-self: center;
+  text-align: center;
+}
+
+.species-info-detail-row.is-centered .species-info-detail-copy h2 {
+  text-align: center;
+}
+
+.species-info-detail-row.is-centered .species-info-detail-copy ul {
+  padding-left: 0;
+  list-style-position: inside;
+}
+
+.species-info-detail-row.is-centered .species-info-detail-copy li strong {
+  color: var(--text-main);
+}
+
+.species-info-detail-copy {
+  grid-area: copy;
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.species-info-detail-copy h2 {
+  margin: 0;
+  color: var(--primary);
+  font-size: clamp(1.45rem, 2.4vw, 2rem);
+}
+
+.species-info-detail-copy p {
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.75;
+}
+
+.species-info-detail-copy ul {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding-left: 1.35rem;
+  color: var(--text-soft);
+}
+
+.species-info-detail-copy li {
+  padding-left: 0.2rem;
+  line-height: 1.65;
+}
+
+.species-info-detail-copy li::marker {
+  color: var(--primary);
+}
+
+.species-info-detail-image {
+  grid-area: image;
+  width: 100%;
+  height: 430px;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 24px;
+  background: #edf5ef;
+  box-shadow: 0 22px 46px rgba(28, 67, 47, 0.16);
+}
+
+.species-info-detail-image img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.species-info-not-found {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.35rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 20px;
+  background: #f8fbf9;
+}
+
+.species-info-not-found h1 {
+  margin: 0;
+  color: var(--primary);
+  font-size: 1.25rem;
+}
+
+.species-info-not-found {
+  justify-items: start;
+}
+
+@media (max-width: 900px) {
+  .species-info-detail-row,
+  .species-info-detail-row.is-reversed {
+    grid-template-areas:
+      'copy'
+      'image';
+    padding: 2rem;
+  }
+
+  .species-info-detail-actions {
+    padding: 0 2rem 2rem;
+  }
+
+  .species-info-detail-image {
+    height: 320px;
+  }
+}

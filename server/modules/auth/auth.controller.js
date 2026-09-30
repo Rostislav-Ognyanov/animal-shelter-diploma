@@ -27,10 +27,9 @@ function buildAuthStatusNotice(req) {
   return '';
 }
 
-function buildAuthResponseData(authPayload, accessToken = '', authNotice = '') {
+function buildAuthResponseData(authPayload, authNotice = '') {
   return {
     ...authPayload,
-    accessToken,
     authNotice,
   };
 }
@@ -41,7 +40,7 @@ export async function getAuthStatus(req, res, next) {
 
     return sendItemSuccess(res, {
       message: authNotice || 'Статусът на текущата сесия е зареден.',
-      data: buildAuthResponseData(getAuthStatusPayload(req.user), req.authToken, authNotice),
+      data: buildAuthResponseData(getAuthStatusPayload(req.user), authNotice),
     });
   } catch (error) {
     return next(error);
@@ -54,7 +53,7 @@ export async function login(req, res, next) {
       return sendMutationSuccess(res, {
         status: 200,
         message: 'Вече има активна сесия за текущия браузър.',
-        data: buildAuthResponseData(getAuthStatusPayload(req.user), req.authToken),
+        data: buildAuthResponseData(getAuthStatusPayload(req.user)),
       });
     }
 
@@ -63,7 +62,7 @@ export async function login(req, res, next) {
 
     return sendMutationSuccess(res, {
       message: authResult.message,
-      data: buildAuthResponseData(authResult.data, authResult.token),
+      data: buildAuthResponseData(authResult.data),
     });
   } catch (error) {
     return next(error);
@@ -76,7 +75,7 @@ export async function register(req, res, next) {
       return sendMutationSuccess(res, {
         status: 200,
         message: 'Вече има активна сесия за текущия браузър.',
-        data: buildAuthResponseData(getAuthStatusPayload(req.user), req.authToken),
+        data: buildAuthResponseData(getAuthStatusPayload(req.user)),
       });
     }
 
@@ -86,7 +85,7 @@ export async function register(req, res, next) {
     return sendMutationSuccess(res, {
       status: 201,
       message: authResult.message,
-      data: buildAuthResponseData(authResult.data, authResult.token),
+      data: buildAuthResponseData(authResult.data),
     });
   } catch (error) {
     return next(error);
@@ -99,7 +98,7 @@ export async function logout(req, res, next) {
 
     return sendMutationSuccess(res, {
       message: 'Изходът е успешен.',
-      data: buildAuthResponseData(getLogoutPayload(), ''),
+      data: buildAuthResponseData(getLogoutPayload()),
     });
   } catch (error) {
     return next(error);

@@ -62,7 +62,7 @@ export async function updateLegalContentDraftEntry(req, res, next) {
 
 export async function publishLegalContentDraftEntry(req, res, next) {
   try {
-    const legalContent = await publishLegalContentDraft(req.params.legalKey, req.user);
+    const legalContent = await publishLegalContentDraft(req.params.legalKey, req.body, req.user);
 
     return sendMutationSuccess(res, {
       message: 'Юридическата страница е публикувана успешно.',

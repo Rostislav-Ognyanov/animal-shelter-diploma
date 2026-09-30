@@ -71,56 +71,8 @@ const CYRILLIC_TO_LATIN_MAP = {
   я: 'ya',
 };
 
-const LATIN_TO_CYRILLIC_MULTI_CHAR_MAP = [
-  ['sht', 'щ'],
-  ['sch', 'щ'],
-  ['sh', 'ш'],
-  ['ch', 'ч'],
-  ['ts', 'ц'],
-  ['zh', 'ж'],
-  ['yu', 'ю'],
-  ['ya', 'я'],
-  ['yo', 'ьо'],
-  ['iu', 'ю'],
-  ['ia', 'я'],
-  ['kh', 'х'],
-];
-
-const LATIN_TO_CYRILLIC_SINGLE_CHAR_MAP = {
-  a: 'а',
-  b: 'б',
-  c: 'к',
-  d: 'д',
-  e: 'е',
-  f: 'ф',
-  g: 'г',
-  h: 'х',
-  i: 'и',
-  j: 'дж',
-  k: 'к',
-  l: 'л',
-  m: 'м',
-  n: 'н',
-  o: 'о',
-  p: 'п',
-  q: 'к',
-  r: 'р',
-  s: 'с',
-  t: 'т',
-  u: 'у',
-  v: 'в',
-  w: 'у',
-  x: 'кс',
-  y: 'и',
-  z: 'з',
-};
-
 export function containsCyrillic(value) {
   return /[\u0400-\u04FF]/.test(normalizeText(value));
-}
-
-export function containsLatin(value) {
-  return /[A-Za-z]/.test(normalizeText(value));
 }
 
 export function transliterateToLatin(value) {
@@ -131,39 +83,6 @@ export function transliterateToLatin(value) {
       return mappedValue ? applyMappedCase(character, mappedValue) : character;
     })
     .join('');
-}
-
-export function transliterateToCyrillic(value) {
-  const sourceValue = normalizeText(value);
-  let result = '';
-  let index = 0;
-
-  while (index < sourceValue.length) {
-    const nextSlice = sourceValue.slice(index);
-    const nextSliceLower = nextSlice.toLowerCase();
-    let hasMatch = false;
-
-    for (const [latinToken, cyrillicToken] of LATIN_TO_CYRILLIC_MULTI_CHAR_MAP) {
-      if (nextSliceLower.startsWith(latinToken)) {
-        const sourceToken = sourceValue.slice(index, index + latinToken.length);
-        result += applyMappedCase(sourceToken, cyrillicToken);
-        index += latinToken.length;
-        hasMatch = true;
-        break;
-      }
-    }
-
-    if (hasMatch) {
-      continue;
-    }
-
-    const character = sourceValue[index];
-    const mappedCharacter = LATIN_TO_CYRILLIC_SINGLE_CHAR_MAP[character.toLowerCase()];
-    result += mappedCharacter ? applyMappedCase(character, mappedCharacter) : character;
-    index += 1;
-  }
-
-  return result;
 }
 
 export function buildAnimalStoredNames(inputValue) {
@@ -185,18 +104,10 @@ export function buildAnimalStoredNames(inputValue) {
     };
   }
 
-  if (containsLatin(normalizedValue)) {
-    return {
-      name: normalizedValue,
-      displayName: transliterateToCyrillic(normalizedValue),
-      sourceScript: 'latin',
-    };
-  }
-
   return {
     name: normalizedValue,
     displayName: normalizedValue,
-    sourceScript: 'unknown',
+    sourceScript: /[A-Za-z]/.test(normalizedValue) ? 'latin' : 'unknown',
   };
 }
 

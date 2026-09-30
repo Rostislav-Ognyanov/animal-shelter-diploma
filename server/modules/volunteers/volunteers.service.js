@@ -3,92 +3,54 @@ import mongoose from 'mongoose';
 import VolunteerApplication from '../../models/VolunteerApplication.js';
 import { createHttpError } from '../../utils/httpError.js';
 import {
-  applyPagination,
   buildPagination,
   normalizePaginationOptions,
 } from '../../utils/pagination.js';
+import { readWorkflowCollectionPage } from '../../utils/workflowList.js';
+import { assertAllowedFields, assertBodyObject } from '../../utils/requestValidation.js';
+import { normalizeDateOutput, serializeId } from '../../utils/serialization.js';
+import { createDuplicateKeyHttpError } from '../../utils/mongoErrors.js';
+import { hasPermission } from '../shared/rolePolicies.js';
+import { notifyOperationalStaff } from '../notifications/notifications.service.js';
 import {
-  getAllowedVolunteerApplicationActions,
-  hasPermission,
-} from '../shared/rolePolicies.js';
-import {
-  VOLUNTEER_APPLICATION_STATUS_LABELS,
-  VOLUNTEER_APPLICATION_STATUS_TRANSITIONS,
-  VOLUNTEER_APPLICATION_STATUS_VALUES,
+  ACTIVE_VOLUNTEER_STATUS_VALUES,
+  MAX_VOLUNTEER_AGE,
+  MIN_VOLUNTEER_AGE,
   VOLUNTEER_POSITION_LABELS,
   VOLUNTEER_POSITION_VALUES,
-} from './volunteer.constants.js';
+  VOLUNTEER_STATUS_LABELS,
+  VOLUNTEER_STATUS_TRANSITIONS,
+  VOLUNTEER_STATUS_VALUES,
+  VOLUNTEER_TEXT_LIMITS,
+} from '../../../shared/domain/volunteerConstants.js';
+import { isValidPhone } from '../../../shared/domain/contactValidation.js';
+import { EMAIL_PATTERN } from '../../../shared/domain/userConstants.js';
 
 const VOLUNTEER_APPLICATION_ID_PATTERN = /^[0-9a-f]{24}$/i;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_PATTERN = /^[0-9+\s().-]{6,32}$/;
 
 function normalizeText(value) {
   return String(value ?? '').trim();
+}
+
+function normalizeLimitedText(value, fieldName, maxLength) {
+  const normalizedValue = normalizeText(value);
+
+  if (normalizedValue.length > maxLength) {
+    throw createHttpError(
+      400,
+      `Полето "${fieldName}" може да съдържа най-много ${maxLength} символа.`
+    );
+  }
+
+  return normalizedValue;
 }
 
 function normalizeLookupText(value) {
   return normalizeText(value).toLowerCase();
 }
 
-function normalizeDateOutput(value) {
-  if (!value) {
-    return null;
-  }
-
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-
-  return value;
-}
-
-function isPlainObject(value) {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-function serializeId(value) {
-  if (!value) {
-    return '';
-  }
-
-  if (typeof value === 'object') {
-    if (value._id) {
-      return String(value._id);
-    }
-
-    if (value.id) {
-      return String(value.id);
-    }
-  }
-
-  return String(value);
-}
-
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function assertBodyObject(payload) {
-  if (!isPlainObject(payload)) {
-    throw createHttpError(400, 'Тялото на заявката трябва да бъде JSON обект.');
-  }
-
-  if (Object.keys(payload).length === 0) {
-    throw createHttpError(400, 'Тялото на заявката не може да бъде празно.');
-  }
-}
-
-function assertAllowedFields(payload, allowedFields) {
-  const allowedFieldSet = new Set(allowedFields);
-  const invalidFields = Object.keys(payload).filter((fieldName) => !allowedFieldSet.has(fieldName));
-
-  if (invalidFields.length > 0) {
-    throw createHttpError(400, 'Заявката съдържа неподдържани полета.', {
-      invalidFields,
-      allowedFields,
-    });
-  }
 }
 
 function assertStaffPermission(currentUser, action) {
@@ -104,40 +66,47 @@ function assertStaffPermission(currentUser, action) {
 function parseVolunteerAge(value) {
   const numericValue = Number(value);
 
-  if (!Number.isInteger(numericValue) || numericValue <= 0 || numericValue > 120) {
-    throw createHttpError(400, 'Полето "age" трябва да бъде валидна възраст.');
+  if (
+    !Number.isInteger(numericValue) ||
+    numericValue < MIN_VOLUNTEER_AGE ||
+    numericValue > MAX_VOLUNTEER_AGE
+  ) {
+    throw createHttpError(
+      400,
+      `Възрастта трябва да бъде между ${MIN_VOLUNTEER_AGE} и ${MAX_VOLUNTEER_AGE} години.`
+    );
   }
 
   return numericValue;
 }
 
-function parseGuardianConsent(value) {
+function parseStrictBooleanField(value, fieldName) {
   if (typeof value === 'boolean') {
     return value;
   }
 
-  if (typeof value === 'string') {
-    const normalizedValue = value.trim().toLowerCase();
-    return normalizedValue === 'true' || normalizedValue === '1' || normalizedValue === 'yes' || normalizedValue === 'on';
-  }
+  throw createHttpError(400, `Полето "${fieldName}" трябва да бъде булева стойност.`);
+}
 
-  if (typeof value === 'number') {
-    return value === 1;
-  }
+function isMinorApplication(application) {
+  const age = Number(application?.age);
+  return Number.isInteger(age) && age > 0 && age < 18;
+}
 
-  return false;
+function isActiveVolunteerApplicationStatus(status) {
+  return ACTIVE_VOLUNTEER_STATUS_VALUES.includes(status);
 }
 
 function isValidGuardianContact(value) {
-  return EMAIL_PATTERN.test(value) || PHONE_PATTERN.test(value);
+  return EMAIL_PATTERN.test(value) || isValidPhone(value);
 }
 
 function normalizeVolunteerStatus(value, fieldName = 'status') {
   const normalizedStatus = normalizeLookupText(value);
 
-  if (!VOLUNTEER_APPLICATION_STATUS_VALUES.includes(normalizedStatus)) {
+  if (!VOLUNTEER_STATUS_VALUES.includes(normalizedStatus)) {
     throw createHttpError(400, `Полето "${fieldName}" съдържа невалидна стойност.`, {
-      allowedStatuses: VOLUNTEER_APPLICATION_STATUS_VALUES,
+      allowedStatuses: VOLUNTEER_STATUS_VALUES,
     });
   }
 
@@ -209,7 +178,6 @@ function normalizeCreatePayload(payload) {
     'email',
     'phone',
     'age',
-    'guardianConsent',
     'guardianName',
     'guardianContact',
     'preferredPositions',
@@ -219,19 +187,38 @@ function normalizeCreatePayload(payload) {
     'availability',
   ]);
 
-  const firstName = normalizeText(payload.firstName);
-  const lastName = normalizeText(payload.lastName);
-  const email = normalizeLookupText(payload.email);
-  const phone = normalizeText(payload.phone);
+  const firstName = normalizeLimitedText(payload.firstName, 'firstName', VOLUNTEER_TEXT_LIMITS.firstName);
+  const lastName = normalizeLimitedText(payload.lastName, 'lastName', VOLUNTEER_TEXT_LIMITS.lastName);
+  const email = normalizeLimitedText(
+    normalizeLookupText(payload.email),
+    'email',
+    VOLUNTEER_TEXT_LIMITS.email
+  );
+  const phone = normalizeLimitedText(payload.phone, 'phone', VOLUNTEER_TEXT_LIMITS.phone);
   const age = parseVolunteerAge(payload.age);
-  const guardianConsent = parseGuardianConsent(payload.guardianConsent);
-  const guardianName = normalizeText(payload.guardianName);
-  const guardianContact = normalizeText(payload.guardianContact);
+  const guardianName = normalizeLimitedText(
+    payload.guardianName,
+    'guardianName',
+    VOLUNTEER_TEXT_LIMITS.guardianName
+  );
+  const guardianContact = normalizeLimitedText(
+    payload.guardianContact,
+    'guardianContact',
+    VOLUNTEER_TEXT_LIMITS.guardianContact
+  );
   const preferredPositions = normalizeVolunteerPositions(payload.preferredPositions);
-  const otherPosition = normalizeText(payload.otherPosition);
-  const motivation = normalizeText(payload.motivation);
-  const experience = normalizeText(payload.experience);
-  const availability = normalizeText(payload.availability);
+  const otherPosition = normalizeLimitedText(
+    payload.otherPosition,
+    'otherPosition',
+    VOLUNTEER_TEXT_LIMITS.otherPosition
+  );
+  const motivation = normalizeLimitedText(payload.motivation, 'motivation', VOLUNTEER_TEXT_LIMITS.motivation);
+  const experience = normalizeLimitedText(payload.experience, 'experience', VOLUNTEER_TEXT_LIMITS.experience);
+  const availability = normalizeLimitedText(
+    payload.availability,
+    'availability',
+    VOLUNTEER_TEXT_LIMITS.availability
+  );
   const isMinor = age < 18;
 
   if (otherPosition && !preferredPositions.includes('other')) {
@@ -246,7 +233,7 @@ function normalizeCreatePayload(payload) {
     throw createHttpError(400, 'Въведи валиден имейл адрес.');
   }
 
-  if (!PHONE_PATTERN.test(phone)) {
+  if (!isValidPhone(phone)) {
     throw createHttpError(400, 'Въведи валиден телефонен номер.');
   }
 
@@ -259,10 +246,6 @@ function normalizeCreatePayload(payload) {
   }
 
   if (isMinor) {
-    if (!guardianConsent) {
-      throw createHttpError(400, 'За кандидат под 18 години е необходимо съгласие от родител или настойник.');
-    }
-
     if (!guardianName || !guardianContact) {
       throw createHttpError(400, 'Попълни името и контакта на родител или настойник.');
     }
@@ -278,7 +261,7 @@ function normalizeCreatePayload(payload) {
     email,
     phone,
     age,
-    guardianConsent: isMinor ? guardianConsent : false,
+    guardianConsentVerified: false,
     guardianName: isMinor ? guardianName : '',
     guardianContact: isMinor ? guardianContact : '',
     preferredPositions,
@@ -289,13 +272,146 @@ function normalizeCreatePayload(payload) {
   };
 }
 
-function normalizeStatusUpdatePayload(payload) {
+function normalizeReviewPayload(payload) {
   assertBodyObject(payload);
-  assertAllowedFields(payload, ['status', 'notes']);
+  assertAllowedFields(payload, ['status', 'notes', 'guardianConsentVerified']);
+
+  const normalizedPayload = {};
+
+  if (payload.status !== undefined && payload.status !== null && payload.status !== '') {
+    normalizedPayload.status = normalizeVolunteerStatus(payload.status);
+  }
+
+  if (payload.notes !== undefined) {
+    const noteText = normalizeLimitedText(
+      payload.notes,
+      'notes',
+      VOLUNTEER_TEXT_LIMITS.internalNote
+    );
+
+    if (noteText) {
+      normalizedPayload.notes = noteText;
+    }
+  }
+
+  if (payload.guardianConsentVerified !== undefined) {
+    normalizedPayload.guardianConsentVerified = parseStrictBooleanField(
+      payload.guardianConsentVerified,
+      'guardianConsentVerified'
+    );
+  }
+
+  if (Object.keys(normalizedPayload).length === 0) {
+    throw createHttpError(400, 'Няма подадени промени за кандидатурата.');
+  }
+
+  return normalizedPayload;
+}
+
+function buildActorName(currentUser) {
+  const authorName = [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(' ').trim();
+  return authorName || currentUser?.username || '';
+}
+
+function buildInternalNote(text, currentUser) {
+  if (!text) {
+    return null;
+  }
 
   return {
-    status: normalizeVolunteerStatus(payload.status),
-    notes: normalizeText(payload.notes),
+    text,
+    author: mongoose.isValidObjectId(currentUser?.id) ? currentUser.id : null,
+    authorName: buildActorName(currentUser),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function buildStatusHistoryEntry(fromStatus, toStatus, currentUser) {
+  if (!toStatus || fromStatus === toStatus) {
+    return null;
+  }
+
+  return {
+    fromStatus: fromStatus ?? '',
+    toStatus,
+    changedBy: mongoose.isValidObjectId(currentUser?.id) ? currentUser.id : null,
+    changedByName: currentUser ? buildActorName(currentUser) : '',
+    changedAt: new Date().toISOString(),
+  };
+}
+
+function buildGuardianConsentAuditFields(isVerified, currentUser) {
+  if (!isVerified) {
+    return {
+      guardianConsentVerifiedAt: null,
+      guardianConsentVerifiedBy: null,
+      guardianConsentVerifiedByName: '',
+    };
+  }
+
+  return {
+    guardianConsentVerifiedAt: new Date(),
+    guardianConsentVerifiedBy: mongoose.isValidObjectId(currentUser?.id)
+      ? currentUser.id
+      : null,
+    guardianConsentVerifiedByName: buildActorName(currentUser),
+  };
+}
+
+function serializeInternalNotes(internalNotes = []) {
+  return Array.isArray(internalNotes)
+    ? internalNotes.map((note) => ({
+        text: note.text ?? '',
+        authorId: serializeId(note.author),
+        authorName: note.authorName ?? '',
+        createdAt: normalizeDateOutput(note.createdAt),
+      }))
+    : [];
+}
+
+function serializeStatusHistory(statusHistory = []) {
+  if (!Array.isArray(statusHistory)) {
+    return [];
+  }
+
+  return statusHistory.map((entry) => ({
+    fromStatus: entry.fromStatus ?? '',
+    toStatus: entry.toStatus ?? '',
+    changedById: serializeId(entry.changedBy),
+    changedByName: entry.changedByName ?? '',
+    changedAt: normalizeDateOutput(entry.changedAt),
+  }));
+}
+
+function getAllowedStatusTransitionsForApplication(application, status) {
+  const allowedTransitions = VOLUNTEER_STATUS_TRANSITIONS[status] ?? [];
+
+  if (isMinorApplication(application) && !application.guardianConsentVerified) {
+    return allowedTransitions.filter((nextStatus) => nextStatus !== 'approved');
+  }
+
+  return allowedTransitions;
+}
+
+function serializeVolunteerApplicationListItem(application) {
+  const preferredPositions = Array.isArray(application.preferredPositions)
+    ? application.preferredPositions.map((position) => String(position))
+    : [];
+  const status = application.status ?? 'pending';
+
+  return {
+    id: serializeId(application),
+    firstName: application.firstName ?? '',
+    lastName: application.lastName ?? '',
+    email: application.email ?? '',
+    phone: application.phone ?? '',
+    preferredPositions,
+    preferredPositionLabels: getVolunteerPositionLabels(preferredPositions),
+    otherPosition: application.otherPosition ?? '',
+    availability: application.availability ?? '',
+    status,
+    statusLabel: VOLUNTEER_STATUS_LABELS[status] ?? status,
+    createdAt: normalizeDateOutput(application.createdAt),
   };
 }
 
@@ -312,7 +428,10 @@ function serializeVolunteerApplication(application) {
     email: application.email ?? '',
     phone: application.phone ?? '',
     age: application.age ?? null,
-    guardianConsent: Boolean(application.guardianConsent),
+    guardianConsentVerified: Boolean(application.guardianConsentVerified),
+    guardianConsentVerifiedAt: normalizeDateOutput(application.guardianConsentVerifiedAt),
+    guardianConsentVerifiedById: serializeId(application.guardianConsentVerifiedBy),
+    guardianConsentVerifiedByName: application.guardianConsentVerifiedByName ?? '',
     guardianName: application.guardianName ?? '',
     guardianContact: application.guardianContact ?? '',
     preferredPositions,
@@ -322,9 +441,10 @@ function serializeVolunteerApplication(application) {
     experience: application.experience ?? '',
     availability: application.availability ?? '',
     status,
-    statusLabel: VOLUNTEER_APPLICATION_STATUS_LABELS[status] ?? status,
-    allowedStatusTransitions: VOLUNTEER_APPLICATION_STATUS_TRANSITIONS[status] ?? [],
-    notes: application.notes ?? '',
+    statusLabel: VOLUNTEER_STATUS_LABELS[status] ?? status,
+    allowedStatusTransitions: getAllowedStatusTransitionsForApplication(application, status),
+    internalNotes: serializeInternalNotes(application.internalNotes),
+    statusHistory: serializeStatusHistory(application.statusHistory),
     createdAt: normalizeDateOutput(application.createdAt),
     updatedAt: normalizeDateOutput(application.updatedAt),
   };
@@ -335,14 +455,42 @@ function assertAllowedVolunteerStatusTransition(currentStatus, nextStatus) {
     return;
   }
 
-  const allowedTransitions = VOLUNTEER_APPLICATION_STATUS_TRANSITIONS[currentStatus] ?? [];
+  const allowedTransitions = VOLUNTEER_STATUS_TRANSITIONS[currentStatus] ?? [];
 
   if (!allowedTransitions.includes(nextStatus)) {
-    throw createHttpError(409, `Status transition from "${currentStatus}" to "${nextStatus}" is not allowed.`, {
-      currentStatus,
-      requestedStatus: nextStatus,
-      allowedTransitions,
-    });
+    throw createHttpError(
+      409,
+      `Преходът от статус "${currentStatus}" към "${nextStatus}" не е разрешен.`,
+      {
+        currentStatus,
+        requestedStatus: nextStatus,
+        allowedTransitions,
+      }
+    );
+  }
+}
+
+function assertGuardianConsentBeforeApproval(application, nextStatus, normalizedPayload) {
+  const hasVerifiedGuardianConsent =
+    normalizedPayload.guardianConsentVerified ?? Boolean(application.guardianConsentVerified);
+
+  if (isMinorApplication(application) && nextStatus === 'approved' && !hasVerifiedGuardianConsent) {
+    throw createHttpError(
+      409,
+      'Кандидатура на лице под 18 години не може да бъде одобрена без потвърдено съгласие от родител или настойник.'
+    );
+  }
+}
+
+function assertGuardianConsentVerificationApplies(application, normalizedPayload) {
+  if (
+    normalizedPayload.guardianConsentVerified !== undefined &&
+    !isMinorApplication(application)
+  ) {
+    throw createHttpError(
+      400,
+      'Потвърждение от родител или настойник се прилага само за кандидати под 18 години.'
+    );
   }
 }
 
@@ -381,24 +529,79 @@ async function findVolunteerApplicationRecordById(applicationId) {
   return VolunteerApplication.findById(normalizedId).lean();
 }
 
-export function getVolunteerApplicationModulePolicy(roleCandidate) {
-  return {
-    resource: 'volunteers',
-    allowedActions: getAllowedVolunteerApplicationActions(roleCandidate),
-    statuses: VOLUNTEER_APPLICATION_STATUS_VALUES,
-    statusTransitions: VOLUNTEER_APPLICATION_STATUS_TRANSITIONS,
-  };
+async function assertNoActiveVolunteerApplicationForEmail(email) {
+  const existingApplication = await VolunteerApplication.findOne({
+    email,
+    status: {
+      $in: ACTIVE_VOLUNTEER_STATUS_VALUES,
+    },
+  }).lean();
+
+  if (existingApplication) {
+    throw createHttpError(
+      409,
+      'Вече има активна доброволческа кандидатура с този имейл адрес.'
+    );
+  }
+}
+
+function createDuplicateVolunteerApplicationConflictError(error) {
+  return createDuplicateKeyHttpError(error, {
+    fieldMessages: {
+      activeApplicationEmail:
+        'Вече има активна доброволческа кандидатура с този имейл адрес.',
+    },
+    fallbackMessage:
+      'Вече има доброволческа кандидатура с тези данни.',
+  });
+}
+
+async function notifyVolunteerApplicationCreated(serializedApplication) {
+  try {
+    await notifyOperationalStaff({
+      type: 'volunteer-application-created',
+      title: 'Нова доброволческа кандидатура',
+      message: `Получена е нова кандидатура от ${serializedApplication.firstName} ${serializedApplication.lastName}.`,
+      resourceId: serializedApplication.id,
+    });
+  } catch (error) {
+    console.error(
+      '[volunteers] volunteer-application-created notification failed',
+      error
+    );
+  }
 }
 
 export async function createVolunteerApplication(payload) {
   const normalizedPayload = normalizeCreatePayload(payload);
-  const createdApplication = await VolunteerApplication.create({
-    ...normalizedPayload,
-    status: 'pending',
-    notes: '',
-  });
 
-  return serializeVolunteerApplication(createdApplication.toObject());
+  await assertNoActiveVolunteerApplicationForEmail(normalizedPayload.email);
+
+  let createdApplication;
+
+  try {
+    createdApplication = await VolunteerApplication.create({
+      ...normalizedPayload,
+      status: 'pending',
+      activeApplicationEmail: normalizedPayload.email,
+      internalNotes: [],
+      statusHistory: [buildStatusHistoryEntry('', 'pending', null)],
+    });
+  } catch (error) {
+    const duplicateError = createDuplicateVolunteerApplicationConflictError(error);
+
+    if (duplicateError) {
+      throw duplicateError;
+    }
+
+    throw error;
+  }
+
+  const serializedApplication = serializeVolunteerApplication(createdApplication.toObject());
+
+  await notifyVolunteerApplicationCreated(serializedApplication);
+
+  return serializedApplication;
 }
 
 export async function getVolunteerApplicationCollection(currentUser, filters = {}) {
@@ -410,13 +613,19 @@ export async function getVolunteerApplicationCollection(currentUser, filters = {
   });
   const total = await VolunteerApplication.countDocuments(query);
   const pagination = buildPagination(total, paginationOptions);
-  const applications = await applyPagination(
-    VolunteerApplication.find(query).sort({ createdAt: -1, _id: -1 }),
-    pagination
-  ).lean();
+  const applications = await readWorkflowCollectionPage({
+    model: VolunteerApplication,
+    query,
+    pagination,
+    statusTransitions: VOLUNTEER_STATUS_TRANSITIONS,
+    configureQuery: (applicationQuery) =>
+      applicationQuery.select(
+        'firstName lastName email phone preferredPositions otherPosition availability status createdAt'
+      ),
+  });
 
   return {
-    items: applications.map(serializeVolunteerApplication),
+    items: applications.map(serializeVolunteerApplicationListItem),
     total,
     pagination,
   };
@@ -433,10 +642,10 @@ export async function getVolunteerApplicationById(applicationId, currentUser) {
   return serializeVolunteerApplication(application);
 }
 
-export async function updateVolunteerApplicationStatus(applicationId, payload, currentUser) {
-  assertStaffPermission(currentUser, 'update-status');
+export async function updateVolunteerApplicationReview(applicationId, payload, currentUser) {
+  assertStaffPermission(currentUser, 'review');
   const normalizedId = assertValidVolunteerApplicationId(applicationId);
-  const normalizedPayload = normalizeStatusUpdatePayload(payload);
+  const normalizedPayload = normalizeReviewPayload(payload);
   const application = await findVolunteerApplicationRecordById(normalizedId);
 
   if (!application) {
@@ -444,28 +653,112 @@ export async function updateVolunteerApplicationStatus(applicationId, payload, c
   }
 
   const currentStatus = application.status ?? 'pending';
-  assertAllowedVolunteerStatusTransition(currentStatus, normalizedPayload.status);
+  const requestedStatus = normalizedPayload.status;
+  const hasStatusChange =
+    requestedStatus !== undefined && requestedStatus !== currentStatus;
+  const nextStatus = hasStatusChange ? requestedStatus : currentStatus;
+  assertGuardianConsentVerificationApplies(application, normalizedPayload);
 
-  const updatedApplication = await VolunteerApplication.findOneAndUpdate(
-    {
-      _id: normalizedId,
-      status: currentStatus,
-    },
-    {
-      status: normalizedPayload.status,
-      notes: normalizedPayload.notes,
-    },
-    {
-      new: true,
-      runValidators: true,
+  if (hasStatusChange) {
+    assertAllowedVolunteerStatusTransition(currentStatus, nextStatus);
+  }
+
+  if (hasStatusChange || normalizedPayload.guardianConsentVerified !== undefined) {
+    assertGuardianConsentBeforeApproval(application, nextStatus, normalizedPayload);
+  }
+
+  const internalNote = buildInternalNote(normalizedPayload.notes, currentUser);
+  const hasGuardianConsentChange =
+    normalizedPayload.guardianConsentVerified !== undefined &&
+    normalizedPayload.guardianConsentVerified !==
+      Boolean(application.guardianConsentVerified);
+
+  if (!hasStatusChange && !hasGuardianConsentChange && !internalNote) {
+    throw createHttpError(400, 'Няма промени за записване по кандидатурата.');
+  }
+
+  const statusHistoryEntry = hasStatusChange
+    ? buildStatusHistoryEntry(currentStatus, nextStatus, currentUser)
+    : null;
+
+  const updatePayload = {};
+
+  if (hasStatusChange || hasGuardianConsentChange) {
+    updatePayload.$set = {};
+  }
+
+  if (hasStatusChange) {
+    updatePayload.$set.status = nextStatus;
+    updatePayload.$set.activeApplicationEmail =
+      isActiveVolunteerApplicationStatus(nextStatus) ? application.email : null;
+  }
+
+  if (hasGuardianConsentChange) {
+    updatePayload.$set.guardianConsentVerified = normalizedPayload.guardianConsentVerified;
+    Object.assign(
+      updatePayload.$set,
+      buildGuardianConsentAuditFields(
+        normalizedPayload.guardianConsentVerified,
+        currentUser
+      )
+    );
+  }
+
+  if (statusHistoryEntry) {
+    updatePayload.$push = {
+      statusHistory: statusHistoryEntry,
+    };
+  }
+
+  if (internalNote) {
+    updatePayload.$push = {
+      ...(updatePayload.$push ?? {}),
+      internalNotes: internalNote,
+    };
+  }
+
+  if (updatePayload.$set && Object.keys(updatePayload.$set).length === 0) {
+    delete updatePayload.$set;
+  }
+
+  let updatedApplication;
+  const expectedGuardianConsentVerified = Boolean(application.guardianConsentVerified);
+
+  try {
+    updatedApplication = await VolunteerApplication.findOneAndUpdate(
+      {
+        _id: normalizedId,
+        status: currentStatus,
+        guardianConsentVerified: expectedGuardianConsentVerified
+          ? true
+          : { $ne: true },
+      },
+      updatePayload,
+      {
+        returnDocument: 'after',
+        runValidators: true,
+      }
+    ).lean();
+  } catch (error) {
+    const duplicateError = createDuplicateVolunteerApplicationConflictError(error);
+
+    if (duplicateError) {
+      throw duplicateError;
     }
-  ).lean();
+
+    throw error;
+  }
 
   if (!updatedApplication) {
-    throw createHttpError(409, 'Volunteer application status changed before the update could be saved.', {
-      currentStatus,
-      requestedStatus: normalizedPayload.status,
-    });
+    throw createHttpError(
+      409,
+      'Кандидатурата беше променена преди записването на заявката.',
+      {
+        currentStatus,
+        requestedStatus: nextStatus,
+        expectedGuardianConsentVerified,
+      }
+    );
   }
 
   return serializeVolunteerApplication(updatedApplication);

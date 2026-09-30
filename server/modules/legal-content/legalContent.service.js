@@ -1,23 +1,23 @@
-import LegalContent, { LEGAL_CONTENT_KEY_VALUES } from '../../models/LegalContent.js';
+import LegalContent from '../../models/LegalContent.js';
 import { createHttpError } from '../../utils/httpError.js';
+import { assertAllowedFields, assertBodyObject } from '../../utils/requestValidation.js';
+import {
+  LEGAL_CONTENT_EDITABLE_FIELDS,
+  LEGAL_CONTENT_KEY_VALUES,
+} from '../../../shared/domain/legalContentConstants.js';
 import { hasPermission } from '../shared/rolePolicies.js';
+import {
+  areLegalSnapshotsEqual,
+  assertLegalContentPublishable,
+  createEmptyLegalContentFields,
+  mergeLegalContentFields,
+  normalizeLegalContentFields,
+} from './legalContent.normalizers.js';
 
 const LEGAL_CONTENT_KEY_SET = new Set(LEGAL_CONTENT_KEY_VALUES);
 
-function normalizeText(value) {
-  return String(value ?? '').trim();
-}
-
-function normalizeStringList(value) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.map(normalizeText).filter(Boolean);
-}
-
 function normalizeLegalKey(legalKey) {
-  const normalizedLegalKey = normalizeText(legalKey);
+  const normalizedLegalKey = String(legalKey ?? '').trim();
 
   if (!LEGAL_CONTENT_KEY_SET.has(normalizedLegalKey)) {
     throw createHttpError(404, 'Юридическата страница не беше намерена.');
@@ -26,46 +26,8 @@ function normalizeLegalKey(legalKey) {
   return normalizedLegalKey;
 }
 
-function normalizeSections(value) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value
-    .map((section, index) => ({
-      title: normalizeText(section?.title),
-      paragraphs: normalizeStringList(section?.paragraphs),
-      items: normalizeStringList(section?.items),
-      closing: normalizeStringList(section?.closing),
-      order: Number.isFinite(Number(section?.order)) ? Number(section.order) : index,
-      isVisible: section?.isVisible !== false,
-    }))
-    .filter((section) => section.title || section.paragraphs.length || section.items.length || section.closing.length)
-    .sort((firstSection, secondSection) => firstSection.order - secondSection.order);
-}
-
-function normalizeLegalPayload(payload = {}, existingContent = null) {
-  const title = normalizeText(payload.title ?? existingContent?.title);
-
-  if (!title) {
-    throw createHttpError(400, 'Попълни заглавие на юридическата страница.');
-  }
-
-  return {
-    title,
-    lastUpdatedLabel: normalizeText(payload.lastUpdatedLabel ?? existingContent?.lastUpdatedLabel),
-    intro: normalizeStringList(payload.intro ?? existingContent?.intro),
-    sections: normalizeSections(payload.sections ?? existingContent?.sections),
-  };
-}
-
 function buildSnapshot(content) {
-  return {
-    title: content.title,
-    lastUpdatedLabel: content.lastUpdatedLabel,
-    intro: content.intro ?? [],
-    sections: normalizeSections(content.sections ?? []),
-  };
+  return normalizeLegalContentFields(content);
 }
 
 function assertPermission(currentUser, action) {
@@ -83,42 +45,49 @@ function serializeLegalContent(record, { includeDraft = false } = {}) {
     return null;
   }
 
-  const publishedSnapshot = record.publishedSnapshot ?? null;
+  const publishedSnapshot = record.publishedSnapshot
+    ? buildSnapshot(record.publishedSnapshot)
+    : null;
   const publicContent = publishedSnapshot
     ? {
-        title: publishedSnapshot.title,
-        lastUpdatedLabel: publishedSnapshot.lastUpdatedLabel,
-        intro: publishedSnapshot.intro ?? [],
-        sections: normalizeSections(publishedSnapshot.sections ?? []).filter((section) => section.isVisible),
+        ...publishedSnapshot,
+        sections: publishedSnapshot.sections.filter((section) => section.isVisible),
       }
     : null;
 
-  const serializedContent = {
+  if (!includeDraft) {
+    return {
+      legalKey: record.legalKey,
+      content: publicContent,
+    };
+  }
+
+  const draft = buildSnapshot(record);
+
+  return {
     id: String(record._id),
     legalKey: record.legalKey,
     status: record.status,
     version: record.version ?? 0,
+    hasUnpublishedChanges: publishedSnapshot
+      ? !areLegalSnapshotsEqual(draft, publishedSnapshot)
+      : true,
     publishedAt: record.publishedAt,
     publishedBy: record.publishedBy ? String(record.publishedBy) : null,
     updatedAt: record.updatedAt,
     updatedBy: record.updatedBy ? String(record.updatedBy) : null,
     content: publicContent,
-  };
-
-  if (includeDraft) {
-    serializedContent.draft = buildSnapshot(record);
-    serializedContent.history = (record.history ?? [])
+    draft,
+    history: (record.history ?? [])
       .map((historyItem) => ({
         version: historyItem.version,
         publishedAt: historyItem.publishedAt,
         replacedAt: historyItem.replacedAt,
         publishedBy: historyItem.publishedBy ? String(historyItem.publishedBy) : null,
-        snapshot: historyItem.snapshot,
+        snapshot: buildSnapshot(historyItem.snapshot),
       }))
-      .sort((firstItem, secondItem) => secondItem.version - firstItem.version);
-  }
-
-  return serializedContent;
+      .sort((firstItem, secondItem) => secondItem.version - firstItem.version),
+  };
 }
 
 export async function getPublishedLegalContent(legalKey) {
@@ -158,17 +127,28 @@ export async function getLegalContentDraft(legalKey, currentUser) {
 
 export async function updateLegalContentDraft(legalKey, payload, currentUser) {
   assertPermission(currentUser, 'manage-legal');
+  assertBodyObject(payload);
+  assertAllowedFields(payload, LEGAL_CONTENT_EDITABLE_FIELDS);
 
   const normalizedLegalKey = normalizeLegalKey(legalKey);
-  const existingContent = await LegalContent.findOne({ legalKey: normalizedLegalKey });
-  const normalizedPayload = normalizeLegalPayload(payload, existingContent);
+  const existingContent = await LegalContent.findOne({ legalKey: normalizedLegalKey }).lean();
+  const currentContent = existingContent ?? createEmptyLegalContentFields();
+  const normalizedPayload = normalizeLegalContentFields(
+    mergeLegalContentFields(currentContent, payload)
+  );
+  const publishedSnapshot = existingContent?.publishedSnapshot
+    ? buildSnapshot(existingContent.publishedSnapshot)
+    : null;
+  const hasUnpublishedChanges = publishedSnapshot
+    ? !areLegalSnapshotsEqual(normalizedPayload, publishedSnapshot)
+    : true;
 
   const legalContent = await LegalContent.findOneAndUpdate(
     { legalKey: normalizedLegalKey },
     {
       $set: {
         ...normalizedPayload,
-        status: 'draft',
+        status: hasUnpublishedChanges ? 'draft' : 'published',
         updatedBy: currentUser.id,
       },
       $setOnInsert: {
@@ -176,7 +156,7 @@ export async function updateLegalContentDraft(legalKey, payload, currentUser) {
       },
     },
     {
-      new: true,
+      returnDocument: 'after',
       runValidators: true,
       setDefaultsOnInsert: true,
       upsert: true,
@@ -186,8 +166,10 @@ export async function updateLegalContentDraft(legalKey, payload, currentUser) {
   return serializeLegalContent(legalContent, { includeDraft: true });
 }
 
-export async function publishLegalContentDraft(legalKey, currentUser) {
+export async function publishLegalContentDraft(legalKey, payload, currentUser) {
   assertPermission(currentUser, 'manage-legal');
+  assertBodyObject(payload ?? {}, { allowEmpty: true });
+  assertAllowedFields(payload ?? {}, []);
 
   const normalizedLegalKey = normalizeLegalKey(legalKey);
   const legalContent = await LegalContent.findOne({ legalKey: normalizedLegalKey });
@@ -196,11 +178,24 @@ export async function publishLegalContentDraft(legalKey, currentUser) {
     throw createHttpError(404, 'Юридическата страница не беше намерена.');
   }
 
+  const record = legalContent.toObject();
+  const draftSnapshot = buildSnapshot(record);
+  const publishedSnapshot = record.publishedSnapshot
+    ? buildSnapshot(record.publishedSnapshot)
+    : null;
+
+  assertLegalContentPublishable(draftSnapshot);
+
+  if (areLegalSnapshotsEqual(draftSnapshot, publishedSnapshot)) {
+    throw createHttpError(409, 'Няма непубликувани промени.');
+  }
+
+  // Public reads stay on the published snapshot while draft edits continue; replaced versions move to history.
   const now = new Date();
-  const previousSnapshot = legalContent.publishedSnapshot
+  const previousSnapshot = publishedSnapshot
     ? {
         version: legalContent.version,
-        snapshot: legalContent.publishedSnapshot,
+        snapshot: publishedSnapshot,
         publishedAt: legalContent.publishedAt,
         replacedAt: now,
         publishedBy: legalContent.publishedBy,
@@ -213,7 +208,7 @@ export async function publishLegalContentDraft(legalKey, currentUser) {
 
   legalContent.version = Number(legalContent.version ?? 0) + 1;
   legalContent.status = 'published';
-  legalContent.publishedSnapshot = buildSnapshot(legalContent);
+  legalContent.publishedSnapshot = draftSnapshot;
   legalContent.publishedAt = now;
   legalContent.publishedBy = currentUser.id;
   legalContent.updatedBy = currentUser.id;

@@ -5,7 +5,7 @@ const PUBLIC_NAVIGATION = [
     label: 'Подкрепа',
     items: [
       { to: '/donations', label: 'Дарения' },
-      { to: '/search', label: 'Осиновяване' },
+      { to: '/animals', label: 'Осиновяване' },
     ],
   },
   { to: '/volunteers', label: 'Доброволец' },
@@ -22,22 +22,44 @@ const PUBLIC_NAVIGATION = [
 
 const EMPLOYEE_NAVIGATION = [
   { to: '/staff', label: 'Табло' },
-  { to: '/search', label: 'Животни' },
-  { to: '/staff/adoptions', label: 'Осиновявания' },
-  { to: '/staff/volunteers', label: 'Доброволци' },
+  { to: '/animals', label: 'Животни' },
+  {
+    id: 'employee-requests',
+    label: 'Заявки',
+    items: [
+      { to: '/staff/adoptions', label: 'Осиновявания' },
+      { to: '/staff/volunteers', label: 'Доброволчество' },
+      { to: '/staff/inquiries', label: 'Запитвания' },
+      { to: '/staff/donations', label: 'Дарения' },
+    ],
+  },
   { to: '/staff/signals', label: 'Сигнали' },
-  { to: '/staff/donations', label: 'Дарения' },
+  { to: '/staff/content', label: 'Съдържание' },
 ];
 
 const ADMIN_NAVIGATION = [
   { to: '/admin', label: 'Табло' },
-  { to: '/search', label: 'Животни' },
-  { to: '/admin/adoptions', label: 'Осиновявания' },
-  { to: '/admin/volunteers', label: 'Доброволци' },
+  { to: '/animals', label: 'Животни' },
+  {
+    id: 'admin-requests',
+    label: 'Заявки',
+    items: [
+      { to: '/admin/adoptions', label: 'Осиновявания' },
+      { to: '/admin/volunteers', label: 'Доброволчество' },
+      { to: '/admin/inquiries', label: 'Запитвания' },
+      { to: '/admin/donations', label: 'Дарения' },
+    ],
+  },
   { to: '/admin/signals', label: 'Сигнали' },
-  { to: '/admin/donations', label: 'Дарения' },
-  { to: '/admin/users', label: 'Потребители' },
   { to: '/admin/reports', label: 'Отчети' },
+  {
+    id: 'admin-management',
+    label: 'Управление',
+    items: [
+      { to: '/admin/users', label: 'Потребители' },
+      { to: '/admin/content', label: 'Съдържание' },
+    ],
+  },
 ];
 
 export function getMainNavigation(role = 'guest') {

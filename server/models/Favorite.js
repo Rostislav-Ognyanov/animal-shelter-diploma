@@ -1,18 +1,16 @@
-﻿import mongoose from 'mongoose';
+import mongoose from 'mongoose';
 
 const favoriteSchema = new mongoose.Schema(
   {
     userId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
       required: true,
-      trim: true,
-      index: true,
     },
     animalId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Animal',
       required: true,
-      trim: true,
-      index: true,
     },
   },
   {
@@ -24,5 +22,6 @@ const favoriteSchema = new mongoose.Schema(
 );
 
 favoriteSchema.index({ userId: 1, animalId: 1 }, { unique: true });
+favoriteSchema.index({ userId: 1, createdAt: -1, _id: -1 });
 
 export default mongoose.models.Favorite || mongoose.model('Favorite', favoriteSchema);

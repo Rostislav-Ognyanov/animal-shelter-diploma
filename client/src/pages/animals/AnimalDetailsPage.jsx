@@ -1,11 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
-import {
-  canManageAnimals,
-  getAvailableStatusTransitions,
-  getAnimalStatusLabel,
-} from '../../auth/roleUi.js';
+import { canManageAnimals } from '../../auth/roleUi.js';
 import { useAuth } from '../../auth/AuthProvider.jsx';
 import { AnimalDetailsSkeleton } from '../../components/animals/AnimalDetailsSkeleton.jsx';
 import { AnimalImage } from '../../components/animals/AnimalImage.jsx';
@@ -14,20 +10,13 @@ import { AnimalStatusBadge } from '../../components/animals/AnimalStatusBadge.js
 import { ConfirmDialog } from '../../components/common/ConfirmDialog.jsx';
 import { FavoriteToggleButton } from '../../components/animals/FavoriteToggleButton.jsx';
 import { fetchJson, patchJson } from '../../lib/api.js';
-import { canUseStandardAdoptionFlow, isProtectedCareSpecies } from './animalUi.js';
-
-const ACTION_LABELS = {
-  list: 'Преглед на списък',
-  detail: 'Детайлен преглед',
-  'filter-search': 'Търсене и филтри',
-  create: 'Създаване',
-  edit: 'Редакция',
-  'change-status': 'Смяна на статус',
-  'view-all': 'Пълен преглед',
-  deactivate: 'Деактивиране',
-  archive: 'Архивиране',
-  'full-access': 'Пълен достъп',
-};
+import {
+  canUseStandardAdoptionFlow,
+  getAnimalStatusLabel,
+  getAvailableStatusTransitions,
+  isProtectedCareSpecies,
+} from './animalUi.js';
+import { usePublishedSpeciesContent } from './useSpeciesContent.js';
 
 function formatDate(value) {
   if (!value) {
@@ -48,12 +37,11 @@ function formatDate(value) {
 function buildUnavailableClientMessage(animal) {
   const statusLabel = animal.statusLabel ?? getAnimalStatusLabel(animal.status);
 
-  if (isProtectedCareSpecies(animal.species) || animal.status === 'protected-care') {
-    return 'Животното е част от защитена или специализирана грижа и не приема стандартна заявка за осиновяване. Можете да се свържете с екипа, ако искате да помогнете или да получите повече информация.';
-  }
-
-  if (animal.status === 'under-care') {
-    return 'Животното е под грижа на приюта и в момента не участва в стандартния процес по осиновяване.';
+  if (
+    isProtectedCareSpecies(animal.species) ||
+    ['under-care', 'protected-care'].includes(animal.status)
+  ) {
+    return 'Можеш да изпратиш запитване, ако искаш повече информация за грижата, търсиш начин да подкрепиш животното или можеш да предложиш конкретна помощ.';
   }
 
   if (animal.status === 'released') {
@@ -80,22 +68,44 @@ function buildUnavailableClientMessage(animal) {
 }
 
 function usesSpecialCareFlow(animal) {
+  if (animal.status === 'released') {
+    return false;
+  }
+
   return (
     isProtectedCareSpecies(animal.species) ||
-    ['under-care', 'protected-care', 'released'].includes(animal.status)
+    ['under-care', 'protected-care'].includes(animal.status)
   );
+}
+
+function buildSpecialCareInquiryPath(animal) {
+  const params = new URLSearchParams({
+    type: 'special-care',
+    animal: animal.displayName ?? animal.name ?? '',
+    animalId: animal.slug ?? animal.id ?? '',
+  });
+
+  return `/svurji-se-s-nas?${params.toString()}#contact-inquiry-form`;
 }
 
 function buildActionConfig(role, animal) {
   const isStandardAdoptionCandidate = canUseStandardAdoptionFlow(animal);
   const isSpecialCareAnimal = usesSpecialCareFlow(animal);
+  const adoptionPath = `/animals/${animal.id}/adopt`;
+  const animalDetailsReturnState = {
+    from: {
+      pathname: `/animals/${animal.id}`,
+      search: '',
+      hash: '#animal-adoption-action',
+    },
+  };
 
   if (role === 'guest') {
     if (!isStandardAdoptionCandidate) {
       return isSpecialCareAnimal
         ? {
-            label: 'Свържи се с нас',
-            to: '/svurji-se-s-nas',
+            label: 'Изпрати специално запитване',
+            to: buildSpecialCareInquiryPath(animal),
             helper: buildUnavailableClientMessage(animal),
           }
         : {
@@ -106,12 +116,14 @@ function buildActionConfig(role, animal) {
     }
 
     return {
-      label: 'Влез в профила си',
+      label: 'Подай заявка за осиновяване',
       to: '/login',
+      state: animalDetailsReturnState,
       helper:
         'За да подадеш заявка за осиновяване, влез в профила си или създай нов клиентски профил.',
       secondaryLabel: 'Регистрация',
       secondaryTo: '/register',
+      secondaryState: animalDetailsReturnState,
     };
   }
 
@@ -119,16 +131,16 @@ function buildActionConfig(role, animal) {
     if (isStandardAdoptionCandidate) {
       return {
         label: 'Подай заявка за осиновяване',
-        to: `/animals/${animal.id}/adopt`,
+        to: adoptionPath,
         helper:
-          'Ако смятате, че можете да осигурите подходящ дом, подайте заявка за осиновяване. Екипът на приюта ще я прегледа и ще се свърже с вас при нужда от допълнителна информация.',
+          'Ако смяташ, че можеш да осигуриш подходящ дом, подай заявка за осиновяване. Екипът на приюта ще я прегледа и ще се свърже с теб при нужда от допълнителна информация.',
       };
     }
 
     return isSpecialCareAnimal
       ? {
-          label: 'Свържи се с нас',
-          to: '/svurji-se-s-nas',
+          label: 'Изпрати специално запитване',
+          to: buildSpecialCareInquiryPath(animal),
           helper: buildUnavailableClientMessage(animal),
         }
       : {
@@ -142,7 +154,7 @@ function buildActionConfig(role, animal) {
     return {
       label: 'Редактирай животното',
       to: `/animals/${animal.id}/edit`,
-      helper: 'Можеш да промениш основните данни, медицинската информация и статуса на този запис.',
+      helper: 'Редактирай основните данни и информацията за животното.',
     };
   }
 
@@ -170,7 +182,7 @@ function buildConfirmConfig(nextStatus, animalName) {
 }
 
 const NON_STANDARD_NEUTER_SPECIES = new Set(['fox', 'hedgehog', 'lizard', 'owl']);
-const SPECIAL_CARE_SPECIES = new Set(['fox', 'hedgehog', 'lizard', 'owl']);
+const SPECIES_WITH_SPECIAL_CARE_GUIDANCE = new Set(['fox', 'hedgehog', 'lizard', 'owl']);
 const EMPTY_HEALTH_NOTE = 'няма въведени специфични медицински бележки';
 
 function hasGenericHealthStatus(healthStatus) {
@@ -261,7 +273,7 @@ function buildSpecialCareItem(animal) {
     .join(' ')
     .toLowerCase();
 
-  if (SPECIAL_CARE_SPECIES.has(animal.species)) {
+  if (SPECIES_WITH_SPECIAL_CARE_GUIDANCE.has(animal.species)) {
     return {
       label: 'Специални грижи',
       value: 'Нуждае се от наблюдение',
@@ -288,16 +300,6 @@ function buildSpecialCareItem(animal) {
 }
 
 function buildHealthCareItems(animal) {
-  if (Array.isArray(animal.healthCareItems)) {
-    const storedHealthCareItems = animal.healthCareItems.filter(
-      (item) => item?.label && item?.value && item?.description
-    );
-
-    if (storedHealthCareItems.length > 0) {
-      return storedHealthCareItems;
-    }
-  }
-
   return [
     buildGeneralHealthItem(animal),
     buildVaccinationItem(animal),
@@ -439,6 +441,7 @@ export function AnimalDetailsPage() {
     success: '',
   });
   const [confirmState, setConfirmState] = useState(null);
+  const hasManagementAccess = canManageAnimals(role);
 
   useEffect(() => {
     const feedback = location.state?.feedback;
@@ -498,7 +501,7 @@ export function AnimalDetailsPage() {
           isLoading: false,
           error:
             error.status === 503
-              ? 'Животното временно не може да се зареди. Провери връзката към базата данни.'
+              ? 'Животното временно не може да се зареди. Опитай отново след малко.'
               : error.message,
           statusCode: error.status ?? 0,
         });
@@ -512,6 +515,24 @@ export function AnimalDetailsPage() {
     };
   }, [animalId, reloadToken]);
 
+  useEffect(() => {
+    if (
+      !animalState.item ||
+      location.hash !== '#animal-adoption-action'
+    ) {
+      return undefined;
+    }
+
+    const animationFrameId = requestAnimationFrame(() => {
+      document.getElementById('animal-adoption-action')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    });
+
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [animalState.item, location.hash]);
+
   const actionConfig = useMemo(() => {
     if (!animalState.item) {
       return null;
@@ -520,8 +541,6 @@ export function AnimalDetailsPage() {
     return buildActionConfig(role, animalState.item);
   }, [animalState.item, role]);
 
-  const allowedActions = useMemo(() => animalState.item?.policy?.allowedActions ?? [], [animalState.item]);
-
   const visibleTransitions = useMemo(() => {
     if (!animalState.item) {
       return [];
@@ -529,6 +548,9 @@ export function AnimalDetailsPage() {
 
     return getAvailableStatusTransitions(animalState.item.status, role);
   }, [animalState.item, role]);
+  const { speciesContent: relatedSpeciesContent } = usePublishedSpeciesContent(
+    hasManagementAccess ? null : animalState.item?.species
+  );
 
   async function submitManagementAction(nextStatus) {
     try {
@@ -611,7 +633,7 @@ export function AnimalDetailsPage() {
       <AnimalNotFoundState
         code="400"
         title="Невалиден идентификатор на животно"
-        description="Адресът на животното е невалиден. Провери линка и отвори запис от списъка с животни."
+        description="Адресът на животното е невалиден. Провери връзката и отвори запис от списъка с животни."
         showCreateAction={canManageAnimals(role)}
       />
     );
@@ -628,10 +650,10 @@ export function AnimalDetailsPage() {
                     <h1>Животното не може да се зареди</h1>
           <p>{animalState.error}</p>
           <div className="animals-feedback-actions">
-            <button type="button" className="animals-primary-action" onClick={handleRetryLoad}>
+            <button type="button" className="app-primary-action" onClick={handleRetryLoad}>
               Опитай отново
             </button>
-            <Link className="animals-secondary-action" to="/search">
+            <Link className="app-secondary-action" to="/animals">
               Обратно към списъка
             </Link>
           </div>
@@ -642,7 +664,6 @@ export function AnimalDetailsPage() {
 
   const animal = animalState.item;
   const visibleName = animal.displayName ?? animal.name;
-  const hasManagementAccess = canManageAnimals(role);
   const relatedRoute =
     role === 'client'
       ? '/adoptions/my'
@@ -670,23 +691,26 @@ export function AnimalDetailsPage() {
   const visibleActionConfig = hasManagementAccess ? null : actionConfig;
   const canUseStandardAdoptionAction = canUseStandardAdoptionFlow(animal);
   const showPublicHelpCard = Boolean(visibleActionConfig && !visibleActionConfig.disabled);
-  const healthCareItems = buildHealthCareItems(animal);
+  const healthItems = buildHealthCareItems(animal);
+  const canEditAnimal =
+    role === 'admin' ||
+    (role === 'employee' && !['inactive', 'archived'].includes(animal.status));
 
   return (
     <main className="route-shell animal-details-shell">
       <div className="route-actions">
-        <Link className="animals-secondary-action" to="/search">
+        <Link className="app-secondary-action" to="/animals">
           Към всички животни
         </Link>
         {relatedRoute ? (
-          <Link className="animals-primary-action" to={relatedRoute}>
+          <Link className="app-primary-action" to={relatedRoute}>
             {role === 'client' ? 'Моите заявки' : 'Заявки за осиновяване'}
           </Link>
         ) : null}
       </div>
 
       {pageFeedback.message ? (
-        <div className={`auth-status ${pageFeedback.type === 'error' ? 'auth-status-error' : 'auth-status-info'} animal-page-feedback`}>
+        <div className={`feedback-message ${pageFeedback.type === 'error' ? 'feedback-message-error' : 'feedback-message-info'} animal-page-feedback`}>
           {pageFeedback.message}
         </div>
       ) : null}
@@ -694,14 +718,14 @@ export function AnimalDetailsPage() {
       <section className="animal-details-hero">
         <div className="animal-details-gallery">
           <div className="animal-details-main-image">
-            <AnimalImage src={animal.imageUrl} alt={visibleName} loading="eager" />
+            <AnimalImage src={animal.imageUrl} species={animal.species} alt={visibleName} loading="eager" />
           </div>
 
           {animal.imageUrls?.length > 1 ? (
             <div className="animal-details-thumbnails">
               {animal.imageUrls.map((imageUrl) => (
                 <div key={imageUrl} className="animal-details-thumbnail">
-                  <AnimalImage src={imageUrl} alt={`Снимка на ${visibleName}`} />
+                  <AnimalImage src={imageUrl} species={animal.species} alt={`Снимка на ${visibleName}`} />
                 </div>
               ))}
             </div>
@@ -733,13 +757,17 @@ export function AnimalDetailsPage() {
 
               <div className="animal-details-cta-actions">
                 {visibleActionConfig.to ? (
-                  <Link className="animals-primary-action animal-details-action" to={visibleActionConfig.to}>
+                  <Link
+                    className="app-primary-action animal-details-action"
+                    to={visibleActionConfig.to}
+                    state={visibleActionConfig.state}
+                  >
                     {visibleActionConfig.label}
                   </Link>
                 ) : (
                   <button
                     type="button"
-                    className="animals-primary-action animal-details-action"
+                    className="app-primary-action animal-details-action"
                     disabled={visibleActionConfig.disabled}
                   >
                     {visibleActionConfig.label}
@@ -747,7 +775,11 @@ export function AnimalDetailsPage() {
                 )}
 
                 {visibleActionConfig.secondaryTo ? (
-                  <Link className="animals-secondary-action animal-details-action" to={visibleActionConfig.secondaryTo}>
+                  <Link
+                    className="app-secondary-action animal-details-action"
+                    to={visibleActionConfig.secondaryTo}
+                    state={visibleActionConfig.secondaryState}
+                  >
                     {visibleActionConfig.secondaryLabel}
                   </Link>
                 ) : null}
@@ -803,7 +835,7 @@ export function AnimalDetailsPage() {
           </div>
 
           <div className="animal-healthcare-list">
-            {healthCareItems.map((item) => (
+            {healthItems.map((item) => (
               <div key={item.label} className="animal-healthcare-item">
                 <div className="animal-healthcare-item-header">
                   <h3>{item.label}</h3>
@@ -836,45 +868,27 @@ export function AnimalDetailsPage() {
                   <dt>Последна промяна</dt>
                   <dd>{formatDate(animal.updatedAt)}</dd>
                 </div>
-                <div className="animal-details-info-wide">
-                  <dt>Policy / allowed actions</dt>
-                  <dd>
-                    <div className="animal-details-policy-list">
-                      {allowedActions.length > 0 ? (
-                        allowedActions.map((action) => (
-                          <span key={action} className="animal-details-policy-pill">
-                            {ACTION_LABELS[action] ?? action}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="animal-details-policy-empty">Няма допълнителни действия за тази роля.</span>
-                      )}
-                    </div>
-                  </dd>
-                </div>
               </dl>
             </article>
 
             <article className="animal-details-card animal-details-management-card">
               <div className="animal-details-card-heading">
                 <h2>Управление на статуси и редакция</h2>
-                <p>
-                  {role === 'admin'
-                    ? 'Администраторът може да редактира, да сменя статуси и да архивира записа.'
-                    : 'Служителят може да редактира и да сменя позволените оперативни статуси.'}
-                </p>
+                <p>Избери допустимо действие за текущия статус или редактирай данните на животното.</p>
               </div>
 
               <div className="animal-details-management-actions">
-                <Link className="animals-primary-action" to={`/animals/${animal.id}/edit`}>
-                  Редакция
-                </Link>
+                {canEditAnimal ? (
+                  <Link className="app-primary-action" to={`/animals/${animal.id}/edit`}>
+                    Редакция
+                  </Link>
+                ) : null}
 
                 {visibleTransitions.map((nextStatus) => (
                   <button
                     key={nextStatus}
                     type="button"
-                    className={`animals-secondary-action ${nextStatus === 'inactive' || nextStatus === 'archived' ? 'animal-danger-action' : ''}`}
+                    className={`app-secondary-action ${nextStatus === 'inactive' || nextStatus === 'archived' ? 'app-danger-action' : ''}`}
                     disabled={managementState.isSubmitting}
                     onClick={() => handleStatusAction(nextStatus)}
                   >
@@ -884,15 +898,32 @@ export function AnimalDetailsPage() {
               </div>
 
               {managementState.error ? (
-                <div className="auth-status auth-status-error">{managementState.error}</div>
+                <div className="feedback-message feedback-message-error">{managementState.error}</div>
               ) : null}
               {managementState.success ? (
-                <div className="auth-status auth-status-info">{managementState.success}</div>
+                <div className="feedback-message feedback-message-info">{managementState.success}</div>
               ) : null}
             </article>
           </>
         ) : null}
       </section>
+
+      {!hasManagementAccess && relatedSpeciesContent ? (
+        <section className="animal-details-species-cta">
+          <div>
+            <p className="animal-details-species-cta-kicker">Полезна информация</p>
+            <h2>Искаш да научиш повече за този вид?</h2>
+            <p>
+              Разгледай подробна информация за вида „{relatedSpeciesContent.displayName}“, неговите особености,
+              грижи и нужди.
+            </p>
+          </div>
+
+          <Link className="app-primary-action" to={`/za-zhivotnite/${animal.species}`}>
+            Повече за вида
+          </Link>
+        </section>
+      ) : null}
 
       {showPublicHelpCard ? (
         <section className="animal-details-help-card">
@@ -900,14 +931,14 @@ export function AnimalDetailsPage() {
             <>
               <div className="animal-details-help-row">
                 <h2>Искаш да помогнеш на {visibleName}?</h2>
-                <a className="about-page-contact-link" href="#animal-adoption-action">
+                <a className="page-contact-link" href="#animal-adoption-action">
                   Осинови
                 </a>
               </div>
 
               <div className="animal-details-help-row">
                 <h2>Имаш въпроси към нас за животното?</h2>
-                <Link className="about-page-contact-link" to="/svurji-se-s-nas">
+                <Link className="page-contact-link" to="/svurji-se-s-nas">
                   Свържи се с нас
                 </Link>
               </div>
@@ -916,14 +947,14 @@ export function AnimalDetailsPage() {
             <>
               <div className="animal-details-help-row">
                 <h2>Искаш да помогнеш на {visibleName}?</h2>
-                <Link className="about-page-contact-link" to="/svurji-se-s-nas">
-                  Свържи се с нас
-                </Link>
+                <a className="page-contact-link" href="#animal-adoption-action">
+                  Подай запитване
+                </a>
               </div>
 
               <div className="animal-details-help-row">
                 <h2>Искаш да подкрепиш грижата за животните?</h2>
-                <Link className="about-page-contact-link" to="/podkrepa">
+                <Link className="page-contact-link" to="/podkrepa">
                   Виж как
                 </Link>
               </div>

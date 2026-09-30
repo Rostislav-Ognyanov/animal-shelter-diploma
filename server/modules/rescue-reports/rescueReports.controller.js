@@ -7,23 +7,17 @@ import {
   createRescueReport,
   getRescueReportById,
   getRescueReportCollection,
-  getRescueReportModulePolicy,
-  updateRescueReportStatus,
+  updateRescueReportReview,
 } from './rescueReports.service.js';
 
 function readRescueReportFilters(query = {}) {
   return {
     status: query.status,
+    urgency: query.urgency,
+    species: query.species,
     search: query.search,
     page: query.page,
     limit: query.limit,
-  };
-}
-
-function buildRescueReportResponseData(report, roleCandidate) {
-  return {
-    ...report,
-    policy: getRescueReportModulePolicy(roleCandidate),
   };
 }
 
@@ -34,7 +28,7 @@ export async function createRescueReportEntry(req, res, next) {
     return sendMutationSuccess(res, {
       status: 201,
       message: 'Сигналът е изпратен успешно.',
-      data: buildRescueReportResponseData(createdReport, req.user?.role),
+      data: createdReport,
     });
   } catch (error) {
     return next(error);
@@ -50,9 +44,6 @@ export async function listRescueReports(req, res, next) {
       message: 'Сигналите са заредени успешно.',
       items: reports.items,
       total: reports.total,
-      data: {
-        policy: getRescueReportModulePolicy(req.user?.role),
-      },
       meta: {
         filters,
         pagination: reports.pagination,
@@ -69,20 +60,20 @@ export async function getRescueReport(req, res, next) {
 
     return sendItemSuccess(res, {
       message: 'Данните за сигнала са заредени успешно.',
-      data: buildRescueReportResponseData(report, req.user?.role),
+      data: report,
     });
   } catch (error) {
     return next(error);
   }
 }
 
-export async function updateRescueReportStatusEntry(req, res, next) {
+export async function updateRescueReportReviewEntry(req, res, next) {
   try {
-    const updatedReport = await updateRescueReportStatus(req.params.reportId, req.body, req.user);
+    const updatedReport = await updateRescueReportReview(req.params.reportId, req.body, req.user);
 
     return sendMutationSuccess(res, {
       message: 'Сигналът е обновен успешно.',
-      data: buildRescueReportResponseData(updatedReport, req.user?.role),
+      data: updatedReport,
     });
   } catch (error) {
     return next(error);

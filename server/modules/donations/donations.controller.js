@@ -1,27 +1,29 @@
-﻿import {
+import {
   sendCollectionSuccess,
   sendItemSuccess,
   sendMutationSuccess,
 } from '../../utils/apiResponse.js';
 import {
+  canUpdateDonationStatus,
   createDonation,
   getDonationById,
   getDonationCollection,
-  getDonationModulePolicy,
+  updateDonationStatus,
 } from './donations.service.js';
 
 function readDonationFilters(query = {}) {
   return {
     search: query.search,
+    status: query.status,
     page: query.page,
     limit: query.limit,
   };
 }
 
-function buildDonationResponseData(donation, roleCandidate) {
+function buildDonationDetailResponseData(donation, roleCandidate) {
   return {
     ...donation,
-    policy: getDonationModulePolicy(roleCandidate),
+    canUpdateStatus: canUpdateDonationStatus(roleCandidate),
   };
 }
 
@@ -31,8 +33,8 @@ export async function createDonationEntry(req, res, next) {
 
     return sendMutationSuccess(res, {
       status: 201,
-      message: 'Демонстрационното дарение е записано успешно.',
-      data: buildDonationResponseData(createdDonation, req.user?.role),
+      message: 'Заявката за дарение е записана успешно.',
+      data: createdDonation,
     });
   } catch (error) {
     return next(error);
@@ -48,9 +50,6 @@ export async function listDonations(req, res, next) {
       message: 'Даренията са заредени успешно.',
       items: donations.items,
       total: donations.total,
-      data: {
-        policy: getDonationModulePolicy(req.user?.role),
-      },
       meta: {
         filters,
         pagination: donations.pagination,
@@ -66,8 +65,21 @@ export async function getDonation(req, res, next) {
     const donation = await getDonationById(req.params.donationId, req.user);
 
     return sendItemSuccess(res, {
-      message: 'Детайлите за дарението са заредени успешно.',
-      data: buildDonationResponseData(donation, req.user?.role),
+      message: 'Детайлите за заявката за дарение са заредени успешно.',
+      data: buildDonationDetailResponseData(donation, req.user?.role),
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateDonationStatusEntry(req, res, next) {
+  try {
+    const donation = await updateDonationStatus(req.params.donationId, req.body, req.user);
+
+    return sendMutationSuccess(res, {
+      message: 'Статусът на заявката за дарение е обновен успешно.',
+      data: buildDonationDetailResponseData(donation, req.user?.role),
     });
   } catch (error) {
     return next(error);

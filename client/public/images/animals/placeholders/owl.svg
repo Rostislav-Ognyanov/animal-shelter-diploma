@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-label="Owl placeholder">
+  <rect width="320" height="240" fill="#f1f7f3"/>
+  <circle cx="62" cy="188" r="44" fill="#dcece3"/>
+  <path d="M98 70l29 23 33-22 33 22 29-23-11 107c-20 23-82 23-102 0z" fill="#2f6f4e"/>
+  <circle cx="136" cy="119" r="25" fill="#f7fbf8"/>
+  <circle cx="184" cy="119" r="25" fill="#f7fbf8"/>
+  <circle cx="136" cy="119" r="8" fill="#3d7a57"/>
+  <circle cx="184" cy="119" r="8" fill="#3d7a57"/>
+  <path d="M160 137l-12 18h24z" fill="#d9b65f"/>
+  <path d="M130 188l-16 22M190 188l16 22" stroke="#3d7a57" stroke-width="10" stroke-linecap="round"/>
+</svg>

@@ -1,33 +1,21 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
+import { MANAGED_USER_ROLE_VALUES } from '../../../../shared/domain/roleConstants.js';
 import { useAuth } from '../../auth/AuthProvider.jsx';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog.jsx';
 import { fetchJson, patchJson } from '../../lib/api.js';
 import { createEmptyFeedback, createErrorFeedback, createSuccessFeedback } from '../../lib/feedback.js';
+import { ManagedUserEditForm, ManagedUserStatusPanel } from '../users/ManagedUserControls.jsx';
 import {
+  EMPTY_USER_EDIT_FORM,
+  buildUserEditForm,
   formatUserDate,
   getUserDisplayName,
   getUserRoleLabel,
   getUserStatusLabel,
   getUserStatusTone,
 } from '../users/usersUi.js';
-
-const EMPTY_EDIT_FORM = {
-  firstName: '',
-  lastName: '',
-  email: '',
-  role: 'client',
-};
-
-function buildEditForm(user) {
-  return {
-    firstName: user?.firstName ?? '',
-    lastName: user?.lastName ?? '',
-    email: user?.email ?? '',
-    role: user?.role ?? 'client',
-  };
-}
 
 export function AdminUserDetailsPage() {
   const { userId } = useParams();
@@ -39,7 +27,7 @@ export function AdminUserDetailsPage() {
     error: '',
     statusCode: 0,
   });
-  const [editForm, setEditForm] = useState(EMPTY_EDIT_FORM);
+  const [editForm, setEditForm] = useState(EMPTY_USER_EDIT_FORM);
   const [editState, setEditState] = useState({
     isSubmitting: false,
     feedback: createEmptyFeedback(),
@@ -48,6 +36,7 @@ export function AdminUserDetailsPage() {
     isSubmitting: false,
     feedback: createEmptyFeedback(),
   });
+  const [roleConfirmState, setRoleConfirmState] = useState(null);
   const [confirmState, setConfirmState] = useState(null);
 
   useEffect(() => {
@@ -74,7 +63,7 @@ export function AdminUserDetailsPage() {
           error: '',
           statusCode: 0,
         });
-        setEditForm(buildEditForm(payload));
+        setEditForm(buildUserEditForm(payload));
       } catch (error) {
         if (!isMounted) {
           return;
@@ -97,7 +86,7 @@ export function AdminUserDetailsPage() {
   }, [reloadToken, userId]);
 
   const user = pageState.item;
-  const managedRoles = useMemo(() => user?.policy?.managedRoles ?? ['client', 'employee', 'admin'], [user]);
+  const managedRoles = MANAGED_USER_ROLE_VALUES;
   const isEditingSelf = user?.id === currentUser?.id;
   const isEditDirty = useMemo(() => {
     if (!user) {
@@ -117,7 +106,7 @@ export function AdminUserDetailsPage() {
       ...currentValue,
       item: updatedUser,
     }));
-    setEditForm(buildEditForm(updatedUser));
+    setEditForm(buildUserEditForm(updatedUser));
 
     if (updatedUser.id === currentUser?.id) {
       updateCurrentUser(updatedUser);
@@ -132,16 +121,14 @@ export function AdminUserDetailsPage() {
   }
 
   function handleEditReset() {
-    setEditForm(buildEditForm(user));
+    setEditForm(buildUserEditForm(user));
     setEditState((currentValue) => ({
       ...currentValue,
       feedback: createEmptyFeedback(),
     }));
   }
 
-  async function handleEditSubmit(event) {
-    event.preventDefault();
-
+  async function submitEditForm(formValues) {
     if (!user) {
       return;
     }
@@ -152,9 +139,10 @@ export function AdminUserDetailsPage() {
         feedback: createEmptyFeedback(),
       });
 
-      const updatedUser = await patchJson(`/api/users/${user.id}`, editForm);
+      const updatedUser = await patchJson(`/api/users/${user.id}`, formValues);
 
       syncUser(updatedUser);
+      setRoleConfirmState(null);
       setEditState({
         isSubmitting: false,
         feedback: createSuccessFeedback('Профилът е обновен успешно.'),
@@ -165,6 +153,38 @@ export function AdminUserDetailsPage() {
         feedback: createErrorFeedback(error.message),
       });
     }
+  }
+
+  async function handleEditSubmit(event) {
+    event.preventDefault();
+
+    if (!user) {
+      return;
+    }
+
+    const nextFormValues = { ...editForm };
+    const hasRoleChange = nextFormValues.role !== user.role;
+
+    if (hasRoleChange) {
+      setRoleConfirmState({
+        formValues: nextFormValues,
+        title: 'Промяна на роля',
+        description: `Ще промениш ролята на ${getUserDisplayName(user)} от ${getUserRoleLabel(user.role)} на ${getUserRoleLabel(nextFormValues.role)}. Това променя достъпа до защитените части на системата.`,
+        confirmLabel: 'Промени ролята',
+        tone: 'danger',
+      });
+      return;
+    }
+
+    await submitEditForm(nextFormValues);
+  }
+
+  async function handleConfirmRoleChange() {
+    if (!roleConfirmState) {
+      return;
+    }
+
+    await submitEditForm(roleConfirmState.formValues);
   }
 
   function handleStatusActionRequest() {
@@ -234,7 +254,7 @@ export function AdminUserDetailsPage() {
     return (
       <main className="route-shell users-detail-shell">
         <div className="users-detail-topbar">
-          <Link className="animals-secondary-action" to="/admin/users">
+          <Link className="app-secondary-action" to="/admin/users">
             Към списъка с потребители
           </Link>
         </div>
@@ -244,7 +264,7 @@ export function AdminUserDetailsPage() {
           <p>{pageState.error}</p>
           <button
             type="button"
-            className="animals-primary-action"
+            className="app-primary-action"
             onClick={() => setReloadToken((currentValue) => currentValue + 1)}
           >
             Опитай отново
@@ -257,12 +277,12 @@ export function AdminUserDetailsPage() {
   return (
     <main className="route-shell users-detail-shell">
       <div className="users-detail-topbar">
-        <Link className="animals-secondary-action" to="/admin/users">
+        <Link className="app-secondary-action" to="/admin/users">
           Към списъка с потребители
         </Link>
       </div>
 
-      <section className="users-admin-hero users-detail-hero">
+      <section className="users-admin-hero">
         <div>
                     <h1>{getUserDisplayName(user)}</h1>
           <p>
@@ -282,7 +302,7 @@ export function AdminUserDetailsPage() {
         <article className="route-card profile-summary-card">
           <div className="profile-summary-top">
             <div>
-              <p className="route-meta">Profile Snapshot</p>
+              <p className="route-meta">Профил</p>
               <h2>{user.email}</h2>
               <p>@{user.username}</p>
             </div>
@@ -319,130 +339,38 @@ export function AdminUserDetailsPage() {
         <article className="route-card profile-panel-card">
           <div className="profile-panel-heading">
             <div>
-              <p className="route-meta">Admin Edit</p>
+              <p className="route-meta">Административна редакция</p>
               <h2>Редакция на профила</h2>
             </div>
           </div>
 
-          {editState.feedback.message ? (
-            <div className={`auth-status ${editState.feedback.type === 'error' ? 'auth-status-error' : 'auth-status-info'}`}>
-              {editState.feedback.message}
-            </div>
-          ) : null}
-
-          <form className="profile-form-grid" onSubmit={handleEditSubmit}>
-            <label>
-              <span>Име</span>
-              <input
-                type="text"
-                value={editForm.firstName}
-                onChange={(event) => handleEditFieldChange('firstName', event.target.value)}
-                disabled={editState.isSubmitting}
-              />
-            </label>
-
-            <label>
-              <span>Фамилия</span>
-              <input
-                type="text"
-                value={editForm.lastName}
-                onChange={(event) => handleEditFieldChange('lastName', event.target.value)}
-                disabled={editState.isSubmitting}
-              />
-            </label>
-
-            <label className="profile-form-grid-wide">
-              <span>Имейл</span>
-              <input
-                type="email"
-                value={editForm.email}
-                onChange={(event) => handleEditFieldChange('email', event.target.value)}
-                disabled={editState.isSubmitting}
-              />
-            </label>
-
-            <label className="profile-form-grid-wide">
-              <span>Роля</span>
-              <select
-                value={editForm.role}
-                onChange={(event) => handleEditFieldChange('role', event.target.value)}
-                disabled={editState.isSubmitting || isEditingSelf}
-              >
-                {managedRoles.map((role) => (
-                  <option key={role} value={role}>
-                    {getUserRoleLabel(role)}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            {isEditingSelf ? (
-              <p className="users-admin-inline-note">
-                Собствената роля не се сменя оттук.
-              </p>
-            ) : null}
-
-            <div className="profile-form-actions profile-form-grid-wide">
-              <button
-                type="submit"
-                className="animals-primary-action"
-                disabled={editState.isSubmitting || !isEditDirty}
-              >
-                {editState.isSubmitting ? 'Запис...' : 'Запази промените'}
-              </button>
-              <button
-                type="button"
-                className="animals-secondary-action"
-                onClick={handleEditReset}
-                disabled={editState.isSubmitting || !isEditDirty}
-              >
-                Върни стойностите
-              </button>
-            </div>
-          </form>
+          <ManagedUserEditForm
+            user={user}
+            editForm={editForm}
+            editState={editState}
+            managedRoles={managedRoles}
+            isEditingSelf={isEditingSelf}
+            isEditDirty={isEditDirty}
+            onFieldChange={handleEditFieldChange}
+            onReset={handleEditReset}
+            onSubmit={handleEditSubmit}
+          />
         </article>
 
         <article className="route-card users-detail-side-card">
           <div className="profile-panel-heading">
             <div>
-              <p className="route-meta">Status & Notes</p>
+              <p className="route-meta">Статус</p>
               <h2>Статус</h2>
             </div>
           </div>
 
-          {statusState.feedback.message ? (
-            <div className={`auth-status ${statusState.feedback.type === 'error' ? 'auth-status-error' : 'auth-status-info'}`}>
-              {statusState.feedback.message}
-            </div>
-          ) : null}
-
-          <div className="users-detail-note-list">
-            <div className="users-detail-note-card">
-              <strong>Текущо състояние</strong>
-              <p>
-                {user.isActive
-                  ? 'Активен достъп.'
-                  : 'Без достъп до системата.'}
-              </p>
-            </div>
-
-          </div>
-
-          <div className="users-admin-status-panel">
-            <div>
-              <strong>Промяна на активността</strong>
-              <p>Чувствително действие.</p>
-            </div>
-
-            <button
-              type="button"
-              className={user.isActive ? 'animals-secondary-action animal-danger-action' : 'animals-primary-action'}
-              disabled={statusState.isSubmitting || (isEditingSelf && user.isActive)}
-              onClick={handleStatusActionRequest}
-            >
-              {statusState.isSubmitting ? 'Запис...' : user.isActive ? 'Деактивирай профила' : 'Активирай профила'}
-            </button>
-          </div>
+          <ManagedUserStatusPanel
+            user={user}
+            statusState={statusState}
+            isEditingSelf={isEditingSelf}
+            onStatusActionRequest={handleStatusActionRequest}
+          />
         </article>
       </section>
 
@@ -458,6 +386,22 @@ export function AdminUserDetailsPage() {
         onClose={() => {
           if (!statusState.isSubmitting) {
             setConfirmState(null);
+          }
+        }}
+      />
+
+      <ConfirmDialog
+        isOpen={Boolean(roleConfirmState)}
+        title={roleConfirmState?.title ?? ''}
+        description={roleConfirmState?.description ?? ''}
+        confirmLabel={roleConfirmState?.confirmLabel ?? 'Потвърди'}
+        cancelLabel="Отказ"
+        tone={roleConfirmState?.tone ?? 'danger'}
+        isSubmitting={editState.isSubmitting}
+        onConfirm={handleConfirmRoleChange}
+        onClose={() => {
+          if (!editState.isSubmitting) {
+            setRoleConfirmState(null);
           }
         }}
       />

@@ -13,11 +13,11 @@ export function AnimalNotFoundState({
         <h1>{title}</h1>
         <p>{description}</p>
         <div className="animals-feedback-actions">
-          <Link className="animals-primary-action" to="/search">
+          <Link className="app-primary-action" to="/animals">
             Към списъка с животни
           </Link>
           {showCreateAction ? (
-            <Link className="animals-secondary-action" to="/animals/new">
+            <Link className="app-secondary-action" to="/animals/new">
               Създай нов запис
             </Link>
           ) : null}

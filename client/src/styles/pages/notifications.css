@@ -1,0 +1,98 @@
+.notifications-shell {
+  display: grid;
+  gap: 1.4rem;
+}
+
+.notifications-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.notifications-hero h1 {
+  margin: 0;
+  color: var(--primary);
+  font-size: clamp(2rem, 4vw, 3.4rem);
+}
+
+.notifications-hero p {
+  max-width: 680px;
+  margin: 0.4rem 0 0;
+  color: var(--text-soft);
+}
+
+.notifications-list-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.notifications-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.notification-list-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.notification-list-item.is-unread {
+  border-color: rgba(47, 111, 78, 0.32);
+  background: #f4faf6;
+}
+
+.notification-list-item span {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 0.35rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(47, 111, 78, 0.1);
+  color: var(--primary);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.notification-list-item h2 {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 1.05rem;
+}
+
+.notification-list-item p {
+  margin: 0.35rem 0 0;
+  color: var(--text-soft);
+}
+
+.notification-list-item small {
+  display: block;
+  margin-top: 0.45rem;
+  color: var(--text-soft);
+}
+
+.notifications-list-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 720px) {
+  .notifications-hero,
+  .notification-list-item {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .notifications-list-actions {
+    justify-content: flex-start;
+  }
+}

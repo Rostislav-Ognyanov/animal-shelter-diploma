@@ -1,4 +1,4 @@
-﻿import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '../auth/AuthProvider.jsx';
 import { deleteJson, fetchJson, postJson } from '../lib/api.js';
@@ -9,19 +9,41 @@ function normalizeAnimalId(animalId) {
   return String(animalId ?? '').trim();
 }
 
-function sortFavoriteItems(items = []) {
-  return [...items].sort((leftItem, rightItem) => {
-    const leftCreatedAt = new Date(leftItem.favoritedAt ?? 0).getTime();
-    const rightCreatedAt = new Date(rightItem.favoritedAt ?? 0).getTime();
-    return rightCreatedAt - leftCreatedAt;
+function normalizeFavoriteId(favoriteId) {
+  return String(favoriteId ?? '').trim();
+}
+
+function getFavoriteTimestamp(item) {
+  const timestamp = Date.parse(item?.favoritedAt ?? '');
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function sortFavoriteItems(items) {
+  const favoriteItems = Array.isArray(items) ? items : [];
+
+  return [...favoriteItems].sort((firstItem, secondItem) => {
+    const timestampDifference = getFavoriteTimestamp(secondItem) - getFavoriteTimestamp(firstItem);
+
+    if (timestampDifference !== 0) {
+      return timestampDifference;
+    }
+
+    return normalizeFavoriteId(secondItem?.favoriteId).localeCompare(
+      normalizeFavoriteId(firstItem?.favoriteId)
+    );
   });
+}
+
+async function fetchFavoriteItems() {
+  const payload = await fetchJson('/api/favorites');
+  return sortFavoriteItems(payload.items ?? []);
 }
 
 function buildEmptyState() {
   return {
     items: [],
     isLoading: false,
-    error: '',
+    loadError: '',
     pendingAnimalIds: [],
   };
 }
@@ -47,10 +69,10 @@ export function FavoritesProvider({ children }) {
         setFavoritesState((currentValue) => ({
           ...currentValue,
           isLoading: true,
-          error: '',
+          loadError: '',
         }));
 
-        const payload = await fetchJson('/api/favorites');
+        const nextItems = await fetchFavoriteItems();
 
         if (!isMounted) {
           return;
@@ -58,9 +80,9 @@ export function FavoritesProvider({ children }) {
 
         setFavoritesState((currentValue) => ({
           ...currentValue,
-          items: sortFavoriteItems(payload.items ?? []),
+          items: nextItems,
           isLoading: false,
-          error: '',
+          loadError: '',
         }));
       } catch (error) {
         if (!isMounted) {
@@ -70,7 +92,7 @@ export function FavoritesProvider({ children }) {
         setFavoritesState((currentValue) => ({
           ...currentValue,
           isLoading: false,
-          error: error.message,
+          loadError: error.message,
         }));
       }
     }
@@ -86,8 +108,17 @@ export function FavoritesProvider({ children }) {
     () => new Set(favoritesState.items.map((item) => normalizeAnimalId(item.id))),
     [favoritesState.items]
   );
+  const favoriteIdsByAnimalId = useMemo(
+    () =>
+      new Map(
+        favoritesState.items
+          .map((item) => [normalizeAnimalId(item.id), normalizeFavoriteId(item.favoriteId)])
+          .filter(([, favoriteId]) => favoriteId)
+      ),
+    [favoritesState.items]
+  );
   const pendingIdSet = useMemo(
-    () => new Set(favoritesState.pendingAnimalIds.map((animalId) => normalizeAnimalId(animalId))),
+    () => new Set(favoritesState.pendingAnimalIds.map((entryId) => normalizeAnimalId(entryId))),
     [favoritesState.pendingAnimalIds]
   );
 
@@ -123,17 +154,16 @@ export function FavoritesProvider({ children }) {
       setFavoritesState((currentValue) => ({
         ...currentValue,
         isLoading: true,
-        error: '',
+        loadError: '',
       }));
 
-      const payload = await fetchJson('/api/favorites');
-      const nextItems = sortFavoriteItems(payload.items ?? []);
+      const nextItems = await fetchFavoriteItems();
 
       setFavoritesState((currentValue) => ({
         ...currentValue,
         items: nextItems,
         isLoading: false,
-        error: '',
+        loadError: '',
       }));
 
       return nextItems;
@@ -141,63 +171,19 @@ export function FavoritesProvider({ children }) {
       setFavoritesState((currentValue) => ({
         ...currentValue,
         isLoading: false,
-        error: error.message,
+        loadError: error.message,
       }));
-      throw error;
-    }
-  }
-
-  async function addFavorite(animal) {
-    assertClientAccess();
-
-    const animalId = normalizeAnimalId(animal?.id);
-
-    if (!animalId) {
-      throw new Error('Животното не може да бъде добавено в любими.');
-    }
-
-    if (pendingIdSet.has(animalId)) {
       return null;
     }
-
-    setPendingState(animalId, true);
-
-    try {
-      const favoriteAnimal = await postJson(`/api/favorites/${animalId}`, {});
-
-      setFavoritesState((currentValue) => {
-        const nextItems = currentValue.items.filter((item) => normalizeAnimalId(item.id) !== animalId);
-        nextItems.unshift(favoriteAnimal);
-
-        return {
-          ...currentValue,
-          items: sortFavoriteItems(nextItems),
-          error: '',
-        };
-      });
-
-      return {
-        item: favoriteAnimal,
-        message: favoriteAnimal?.created === false ? 'Животното вече е в любими.' : 'Животното е добавено в любими.',
-      };
-    } catch (error) {
-      setFavoritesState((currentValue) => ({
-        ...currentValue,
-        error: error.message,
-      }));
-      throw error;
-    } finally {
-      setPendingState(animalId, false);
-    }
   }
 
-  async function removeFavorite(animalId) {
+  async function addFavorite(animalId) {
     assertClientAccess();
 
     const normalizedAnimalId = normalizeAnimalId(animalId);
 
     if (!normalizedAnimalId) {
-      throw new Error('Животното не може да бъде премахнато от любими.');
+      throw new Error('Животното не може да бъде добавено в любими.');
     }
 
     if (pendingIdSet.has(normalizedAnimalId)) {
@@ -207,40 +193,90 @@ export function FavoritesProvider({ children }) {
     setPendingState(normalizedAnimalId, true);
 
     try {
-      const payload = await deleteJson(`/api/favorites/${normalizedAnimalId}`);
+      const payload = await postJson(`/api/favorites/${normalizedAnimalId}`, {});
+      const favoriteAnimal = payload?.item;
+      const favoriteAnimalId = normalizeAnimalId(favoriteAnimal?.id);
+      const favoriteRelationId = normalizeFavoriteId(favoriteAnimal?.favoriteId);
+
+      setFavoritesState((currentValue) => {
+        const nextItems = currentValue.items.filter(
+          (item) =>
+            normalizeAnimalId(item.id) !== normalizedAnimalId &&
+            normalizeAnimalId(item.id) !== favoriteAnimalId &&
+            normalizeFavoriteId(item.favoriteId) !== favoriteRelationId
+        );
+
+        return {
+          ...currentValue,
+          items: sortFavoriteItems(favoriteAnimal ? [favoriteAnimal, ...nextItems] : nextItems),
+        };
+      });
+
+      return {
+        item: favoriteAnimal,
+        message: payload?.created === false ? 'Животното вече е в любими.' : 'Животното е добавено в любими.',
+      };
+    } finally {
+      setPendingState(normalizedAnimalId, false);
+    }
+  }
+
+  async function removeFavorite(animalId, favoriteIdCandidate = '') {
+    assertClientAccess();
+
+    const normalizedAnimalId = normalizeAnimalId(animalId);
+    const normalizedFavoriteId =
+      normalizeFavoriteId(favoriteIdCandidate) ||
+      favoriteIdsByAnimalId.get(normalizedAnimalId) ||
+      '';
+
+    if (!normalizedFavoriteId) {
+      throw new Error('Животното не може да бъде премахнато от любими.');
+    }
+
+    if (pendingIdSet.has(normalizedAnimalId) || pendingIdSet.has(normalizedFavoriteId)) {
+      return null;
+    }
+
+    setPendingState(normalizedFavoriteId, true);
+
+    try {
+      const payload = await deleteJson(`/api/favorites/${normalizedFavoriteId}`);
+      const removedAnimalId = normalizeAnimalId(payload?.animalId ?? normalizedAnimalId);
+      const removedFavoriteId = normalizeFavoriteId(payload?.favoriteId ?? normalizedFavoriteId);
 
       setFavoritesState((currentValue) => ({
         ...currentValue,
-        items: currentValue.items.filter((item) => normalizeAnimalId(item.id) !== normalizedAnimalId),
-        error: '',
+        items: currentValue.items.filter(
+          (item) =>
+            normalizeAnimalId(item.id) !== normalizedAnimalId &&
+            normalizeAnimalId(item.id) !== removedAnimalId &&
+            normalizeFavoriteId(item.favoriteId) !== removedFavoriteId
+        ),
       }));
 
       return {
-        animalId: payload?.animalId ?? normalizedAnimalId,
+        favoriteId: removedFavoriteId,
+        animalId: removedAnimalId,
         removed: payload?.removed ?? true,
         message:
           payload?.removed === false
             ? 'Животното вече не е в любими.'
             : 'Животното е премахнато от любими.',
       };
-    } catch (error) {
-      setFavoritesState((currentValue) => ({
-        ...currentValue,
-        error: error.message,
-      }));
-      throw error;
     } finally {
-      setPendingState(normalizedAnimalId, false);
+      setPendingState(normalizedFavoriteId, false);
     }
   }
 
   const value = {
     items: favoritesState.items,
     isLoading: favoritesState.isLoading,
-    error: favoritesState.error,
+    loadError: favoritesState.loadError,
     reloadFavorites,
     addFavorite,
     removeFavorite,
+    getFavoriteId: (animalId) => favoriteIdsByAnimalId.get(normalizeAnimalId(animalId)) ?? '',
     isFavorite: (animalId) => favoriteIds.has(normalizeAnimalId(animalId)),
     isPending: (animalId) => pendingIdSet.has(normalizeAnimalId(animalId)),
   };

@@ -1,25 +1,26 @@
 ﻿import { Link } from 'react-router-dom';
 
 import { AnimalCard } from '../../components/animals/AnimalCard.jsx';
+import { AnimalsListSkeleton } from '../../components/animals/AnimalsListSkeleton.jsx';
 import { useFavorites } from '../../favorites/FavoritesProvider.jsx';
 
 export function FavoriteAnimalsPage() {
-  const { error, isLoading, items, reloadFavorites } = useFavorites();
+  const { isLoading, items, loadError, reloadFavorites } = useFavorites();
 
   return (
     <main className="route-shell favorites-shell">
-      <section className="profile-hero favorites-hero">
+      <section className="profile-hero">
         <div>
           <h1>Любими животни</h1>
           <p>Запази животните, към които искаш да се върнеш по-късно.</p>
         </div>
       </section>
 
-      <div className="route-actions favorites-actions">
-        <Link className="animals-secondary-action" to="/profile">
+      <div className="route-actions">
+        <Link className="app-secondary-action" to="/profile">
           Към профила
         </Link>
-        <Link className="animals-primary-action" to="/search">
+        <Link className="app-primary-action" to="/animals">
           Разгледай животните
         </Link>
       </div>
@@ -31,33 +32,34 @@ export function FavoriteAnimalsPage() {
 
       <section className="favorites-list-section">
         {isLoading ? (
-          <div className="adoptions-empty-state">
-            <h2>Зареждане на любимите животни</h2>
-            <p>Моля, изчакай.</p>
-          </div>
+          <AnimalsListSkeleton
+            count={4}
+            gridClassName="animals-grid favorites-grid"
+            statusText="Зареждане на любимите животни..."
+          />
         ) : null}
 
-        {!isLoading && error ? (
+        {!isLoading && loadError ? (
           <div className="adoptions-empty-state">
             <h2>Любимите животни не могат да се заредят</h2>
-            <p>{error}</p>
-            <button type="button" className="animals-primary-action" onClick={() => reloadFavorites()}>
+            <p>{loadError}</p>
+            <button type="button" className="app-primary-action" onClick={() => reloadFavorites()}>
               Опитай отново
             </button>
           </div>
         ) : null}
 
-        {!isLoading && !error && items.length === 0 ? (
+        {!isLoading && !loadError && items.length === 0 ? (
           <div className="adoptions-empty-state">
             <h2>Все още нямаш любими животни</h2>
             <p>Добави животни в любими от списъка или от детайлната им страница.</p>
-            <Link className="animals-primary-action" to="/search">
+            <Link className="app-primary-action" to="/animals">
               Към животните
             </Link>
           </div>
         ) : null}
 
-        {!isLoading && !error && items.length > 0 ? (
+        {!isLoading && !loadError && items.length > 0 ? (
           <div className="animals-grid favorites-grid">
             {items.map((animal) => (
               <AnimalCard key={animal.id} animal={animal} />

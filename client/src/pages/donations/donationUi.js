@@ -1,4 +1,32 @@
-﻿export const DONATION_PRESET_AMOUNTS = [20, 50, 100, 200];
+import {
+  DONATION_CURRENCY,
+  DONATION_STATUS_LABELS,
+  DONATION_STATUS_TRANSITIONS,
+  DONATION_STATUS_VALUES,
+} from '../../../../shared/domain/donationConstants.js';
+import { isTerminalWorkflowStatus } from '../../../../shared/domain/workflowStatus.js';
+
+export const DONATION_PRESET_AMOUNTS = [20, 50, 100, 200];
+
+export const DONATION_STATUS_FILTER_OPTIONS = [
+  { value: '', label: 'Всички статуси' },
+  ...DONATION_STATUS_VALUES.map((status) => ({
+    value: status,
+    label: DONATION_STATUS_LABELS[status] ?? status,
+  })),
+];
+
+export function getDonationStatusLabel(status) {
+  return DONATION_STATUS_LABELS[status] ?? 'Заявено';
+}
+
+export function getDonationStatusTransitions(status) {
+  return [...(DONATION_STATUS_TRANSITIONS[status] ?? [])];
+}
+
+export function isDonationTerminalStatus(status) {
+  return isTerminalWorkflowStatus(status, DONATION_STATUS_TRANSITIONS);
+}
 
 export function formatDonationAmount(amount) {
   const numericAmount = Number(amount);
@@ -9,7 +37,7 @@ export function formatDonationAmount(amount) {
 
   return new Intl.NumberFormat('bg-BG', {
     style: 'currency',
-    currency: 'EUR',
+    currency: DONATION_CURRENCY,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(numericAmount);
@@ -43,8 +71,12 @@ export function getDonationManagementPath(role) {
   return role === 'admin' ? '/admin/donations' : '/staff/donations';
 }
 
-export function buildDonationListQuery(search, page, limit) {
+export function buildDonationListQuery(search, page, limit, status = '') {
   const params = new URLSearchParams();
+
+  if (status?.trim()) {
+    params.set('status', status.trim());
+  }
 
   if (search?.trim()) {
     params.set('search', search.trim());

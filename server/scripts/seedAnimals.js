@@ -31,7 +31,6 @@ function normalizeSeedAnimal(entry) {
         : !INACTIVE_STATUSES.has(String(entry.status ?? '').trim().toLowerCase()),
     intakeDate: entry.intakeDate,
     healthStatus: entry.healthStatus,
-    healthCareItems: Array.isArray(entry.healthCareItems) ? entry.healthCareItems : [],
     vaccinated: entry.vaccinated ?? false,
     neutered: entry.neutered ?? false,
     description: entry.description,
@@ -57,9 +56,11 @@ async function seedAnimals() {
 
     await Animal.findOneAndUpdate(
       { slug: normalizedAnimal.slug },
-      normalizedAnimal,
       {
-        new: true,
+        $set: normalizedAnimal,
+      },
+      {
+        returnDocument: 'after',
         upsert: true,
         runValidators: true,
         setDefaultsOnInsert: true,

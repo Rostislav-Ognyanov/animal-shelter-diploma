@@ -7,12 +7,21 @@ import { Header } from './components/layout/Header.jsx';
 import { ScrollToTop } from './components/layout/ScrollToTop.jsx';
 import { FavoritesProvider } from './favorites/FavoritesProvider.jsx';
 import { fetchJson } from './lib/api.js';
+import { SITE_SETTINGS_UPDATED_EVENT } from './lib/appEvents.js';
 import { AppRoutes } from './routes/AppRoutes.jsx';
 
 function AppLayout() {
-  const { currentUser, errorMessage: authError, isLoading: isAuthLoading, logout, role } = useAuth();
-  const [homeData, setHomeData] = useState(null);
+  const {
+    currentUser,
+    errorMessage: authError,
+    isLoading: isAuthLoading,
+    logout,
+    refreshAuth,
+    role,
+  } = useAuth();
+  const [layoutData, setLayoutData] = useState(null);
   const [pageError, setPageError] = useState('');
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     if (isAuthLoading) {
@@ -20,18 +29,17 @@ function AppLayout() {
     }
 
     let isMounted = true;
-    setHomeData(null);
     setPageError('');
 
     async function loadLayoutData() {
       try {
-        const payload = await fetchJson(`/api/home?role=${role}`);
+        const payload = await fetchJson('/api/home');
 
         if (!isMounted) {
           return;
         }
 
-        setHomeData(payload);
+        setLayoutData(payload);
         setPageError('');
       } catch (error) {
         if (!isMounted) {
@@ -47,7 +55,19 @@ function AppLayout() {
     return () => {
       isMounted = false;
     };
-  }, [isAuthLoading, role]);
+  }, [isAuthLoading, role, reloadToken]);
+
+  useEffect(() => {
+    function reloadLayoutData() {
+      setReloadToken((currentValue) => currentValue + 1);
+    }
+
+    window.addEventListener(SITE_SETTINGS_UPDATED_EVENT, reloadLayoutData);
+
+    return () => {
+      window.removeEventListener(SITE_SETTINGS_UPDATED_EVENT, reloadLayoutData);
+    };
+  }, []);
 
   if (authError) {
     return (
@@ -55,6 +75,9 @@ function AppLayout() {
         <div className="app-status-card">
           <h1>Профилът не може да се зареди</h1>
           <p>{authError}</p>
+          <button type="button" className="app-primary-action" onClick={() => refreshAuth().catch(() => {})}>
+            Опитай отново
+          </button>
         </div>
       </div>
     );
@@ -66,12 +89,19 @@ function AppLayout() {
         <div className="app-status-card">
           <h1>Интерфейсът не може да се зареди</h1>
           <p>{pageError}</p>
+          <button
+            type="button"
+            className="app-primary-action"
+            onClick={() => setReloadToken((currentValue) => currentValue + 1)}
+          >
+            Опитай отново
+          </button>
         </div>
       </div>
     );
   }
 
-  if (isAuthLoading || !homeData) {
+  if (isAuthLoading || !layoutData) {
     return (
       <div className="app-status-screen">
         <div className="app-status-card">
@@ -85,16 +115,18 @@ function AppLayout() {
   return (
     <div className="app">
       <Header
-        logoUrl={homeData.logoUrl}
-        siteName={homeData.siteName}
-        profileMenu={homeData.profileMenu}
+        logoUrl={layoutData.logoUrl}
+        siteName={layoutData.siteName}
+        profileMenu={layoutData.profileMenu}
         currentUser={currentUser}
         onLogout={logout}
         role={role}
-        publicBanner={homeData.publicBanner}
+        publicBanner={layoutData.publicBanner}
       />
-      <AppRoutes homeData={homeData} role={role} />
-      <Footer footer={homeData.footer} siteName={homeData.siteName} />
+      <div className="app-content">
+        <AppRoutes layoutData={layoutData} role={role} />
+      </div>
+      <Footer footer={layoutData.footer} siteName={layoutData.siteName} />
     </div>
   );
 }

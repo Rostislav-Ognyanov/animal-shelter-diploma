@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
 
+import { PAGE_CONTENT_KEYS } from '../../shared/domain/pageContentConstants.js';
+
 const pageContentSchema = new mongoose.Schema(
   {
     pageKey: {
@@ -7,7 +9,7 @@ const pageContentSchema = new mongoose.Schema(
       required: true,
       trim: true,
       unique: true,
-      index: true,
+      enum: PAGE_CONTENT_KEYS,
     },
     content: {
       type: mongoose.Schema.Types.Mixed,

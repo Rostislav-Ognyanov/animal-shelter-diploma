@@ -1,79 +1,34 @@
-﻿import { getUserRoleLabel } from '../users/usersUi.js';
+import { formatDonationAmount } from '../donations/donationUi.js';
+import { ADOPTION_STATUS_LABELS } from '../../../../shared/domain/adoptionConstants.js';
+import {
+  ANIMAL_SPECIES_LABELS,
+  ANIMAL_STATUS_LABELS,
+} from '../../../../shared/domain/animalConstants.js';
+import { CONTACT_INQUIRY_STATUS_LABELS } from '../../../../shared/domain/contactInquiryConstants.js';
+import { DONATION_STATUS_LABELS } from '../../../../shared/domain/donationConstants.js';
+import {
+  REPORT_PERIOD_LABELS,
+  REPORT_PERIOD_VALUES,
+} from '../../../../shared/domain/reportConstants.js';
+import {
+  RESCUE_REPORT_STATUS_LABELS,
+  RESCUE_REPORT_URGENCY_LABELS,
+} from '../../../../shared/domain/rescueReportConstants.js';
+import { VOLUNTEER_STATUS_LABELS } from '../../../../shared/domain/volunteerConstants.js';
 
-export const REPORT_PERIOD_OPTIONS = [
-  { value: 'all', label: 'Всички данни' },
-  { value: '7d', label: 'Последни 7 дни' },
-  { value: '30d', label: 'Последни 30 дни' },
-  { value: '90d', label: 'Последни 90 дни' },
-  { value: 'this-month', label: 'Текущ месец' },
-  { value: 'this-year', label: 'Текуща година' },
-  { value: 'custom', label: 'Персонализиран диапазон' },
-];
+export const REPORT_PERIOD_OPTIONS = Object.freeze(
+  REPORT_PERIOD_VALUES
+    .map((value) =>
+      Object.freeze({
+        value,
+        label: REPORT_PERIOD_LABELS[value] ?? value,
+      })
+    )
+);
 
 const ALLOWED_PERIODS = new Set(REPORT_PERIOD_OPTIONS.map((option) => option.value));
-
-const ANIMAL_STATUS_LABELS = {
-  available: 'Готови за осиновяване',
-  reserved: 'Резервирани',
-  adopted: 'Осиновени',
-  'medical-care': 'Медицинска грижа',
-  'under-care': 'Под грижа',
-  'protected-care': 'Защитена грижа',
-  released: 'Върнати в природата',
-  inactive: 'Неактивни',
-  archived: 'Архивирани',
-};
-
-const ANIMAL_SPECIES_LABELS = {
-  dog: 'Кучета',
-  cat: 'Котки',
-  rabbit: 'Зайци',
-  fox: 'Лисици',
-  lizard: 'Гущери',
-  owl: 'Сови',
-  horse: 'Коне',
-  hedgehog: 'Таралежи',
-};
-
-const ANIMAL_SIZE_LABELS = {
-  small: 'Малък размер',
-  medium: 'Среден размер',
-  large: 'Голям размер',
-  'extra-large': 'Много голям размер',
-};
-
-const ANIMAL_GENDER_LABELS = {
-  male: 'Мъжки',
-  female: 'Женски',
-  unknown: 'Неуточнен',
-};
-
-const ANIMAL_CARE_LABELS = {
-  vaccinated: 'Ваксинирани',
-  'not-vaccinated': 'Неваксинирани',
-  neutered: 'Кастрирани',
-  'not-neutered': 'Некастрирани',
-};
-
-const ADOPTION_STATUS_LABELS = {
-  pending: 'В очакване',
-  'under-review': 'В преглед',
-  approved: 'Одобрени',
-  rejected: 'Отхвърлени',
-  cancelled: 'Отменени',
-  completed: 'Завършени',
-};
-
-const USER_ACTIVITY_LABELS = {
-  active: 'Активни профили',
-  inactive: 'Неактивни профили',
-};
-
-const INTAKE_PERIOD_LABELS = {
-  '7d': 'Последни 7 дни',
-  '30d': 'Последни 30 дни',
-  '90d': 'Последни 90 дни',
-};
+const DEFAULT_REPORT_PERIOD = '30d';
+const DEFAULT_REPORT_PERIOD_LABEL = REPORT_PERIOD_LABELS[DEFAULT_REPORT_PERIOD];
 
 function getBreakdownLabel(kind, key) {
   switch (kind) {
@@ -81,18 +36,18 @@ function getBreakdownLabel(kind, key) {
       return ANIMAL_STATUS_LABELS[key] ?? key;
     case 'animal-species':
       return ANIMAL_SPECIES_LABELS[key] ?? key;
-    case 'animal-size':
-      return ANIMAL_SIZE_LABELS[key] ?? key;
-    case 'animal-gender':
-      return ANIMAL_GENDER_LABELS[key] ?? key;
-    case 'animal-care':
-      return ANIMAL_CARE_LABELS[key] ?? key;
     case 'request-status':
       return ADOPTION_STATUS_LABELS[key] ?? key;
-    case 'user-role':
-      return getUserRoleLabel(key);
-    case 'user-activity':
-      return USER_ACTIVITY_LABELS[key] ?? key;
+    case 'volunteer-status':
+      return VOLUNTEER_STATUS_LABELS[key] ?? key;
+    case 'rescue-report-status':
+      return RESCUE_REPORT_STATUS_LABELS[key] ?? key;
+    case 'rescue-report-urgency':
+      return RESCUE_REPORT_URGENCY_LABELS[key] ?? key;
+    case 'contact-inquiry-status':
+      return CONTACT_INQUIRY_STATUS_LABELS[key] ?? key;
+    case 'donation-status':
+      return DONATION_STATUS_LABELS[key] ?? key;
     default:
       return key;
   }
@@ -115,8 +70,12 @@ function formatDateShort(value) {
 }
 
 export function parseReportsFilters(searchParams) {
-  const periodCandidate = String(searchParams.get('period') ?? 'all').trim().toLowerCase();
-  const period = ALLOWED_PERIODS.has(periodCandidate) ? periodCandidate : 'all';
+  const periodCandidate = String(searchParams.get('period') ?? DEFAULT_REPORT_PERIOD)
+    .trim()
+    .toLowerCase();
+  const period = ALLOWED_PERIODS.has(periodCandidate)
+    ? periodCandidate
+    : DEFAULT_REPORT_PERIOD;
 
   return {
     period,
@@ -127,11 +86,11 @@ export function parseReportsFilters(searchParams) {
 
 export function buildReportsQueryString(filters = {}) {
   const params = new URLSearchParams();
-  const period = filters.period && ALLOWED_PERIODS.has(filters.period) ? filters.period : 'all';
+  const period = filters.period && ALLOWED_PERIODS.has(filters.period)
+    ? filters.period
+    : DEFAULT_REPORT_PERIOD;
 
-  if (period !== 'all') {
-    params.set('period', period);
-  }
+  params.set('period', period);
 
   if (period === 'custom') {
     if (filters.dateFrom) {
@@ -151,38 +110,11 @@ export function buildReportsSearchParams(filters = {}) {
   return queryString ? new URLSearchParams(queryString) : new URLSearchParams();
 }
 
-export function formatReportsDate(value) {
-  if (!value) {
-    return 'Няма данни';
-  }
-
-  try {
-    return new Intl.DateTimeFormat('bg-BG', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(new Date(value));
-  } catch {
-    return value;
-  }
-}
-
-export function getReportsSourceLabel(source) {
-  switch (source?.mode) {
-    case 'mongodb':
-      return 'MongoDB е активният източник на данни.';
-    default:
-      return source?.label || 'Няма данни за източника.';
-  }
-}
-
 export function buildReportsFilterSummary(filters, serverFilters = null) {
   const effectiveFilters = serverFilters ?? filters;
 
   if (!effectiveFilters?.isFiltered) {
-    return 'Показани са всички налични отчетни данни в системата.';
+    return `Активен период: ${DEFAULT_REPORT_PERIOD_LABEL}.`;
   }
 
   if (effectiveFilters?.label) {
@@ -197,86 +129,55 @@ export function buildReportsFilterSummary(filters, serverFilters = null) {
   return `Активен период: ${option?.label ?? 'Филтрирани данни'}.`;
 }
 
-export function buildDashboardCards(dashboard = {}) {
-  return [
-    {
-      key: 'totalAnimals',
-      label: 'Общо животни',
-      value: dashboard.totalAnimals ?? 0,
-      note: 'Всички записи за животни',
-    },
-    {
-      key: 'availableAnimals',
-      label: 'Налични за осиновяване',
-      value: dashboard.availableAnimals ?? 0,
-      note: 'Животни със статус available',
-    },
-    {
-      key: 'reservedAnimals',
-      label: 'Резервирани',
-      value: dashboard.reservedAnimals ?? 0,
-      note: 'Животни в активен процес по заявка',
-    },
-    {
-      key: 'adoptedAnimals',
-      label: 'Осиновени',
-      value: dashboard.adoptedAnimals ?? 0,
-      note: 'Завършени осиновявания',
-    },
-    {
-      key: 'pendingRequests',
-      label: 'Чакащи заявки',
-      value: dashboard.pendingRequests ?? 0,
-      note: 'Заявки, които очакват преглед',
-    },
-    {
-      key: 'totalUsers',
-      label: 'Общо потребители',
-      value: dashboard.totalUsers ?? 0,
-      note: 'Всички профили в системата',
-    },
-    {
-      key: 'employeeUsers',
-      label: 'Служители',
-      value: dashboard.employeeUsers ?? 0,
-      note: 'Оперативни профили',
-    },
-    {
-      key: 'adminUsers',
-      label: 'Администратори',
-      value: dashboard.adminUsers ?? 0,
-      note: 'Профили с пълен достъп',
-    },
-  ];
+function sumBreakdownCounts(items = []) {
+  return items.reduce((total, item) => total + Number(item?.count ?? 0), 0);
 }
 
-export function buildActivityCards(activity = {}, filters = null) {
-  const periodLabel = filters?.isFiltered ? filters.label : 'Всички данни';
+export function buildActivityCards(activity = {}, reports = {}, filters = null) {
+  const periodLabel = filters?.label || DEFAULT_REPORT_PERIOD_LABEL;
 
   return [
     {
       key: 'newAnimals',
-      label: 'Новопостъпили животни',
+      label: 'Нови животни',
       value: activity.newAnimals ?? 0,
       note: periodLabel,
+      tone: 'animals',
     },
     {
       key: 'newRequests',
-      label: 'Нови заявки',
+      label: 'Нови заявки за осиновяване',
       value: activity.newRequests ?? 0,
       note: periodLabel,
+      tone: 'adoptions',
     },
     {
       key: 'completedAdoptions',
       label: 'Завършени осиновявания',
       value: activity.completedAdoptions ?? 0,
       note: periodLabel,
+      tone: 'completed',
     },
     {
-      key: 'newUsers',
-      label: 'Нови профили',
-      value: activity.newUsers ?? 0,
+      key: 'newRescueReports',
+      label: 'Нови сигнали',
+      value: sumBreakdownCounts(reports.rescueReportsByStatus),
       note: periodLabel,
+      tone: 'reports',
+    },
+    {
+      key: 'newVolunteerApplications',
+      label: 'Кандидатури за доброволчество',
+      value: sumBreakdownCounts(reports.volunteerApplicationsByStatus),
+      note: periodLabel,
+      tone: 'volunteers',
+    },
+    {
+      key: 'receivedDonations',
+      label: 'Получени дарения',
+      value: formatDonationAmount(activity.receivedDonationAmountTotal ?? 0),
+      note: `${activity.receivedDonations ?? 0} бр. · ${periodLabel}`,
+      tone: 'donations',
     },
   ];
 }
@@ -285,91 +186,17 @@ export function enrichBreakdown(items = [], kind) {
   const total = items.reduce((sum, item) => sum + (item?.count ?? 0), 0);
   const max = items.reduce((largest, item) => Math.max(largest, item?.count ?? 0), 0);
 
-  return items.map((item) => ({
-    ...item,
-    label: getBreakdownLabel(kind, item.key),
-    shareOfTotal: total > 0 ? Math.round(((item.count ?? 0) / total) * 100) : 0,
-    widthPercent: max > 0 ? Math.max(8, Math.round(((item.count ?? 0) / max) * 100)) : 0,
-  }));
-}
+  return items.map((item) => {
+    const count = item.count ?? 0;
 
-export function enrichIntakeByPeriod(items = []) {
-  const max = items.reduce((largest, item) => Math.max(largest, item?.count ?? 0), 0);
-
-  return items.map((item) => ({
-    ...item,
-    label: INTAKE_PERIOD_LABELS[item.key] ?? item.key,
-    widthPercent: max > 0 ? Math.max(10, Math.round(((item.count ?? 0) / max) * 100)) : 0,
-  }));
-}
-
-export function buildReportsHighlights(overview = {}, animalMasterData = {}) {
-  const totalAnimals = overview.dashboard?.totalAnimals ?? 0;
-  const availableAnimals = overview.dashboard?.availableAnimals ?? 0;
-  const pendingRequests = overview.dashboard?.pendingRequests ?? 0;
-  const completedAdoptions = overview.reports?.adoptions?.completedCount ?? 0;
-  const filteredAnimals = animalMasterData.totals?.totalAnimals ?? 0;
-
-  return [
-    {
-      key: 'adoption-pressure',
-      title: 'Натоварване по осиновявания',
-      text:
-        pendingRequests > 0
-          ? `${pendingRequests} заявки чакат действие от екипа.`
-          : 'В момента няма чакащи заявки и потокът е спокоен.',
-    },
-    {
-      key: 'availability',
-      title: 'Наличност на животни',
-      text:
-        totalAnimals > 0
-          ? `${availableAnimals} от ${totalAnimals} животни са готови за осиновяване.`
-          : 'Все още няма въведени животни, от които да се изведе наличност.',
-    },
-    {
-      key: 'filtered-animal-slice',
-      title: 'Животни в избрания период',
-      text:
-        filteredAnimals > 0
-          ? `${filteredAnimals} записа за животни попадат в текущия отчетен филтър.`
-          : 'В избрания период няма записи за животни, които да попадат в отчетния обхват.',
-    },
-    {
-      key: 'completed-adoptions',
-      title: 'Завършени осиновявания',
-      text:
-        completedAdoptions > 0
-          ? `${completedAdoptions} осиновявания са маркирани като завършени в текущия отчетен обхват.`
-          : 'В текущия отчетен обхват няма завършени осиновявания.',
-    },
-  ];
-}
-
-export function downloadReportsExport(payload, filters) {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  const exportPayload = {
-    exportedAt: new Date().toISOString(),
-    filters,
-    ...payload,
-  };
-
-  const blob = new Blob([`${JSON.stringify(exportPayload, null, 2)}\n`], {
-    type: 'application/json;charset=utf-8',
+    return {
+      ...item,
+      label: getBreakdownLabel(kind, item.key),
+      shareOfTotal: total > 0 ? Math.round((count / total) * 100) : 0,
+      widthPercent: count > 0 && max > 0
+        ? Math.max(8, Math.round((count / max) * 100))
+        : 0,
+    };
   });
-  const objectUrl = window.URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  const dateSuffix = new Date().toISOString().slice(0, 10);
-
-  anchor.href = objectUrl;
-  anchor.download = `reports-dashboard-${dateSuffix}.json`;
-  document.body.appendChild(anchor);
-  anchor.click();
-  document.body.removeChild(anchor);
-  window.URL.revokeObjectURL(objectUrl);
 }
-
 

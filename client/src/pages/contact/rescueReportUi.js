@@ -1,46 +1,25 @@
-﻿export const RESCUE_REPORT_STATUS_LABELS = {
-  pending: 'В очакване',
-  'under-review': 'В преглед',
-  accepted: 'Приет',
-  resolved: 'Решен',
-  rejected: 'Отхвърлен',
+import {
+  RESCUE_REPORT_SPECIES_LABELS,
+  RESCUE_REPORT_STATUS_LABELS,
+  RESCUE_REPORT_STATUS_TRANSITIONS,
+  RESCUE_REPORT_URGENCY_LABELS,
+} from '../../../../shared/domain/rescueReportConstants.js';
+import { isTerminalWorkflowStatus } from '../../../../shared/domain/workflowStatus.js';
+
+export {
+  RESCUE_REPORT_SPECIES_LABELS,
+  RESCUE_REPORT_STATUS_LABELS,
+  RESCUE_REPORT_STATUS_TRANSITIONS,
+  RESCUE_REPORT_URGENCY_LABELS,
 };
 
 export const RESCUE_REPORT_STATUS_OPTIONS = Object.entries(RESCUE_REPORT_STATUS_LABELS).map(
   ([value, label]) => ({ value, label })
 );
 
-export const RESCUE_REPORT_STATUS_TRANSITIONS = {
-  pending: ['under-review', 'accepted', 'rejected'],
-  'under-review': ['accepted', 'rejected'],
-  accepted: ['resolved'],
-  resolved: [],
-  rejected: [],
-};
-
-export const RESCUE_REPORT_URGENCY_LABELS = {
-  low: 'Ниска',
-  medium: 'Средна',
-  high: 'Висока',
-  critical: 'Критична',
-};
-
 export const RESCUE_REPORT_URGENCY_OPTIONS = Object.entries(RESCUE_REPORT_URGENCY_LABELS).map(
   ([value, label]) => ({ value, label })
 );
-
-export const RESCUE_REPORT_SPECIES_LABELS = {
-  dog: 'Куче',
-  cat: 'Котка',
-  rabbit: 'Зайче',
-  fox: 'Лисица',
-  lizard: 'Гущер',
-  owl: 'Сова',
-  horse: 'Кон',
-  hedgehog: 'Таралеж',
-  bird: 'Птица',
-  other: 'Друго',
-};
 
 export const RESCUE_REPORT_SPECIES_OPTIONS = Object.entries(RESCUE_REPORT_SPECIES_LABELS).map(
   ([value, label]) => ({ value, label })
@@ -52,10 +31,14 @@ export function getRescueReportStatusLabel(status) {
 
 export function getRescueReportStatusTransitions(status, allowedTransitions) {
   if (Array.isArray(allowedTransitions)) {
-    return allowedTransitions;
+    return [...allowedTransitions];
   }
 
-  return RESCUE_REPORT_STATUS_TRANSITIONS[status] ?? [];
+  return [...(RESCUE_REPORT_STATUS_TRANSITIONS[status] ?? [])];
+}
+
+export function isRescueReportTerminalStatus(status) {
+  return isTerminalWorkflowStatus(status, RESCUE_REPORT_STATUS_TRANSITIONS);
 }
 
 export function getRescueReportStatusTransitionOptions(
@@ -121,11 +104,19 @@ export function getRescueReportStatusGuidance(status) {
   }
 }
 
-export function buildRescueReportListQuery(status, search, page, limit) {
+export function buildRescueReportListQuery(status, search, page, limit, urgency, species) {
   const params = new URLSearchParams();
 
   if (status) {
     params.set('status', status);
+  }
+
+  if (urgency) {
+    params.set('urgency', urgency);
+  }
+
+  if (species) {
+    params.set('species', species);
   }
 
   if (search?.trim()) {

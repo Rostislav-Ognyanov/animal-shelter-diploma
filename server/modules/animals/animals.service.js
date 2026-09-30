@@ -1,16 +1,27 @@
-﻿import mongoose from 'mongoose';
+import mongoose from 'mongoose';
 
 import Animal from '../../models/Animal.js';
+import Favorite from '../../models/Favorite.js';
 import { createHttpError } from '../../utils/httpError.js';
+import { createDuplicateKeyHttpError } from '../../utils/mongoErrors.js';
 import {
   applyPagination,
   buildPagination,
   normalizePaginationOptions,
 } from '../../utils/pagination.js';
+import { assertAllowedFields, assertBodyObject } from '../../utils/requestValidation.js';
+import { normalizeDateOutput } from '../../utils/serialization.js';
 import {
+  ANIMAL_CREATABLE_STATUS_VALUES,
   ANIMAL_GENDER_LABELS,
   ANIMAL_GENDER_VALUES,
+  ANIMAL_IMAGE_DATA_MIME_TYPES,
+  ANIMAL_IMAGE_MAX_BYTES,
+  ANIMAL_IMAGE_MAX_COUNT,
+  ANIMAL_IMAGE_MAX_TOTAL_BYTES,
+  ANIMAL_IMAGE_URL_MAX_LENGTH,
   ANIMAL_ID_SLUG_PATTERN,
+  ANIMAL_MANUAL_STATUS_VALUES,
   ANIMAL_SIZE_LABELS,
   ANIMAL_SIZE_VALUES,
   ANIMAL_SPECIES_LABELS,
@@ -19,266 +30,55 @@ import {
   ANIMAL_STATUS_TRANSITIONS,
   ANIMAL_STATUS_LABELS,
   ANIMAL_STATUS_VALUES,
+  ANIMAL_SYSTEM_MANAGED_STATUS_VALUES,
+  ANIMAL_TEXT_LIMITS,
+  PUBLIC_ANIMAL_LIST_STATUS_VALUES,
+  PROTECTED_CARE_SPECIES_VALUES,
 } from './animal.constants.js';
-import { getAllowedAnimalActions } from '../shared/rolePolicies.js';
+import {
+  CYRILLIC_TO_LATIN_MAP,
+  GENDER_ALIASES,
+  SEARCH_ALIASES,
+  SIZE_ALIASES,
+  SPECIES_ALIASES,
+} from './animal.search.constants.js';
+import { hasPermission } from '../shared/rolePolicies.js';
 
 const INACTIVE_ANIMAL_STATUSES = new Set(['inactive', 'archived']);
-const PROTECTED_CARE_SPECIES = new Set(['fox', 'owl', 'hedgehog']);
-const SEARCH_ALIASES = {
-  species: {
-    dog: ['dog', 'куче', 'кучета'],
-    cat: ['cat', 'котка', 'котки', 'котарак'],
-    rabbit: ['rabbit', 'заек', 'зайче', 'зайци'],
-    fox: ['fox', 'лисица', 'лисици', 'дива лисица'],
-    lizard: ['lizard', 'гущер', 'гущери', 'влечуго'],
-    owl: ['owl', 'сова', 'сови', 'птица'],
-    horse: ['horse', 'кон', 'коне', 'пони'],
-    hedgehog: ['hedgehog', 'таралеж', 'таралежи'],
-  },
-  breeds: {
-    dog: {
-      dachshund: ['dachshund', 'дакел'],
-      'irish wolfhound': ['irish wolfhound', 'ирландски вълкодав', 'вълкодав'],
-      beagle: ['beagle', 'бийгъл', 'бигъл'],
-      'american pitbull': ['american pitbull', 'pitbull', 'питбул', 'американски питбул'],
-      'golden retriever': ['golden retriever', 'голдън ретривър', 'голдън', 'ретривър'],
-    },
-    cat: {
-      munchkin: ['munchkin', 'манчкин', 'мънчкин'],
-      'domestic shorthair tuxedo': [
-        'domestic shorthair tuxedo',
-        'domestic shorthair',
-        'късокосместа котка',
-        'домашна късокосместа',
-        'тукседо',
-        'черно-бяла котка',
-      ],
-      'domestic shorthair ginger': [
-        'domestic shorthair ginger',
-        'domestic shorthair',
-        'късокосместа котка',
-        'домашна късокосместа',
-        'джинджър',
-        'рижава котка',
-        'оранжева котка',
-      ],
-      'domestic longhair': ['domestic longhair', 'дългокосместа котка', 'домашна дългокосместа'],
-      'maine coon': ['maine coon', 'мейн кун', 'мейн', 'мейн куун'],
-    },
-    rabbit: {
-      'holland lop': ['holland lop', 'холандски лоп', 'холандско клепоухо', 'клепоухо зайче'],
-      'english spot': ['english spot', 'английски спот', 'английско петнисто зайче', 'петнисто зайче'],
-      'english angora': ['english angora', 'английска ангора', 'ангора', 'ангорско зайче'],
-      'new zealand white': ['new zealand white', 'новозеландско бяло', 'новозеландски бял заек', 'бял заек'],
-      'flemish giant': ['flemish giant', 'фламандски гигант', 'фламандски заек', 'гигантски заек'],
-    },
-    fox: {
-      wild: ['wild', 'див', 'дива', 'диво', 'диво животно', 'дива лисица', 'лисица'],
-    },
-    lizard: {
-      'crested gecko': ['crested gecko', 'крестат гекон', 'гребенест гекон', 'гекон'],
-      'leopard gecko': ['leopard gecko', 'леопардов гекон', 'гекон'],
-      'panther chameleon': ['panther chameleon', 'пантеров хамелеон', 'хамелеон'],
-      'green iguana': ['green iguana', 'зелена игуана', 'игуана'],
-    },
-    owl: {
-      'northern hawk owl': ['northern hawk owl', 'северна ястребова сова', 'ястребова сова', 'сова'],
-      'burrowing owl': ['burrowing owl', 'земна сова', 'ровеща сова', 'сова'],
-      'barn owl': ['barn owl', 'забулена сова', 'хамбарна сова', 'сова'],
-      'snowy owl': ['snowy owl', 'снежна сова', 'бяла сова', 'сова'],
-    },
-    horse: {
-      'shetland pony': ['shetland pony', 'шетландско пони', 'шетландско', 'пони'],
-      'thoroughbred domestic': [
-        'thoroughbred domestic',
-        'thoroughbred',
-        'чистокръвен кон',
-        'английски чистокръвен',
-        'домашен кон',
-      ],
-      'paso fino': ['paso fino', 'пасо фино'],
-      friesian: ['friesian', 'фризийски кон', 'фризиец'],
-      clydesdale: ['clydesdale', 'клайдсдейл', 'клайдсдейлски кон'],
-    },
-    hedgehog: {
-      wild: ['wild', 'див', 'дива', 'диво', 'див таралеж', 'таралеж', 'диво животно'],
-    },
-  },
-};
+const DEACTIVATE_PERMISSION_STATUSES = new Set(['inactive', 'archived']);
+const SYSTEM_MANAGED_ANIMAL_STATUSES = new Set(ANIMAL_SYSTEM_MANAGED_STATUS_VALUES);
+const PROTECTED_CARE_SPECIES = new Set(PROTECTED_CARE_SPECIES_VALUES);
+const PUBLIC_ANIMAL_LIST_STATUSES = new Set(PUBLIC_ANIMAL_LIST_STATUS_VALUES);
+const CREATE_ANIMAL_ALLOWED_FIELDS = [
+  'slug',
+  'name',
+  'displayName',
+  'species',
+  'breed',
+  'age',
+  'gender',
+  'size',
+  'status',
+  'intakeDate',
+  'healthStatus',
+  'vaccinated',
+  'neutered',
+  'description',
+  'story',
+  'historyAndCharacter',
+  'details',
+  'careConditions',
+  'imageUrls',
+];
+const UPDATE_ANIMAL_ALLOWED_FIELDS = CREATE_ANIMAL_ALLOWED_FIELDS.filter(
+  (fieldName) => !['slug', 'status'].includes(fieldName)
+);
+const ANIMAL_STATUS_UPDATE_ALLOWED_FIELDS = ['status'];
+const ANIMAL_DEACTIVATE_ALLOWED_FIELDS = ['status'];
 const ANIMAL_SORT_VALUE_BY_NORMALIZED_VALUE = ANIMAL_SORT_VALUES.reduce((sortMap, sortValue) => {
   sortMap[sortValue.toLowerCase()] = sortValue;
   return sortMap;
 }, {});
-const ANIMAL_DISPLAY_NAMES_BY_SLUG = {
-  'hotdog-dachshund-dog': '\u0425\u043e\u0442\u0434\u043e\u0433',
-  'lily-beagle-dog': '\u041b\u0438\u043b\u0438',
-  'kiara-american-pitbull-dog': '\u041a\u0438\u0430\u0440\u0430',
-  'max-golden-retriever-dog': '\u041c\u0430\u043a\u0441',
-  'danny-irish-wolfhound-dog': '\u0414\u0430\u043d\u0438',
-  'mona-munchkin-cat': '\u041c\u043e\u043d\u0430',
-  'tom-domestic-shorthair-tuxedo-cat': '\u0422\u043e\u043c',
-  'garfield-domestic-shorthair-ginger-cat': '\u0413\u0430\u0440\u0444\u0438\u0439\u043b\u0434',
-  'diona-domestic-longhair-cat': '\u0414\u0438\u043e\u043d\u0430',
-  'harrison-maine-coon-cat': '\u0425\u0430\u0440\u0438\u0441\u044a\u043d',
-  'minny-holland-lop-rabbit': '\u041c\u0438\u043d\u0438',
-  'billy-english-spot-rabbit': '\u0411\u0438\u043b\u0438',
-  'daisy-english-angora-rabbit': '\u0414\u0435\u0439\u0437\u0438',
-  'shiro-new-zealand-white-rabbit': '\u0428\u0438\u0440\u043e',
-  'ruby-flemish-giant-rabbit': '\u0420\u0443\u0431\u0438',
-  'tina-wild-fox': '\u0422\u0438\u043d\u0430',
-  'charles-wild-fox': '\u0427\u0430\u0440\u043b\u0441',
-  'sidney-wild-fox': '\u0421\u0438\u0434\u043d\u0438',
-  'ethan-wild-fox': '\u0418\u0442\u044a\u043d',
-  'dayana-crested-gecko-lizard': '\u0414\u0430\u044f\u043d\u0430',
-  'sirocco-leopard-gecko-lizard': '\u0421\u0438\u0440\u043e\u043a\u043e',
-  'vivy-panther-chameleon-lizard': '\u0412\u0438\u0432\u0438',
-  'martin-green-iguana-lizard': '\u041c\u0430\u0440\u0442\u0438\u043d',
-  'billy-northern-hawk-owl': '\u0411\u0438\u043b\u0438',
-  'gabrielle-burrowing-owl': '\u0413\u0430\u0431\u0440\u0438\u0435\u043b',
-  'sydney-barn-owl': '\u0421\u0438\u0434\u043d\u0438',
-  'shiro-snowy-owl': '\u0428\u0438\u0440\u043e',
-  'dolly-shetland-pony-horse': '\u0414\u043e\u043b\u0438',
-  'oden-thoroughbred-domestic-horse': '\u041e\u0434\u0435\u043d',
-  'zanny-paso-fino-horse': '\u0417\u0430\u043d\u0438',
-  'ryan-friesian-horse': '\u0420\u0430\u0439\u044a\u043d',
-  'angel-clydesdale-horse': '\u0415\u0439\u043d\u0434\u0436\u044a\u043b',
-  'tommy-wild-hedgehog': '\u0422\u043e\u043c\u0438',
-  'ronald-wild-hedgehog': '\u0420\u043e\u043d\u0430\u043b\u0434',
-  'ashley-wild-hedgehog': '\u0410\u0448\u043b\u0438',
-  'gina-wild-hedgehog': '\u0414\u0436\u0438\u043d\u0430',
-};
-const ANIMAL_DISPLAY_NAMES_BY_NAME = {
-  Hotdog: '\u0425\u043e\u0442\u0434\u043e\u0433',
-  Lily: '\u041b\u0438\u043b\u0438',
-  Kiara: '\u041a\u0438\u0430\u0440\u0430',
-  Max: '\u041c\u0430\u043a\u0441',
-  Danny: '\u0414\u0430\u043d\u0438',
-  Mona: '\u041c\u043e\u043d\u0430',
-  Tom: '\u0422\u043e\u043c',
-  Garfield: '\u0413\u0430\u0440\u0444\u0438\u0439\u043b\u0434',
-  Diona: '\u0414\u0438\u043e\u043d\u0430',
-  Harrison: '\u0425\u0430\u0440\u0438\u0441\u044a\u043d',
-  Minny: '\u041c\u0438\u043d\u0438',
-  Billy: '\u0411\u0438\u043b\u0438',
-  Daisy: '\u0414\u0435\u0439\u0437\u0438',
-  Shiro: '\u0428\u0438\u0440\u043e',
-  Ruby: '\u0420\u0443\u0431\u0438',
-  Tina: '\u0422\u0438\u043d\u0430',
-  Charles: '\u0427\u0430\u0440\u043b\u0441',
-  Sidney: '\u0421\u0438\u0434\u043d\u0438',
-  Ethan: '\u0418\u0442\u044a\u043d',
-  Dayana: '\u0414\u0430\u044f\u043d\u0430',
-  Sirocco: '\u0421\u0438\u0440\u043e\u043a\u043e',
-  Vivy: '\u0412\u0438\u0432\u0438',
-  Martin: '\u041c\u0430\u0440\u0442\u0438\u043d',
-  Gabrielle: '\u0413\u0430\u0431\u0440\u0438\u0435\u043b',
-  Sydney: '\u0421\u0438\u0434\u043d\u0438',
-  Dolly: '\u0414\u043e\u043b\u0438',
-  Oden: '\u041e\u0434\u0435\u043d',
-  Zanny: '\u0417\u0430\u043d\u0438',
-  Ryan: '\u0420\u0430\u0439\u044a\u043d',
-  Angel: '\u0415\u0439\u043d\u0434\u0436\u044a\u043b',
-  Tommy: '\u0422\u043e\u043c\u0438',
-  Ronald: '\u0420\u043e\u043d\u0430\u043b\u0434',
-  Ashley: '\u0410\u0448\u043b\u0438',
-  Gina: '\u0414\u0436\u0438\u043d\u0430',
-};
-const SPECIES_ALIASES = {
-  dog: 'dog',
-  dogs: 'dog',
-  '\u043a\u0443\u0447\u0435': 'dog',
-  '\u043a\u0443\u0447\u0435\u0442\u0430': 'dog',
-  cat: 'cat',
-  cats: 'cat',
-  '\u043a\u043e\u0442\u043a\u0430': 'cat',
-  '\u043a\u043e\u0442\u043a\u0438': 'cat',
-  rabbit: 'rabbit',
-  rabbits: 'rabbit',
-  '\u0437\u0430\u0435\u043a': 'rabbit',
-  '\u0437\u0430\u0439\u0447\u0435': 'rabbit',
-  '\u0437\u0430\u0439\u0446\u0438': 'rabbit',
-  fox: 'fox',
-  foxes: 'fox',
-  '\u043b\u0438\u0441\u0438\u0446\u0430': 'fox',
-  '\u043b\u0438\u0441\u0438\u0446\u0438': 'fox',
-  lizard: 'lizard',
-  lizards: 'lizard',
-  '\u0433\u0443\u0449\u0435\u0440': 'lizard',
-  '\u0433\u0443\u0449\u0435\u0440\u0438': 'lizard',
-  owl: 'owl',
-  owls: 'owl',
-  '\u0441\u043e\u0432\u0430': 'owl',
-  '\u0441\u043e\u0432\u0438': 'owl',
-  horse: 'horse',
-  horses: 'horse',
-  '\u043a\u043e\u043d': 'horse',
-  '\u043a\u043e\u043d\u0435': 'horse',
-  hedgehog: 'hedgehog',
-  hedgehogs: 'hedgehog',
-  '\u0442\u0430\u0440\u0430\u043b\u0435\u0436': 'hedgehog',
-  '\u0442\u0430\u0440\u0430\u043b\u0435\u0436\u0438': 'hedgehog',
-};
-const SIZE_ALIASES = {
-  small: 'small',
-  s: 'small',
-  's size': 'small',
-  '\u043c\u0430\u043b\u043a\u0430': 'small',
-  medium: 'medium',
-  m: 'medium',
-  'm size': 'medium',
-  '\u0441\u0440\u0435\u0434\u043d\u0430': 'medium',
-  large: 'large',
-  l: 'large',
-  'l size': 'large',
-  '\u0433\u043e\u043b\u044f\u043c\u0430': 'large',
-  'extra-large': 'extra-large',
-  'extra large': 'extra-large',
-  xl: 'extra-large',
-  'xl size': 'extra-large',
-  '\u043c\u043d\u043e\u0433\u043e \u0433\u043e\u043b\u044f\u043c\u0430': 'extra-large',
-};
-const GENDER_ALIASES = {
-  male: 'male',
-  m: 'male',
-  '\u043c\u044a\u0436\u043a\u0438': 'male',
-  female: 'female',
-  f: 'female',
-  '\u0436\u0435\u043d\u0441\u043a\u0438': 'female',
-  unknown: 'unknown',
-  '\u043d\u0435\u0443\u0442\u043e\u0447\u043d\u0435\u043d': 'unknown',
-};
-const CYRILLIC_TO_LATIN_MAP = {
-  '\u0430': 'a',
-  '\u0431': 'b',
-  '\u0432': 'v',
-  '\u0433': 'g',
-  '\u0434': 'd',
-  '\u0435': 'e',
-  '\u0436': 'zh',
-  '\u0437': 'z',
-  '\u0438': 'i',
-  '\u0439': 'y',
-  '\u043a': 'k',
-  '\u043b': 'l',
-  '\u043c': 'm',
-  '\u043d': 'n',
-  '\u043e': 'o',
-  '\u043f': 'p',
-  '\u0440': 'r',
-  '\u0441': 's',
-  '\u0442': 't',
-  '\u0443': 'u',
-  '\u0444': 'f',
-  '\u0445': 'h',
-  '\u0446': 'ts',
-  '\u0447': 'ch',
-  '\u0448': 'sh',
-  '\u0449': 'sht',
-  '\u044a': 'a',
-  '\u044c': 'y',
-  '\u044e': 'yu',
-  '\u044f': 'ya',
-};
 
 function normalizeText(value) {
   return String(value ?? '').trim().toLowerCase();
@@ -288,40 +88,28 @@ function normalizeDisplayText(value) {
   return String(value ?? '').trim();
 }
 
+function normalizeLimitedDisplayText(value, fieldName, maxLength, { required = false } = {}) {
+  const text = normalizeDisplayText(value);
+
+  if (required && !text) {
+    throw createHttpError(400, `Полето "${fieldName}" е задължително.`);
+  }
+
+  if (text.length > maxLength) {
+    throw createHttpError(400, `Полето "${fieldName}" може да бъде най-много ${maxLength} символа.`);
+  }
+
+  return text;
+}
+
 function normalizeStoredAssetPath(value) {
   const normalizedValue = normalizeDisplayText(value);
 
-  if (/^(?:data:|https?:|blob:)/i.test(normalizedValue)) {
+  if (/^(?:data:|https:)/i.test(normalizedValue)) {
     return normalizedValue;
   }
 
   return normalizedValue.replace(/^\/+/, '');
-}
-
-function normalizeDateOutput(value) {
-  if (!value) {
-    return null;
-  }
-
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-
-  return value;
-}
-
-function normalizeHealthCareItems(items) {
-  if (!Array.isArray(items)) {
-    return [];
-  }
-
-  return items
-    .map((item) => ({
-      label: normalizeDisplayText(item?.label),
-      value: normalizeDisplayText(item?.value),
-      description: normalizeDisplayText(item?.description),
-    }))
-    .filter((item) => item.label && item.value && item.description);
 }
 
 function normalizeLookupAnimalId(animalId) {
@@ -396,15 +184,6 @@ function getBreedSearchAliases(species, breed) {
   return SEARCH_ALIASES.breeds[normalizedSpecies]?.[normalizedBreed] ?? [];
 }
 
-function getAnimalSearchAliasValues(animal) {
-  const species = normalizeSpecies(animal.species ?? animal.type);
-
-  return [
-    ...getSpeciesSearchAliases(species),
-    ...getBreedSearchAliases(species, animal.breed),
-  ];
-}
-
 function getSpeciesValuesMatchingAliasSearch(searchTerms) {
   return ANIMAL_SPECIES_VALUES.filter((species) =>
     searchAliasesMatch(getSpeciesSearchAliases(species), searchTerms)
@@ -441,51 +220,6 @@ function searchTermsMatchEnumValue(enumValue, enumLabel, searchTerms) {
 function getEnumValuesMatchingSearch(searchTerms, enumValues, enumLabels) {
   return enumValues.filter((enumValue) =>
     searchTermsMatchEnumValue(enumValue, enumLabels[enumValue], searchTerms)
-  );
-}
-
-function getAnimalTextSearchValues(animal) {
-  const species = normalizeSpecies(animal.species ?? animal.type);
-
-  return [
-    animal.name,
-    animal.displayName,
-    animal.localizedName,
-    getDisplayName(animal),
-    species,
-    ANIMAL_SPECIES_LABELS[species],
-    animal.slug,
-    animal.breed,
-    ...getAnimalSearchAliasValues(animal),
-  ];
-}
-
-function animalMatchesEnumSearch(animal, searchTerms) {
-  const species = normalizeSpecies(animal.species ?? animal.type);
-  const size = normalizeSize(animal.size);
-  const gender = normalizeGender(animal.gender);
-  const status = normalizeText(animal.status);
-  const speciesValues = getEnumValuesMatchingSearch(searchTerms, ANIMAL_SPECIES_VALUES, ANIMAL_SPECIES_LABELS);
-  const genderValues = getEnumValuesMatchingSearch(searchTerms, ANIMAL_GENDER_VALUES, ANIMAL_GENDER_LABELS);
-  const sizeValues = getEnumValuesMatchingSearch(searchTerms, ANIMAL_SIZE_VALUES, ANIMAL_SIZE_LABELS);
-  const statusValues = getEnumValuesMatchingSearch(searchTerms, ANIMAL_STATUS_VALUES, ANIMAL_STATUS_LABELS);
-
-  return (
-    speciesValues.includes(species) ||
-    genderValues.includes(gender) ||
-    sizeValues.includes(size) ||
-    statusValues.includes(status)
-  );
-}
-
-function animalMatchesSearch(animal, searchTerms) {
-  if (searchTerms.length === 0) {
-    return true;
-  }
-
-  return (
-    getAnimalTextSearchValues(animal).some((value) => searchTermsMatchValue(value, searchTerms)) ||
-    animalMatchesEnumSearch(animal, searchTerms)
   );
 }
 
@@ -536,25 +270,26 @@ function formatAnimalAge(ageValue) {
   const numericAge = Number(ageValue ?? 0);
 
   if (!Number.isFinite(numericAge) || numericAge < 0) {
-    return '\u041d\u0435\u0443\u0442\u043e\u0447\u043d\u0435\u043d\u0430 \u0432\u044a\u0437\u0440\u0430\u0441\u0442';
+    return 'Неуточнена възраст';
   }
 
   const ageInMonths = Math.round(numericAge * 12);
 
   if (ageInMonths < 12) {
-    return String(ageInMonths) + ' ' + (ageInMonths === 1 ? '\u043c\u0435\u0441\u0435\u0446' : '\u043c\u0435\u0441\u0435\u0446\u0430');
+    return String(ageInMonths) + ' ' + (ageInMonths === 1 ? 'месец' : 'месеца');
   }
 
   const years = Math.floor(ageInMonths / 12);
   const remainingMonths = ageInMonths % 12;
-  const yearsLabel = years === 1 ? '\u0433\u043e\u0434\u0438\u043d\u0430' : '\u0433\u043e\u0434\u0438\u043d\u0438';
+  const yearsLabel = years === 1 ? 'година' : 'години';
 
   if (remainingMonths === 0) {
     return String(years) + ' ' + yearsLabel;
   }
 
-  return String(years) + ' ' + yearsLabel + ' \u0438 ' + String(remainingMonths) + ' ' + (remainingMonths === 1 ? '\u043c\u0435\u0441\u0435\u0446' : '\u043c\u0435\u0441\u0435\u0446\u0430');
+  return String(years) + ' ' + yearsLabel + ' и ' + String(remainingMonths) + ' ' + (remainingMonths === 1 ? 'месец' : 'месеца');
 }
+
 function getPrimaryImageUrl(animal) {
   if (Array.isArray(animal.imageUrls) && animal.imageUrls.length > 0) {
     return animal.imageUrls[0];
@@ -564,22 +299,12 @@ function getPrimaryImageUrl(animal) {
     return animal.imageUrl;
   }
 
-  if (animal.image) {
-    return animal.image;
-  }
-
-  return 'images/animals/dog.png';
+  return '';
 }
 
 function getDisplayName(animal) {
-  const slug = normalizeDisplayText(animal.slug ?? animal.id ?? animal._id);
-  const latinName = normalizeDisplayText(animal.name);
-
   return normalizeDisplayText(
     animal.displayName ??
-      animal.localizedName ??
-      ANIMAL_DISPLAY_NAMES_BY_SLUG[slug] ??
-      ANIMAL_DISPLAY_NAMES_BY_NAME[latinName] ??
       animal.name
   );
 }
@@ -589,18 +314,21 @@ function canUseStandardAdoptionFlow(species, status) {
 }
 
 function serializeAnimal(animal) {
-  const species = normalizeSpecies(animal.species ?? animal.type);
+  const species = normalizeSpecies(animal.species);
   const size = normalizeSize(animal.size);
   const gender = normalizeGender(animal.gender);
-  const age = Number(animal.age ?? animal.ageYears ?? 0);
+  const age = Number(animal.age ?? 0);
   const ageText = formatAnimalAge(age);
   const displayName = getDisplayName(animal);
-  const description = animal.description ?? animal.shortDescription ?? '';
-  const primaryImageUrl = normalizeStoredAssetPath(getPrimaryImageUrl(animal));
-  const imageUrls =
-    Array.isArray(animal.imageUrls) && animal.imageUrls.length > 0
-      ? animal.imageUrls.map((imageUrl) => normalizeStoredAssetPath(imageUrl)).filter(Boolean)
-      : [primaryImageUrl];
+  const description = animal.description ?? '';
+  const primaryImageCandidate = normalizeStoredAssetPath(getPrimaryImageUrl(animal));
+  const primaryImageUrl = canExposeStoredImageUrl(primaryImageCandidate) ? primaryImageCandidate : '';
+  const storedImageUrls = Array.isArray(animal.imageUrls)
+    ? animal.imageUrls
+        .map((imageUrl) => normalizeStoredAssetPath(imageUrl))
+        .filter((imageUrl) => imageUrl && canExposeStoredImageUrl(imageUrl))
+    : [];
+  const imageUrls = storedImageUrls.length > 0 ? storedImageUrls : primaryImageUrl ? [primaryImageUrl] : [];
 
   return {
     id: animal.slug ?? String(animal._id),
@@ -622,7 +350,6 @@ function serializeAnimal(animal) {
     isActive: Boolean(animal.isActive),
     intakeDate: normalizeDateOutput(animal.intakeDate),
     healthStatus: animal.healthStatus,
-    healthCareItems: normalizeHealthCareItems(animal.healthCareItems),
     vaccinated: Boolean(animal.vaccinated),
     neutered: Boolean(animal.neutered),
     description,
@@ -634,9 +361,6 @@ function serializeAnimal(animal) {
     imageUrl: primaryImageUrl,
     createdAt: normalizeDateOutput(animal.createdAt),
     updatedAt: normalizeDateOutput(animal.updatedAt),
-    ageYears: age,
-    shortDescription: description,
-    image: primaryImageUrl,
     facts: animal.facts ?? `${ANIMAL_SPECIES_LABELS[species] ?? species} | ${ageText} | ${ANIMAL_GENDER_LABELS[gender] ?? gender}`,
   };
 }
@@ -652,11 +376,11 @@ function parseBooleanField(value, fieldName) {
 
   const normalizedValue = normalizeText(value);
 
-  if (['true', '1', 'yes', '\u0434\u0430'].includes(normalizedValue)) {
+  if (['true', '1', 'yes', 'да'].includes(normalizedValue)) {
     return true;
   }
 
-  if (['false', '0', 'no', '\u043d\u0435'].includes(normalizedValue)) {
+  if (['false', '0', 'no', 'не'].includes(normalizedValue)) {
     return false;
   }
 
@@ -680,7 +404,112 @@ function parseDateField(value, fieldName) {
     throw createHttpError(400, 'Полето "' + fieldName + '" трябва да бъде валидна дата.');
   }
 
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+
+  if (dateValue > todayEnd) {
+    throw createHttpError(400, 'Полето "' + fieldName + '" не може да бъде бъдеща дата.');
+  }
+
   return dateValue.toISOString();
+}
+
+function getBase64ByteLength(base64Value) {
+  const normalizedValue = String(base64Value ?? '').replace(/\s/g, '');
+  const paddingLength = normalizedValue.endsWith('==')
+    ? 2
+    : normalizedValue.endsWith('=')
+      ? 1
+      : 0;
+
+  return Math.floor((normalizedValue.length * 3) / 4) - paddingLength;
+}
+
+function parseDataImageUrl(imageUrl) {
+  const dataUrlMatch = String(imageUrl ?? '').match(/^data:(image\/[a-z0-9.+-]+);base64,([a-z0-9+/=\s]+)$/i);
+
+  if (!dataUrlMatch) {
+    return null;
+  }
+
+  return {
+    mimeType: dataUrlMatch[1].toLowerCase(),
+    byteLength: getBase64ByteLength(dataUrlMatch[2]),
+  };
+}
+
+function isAllowedStoredImagePath(imageUrl) {
+  return /^https:\/\//i.test(imageUrl) || /^images\//i.test(imageUrl);
+}
+
+function assertValidImageUrl(imageUrl, imageIndex) {
+  const fieldLabel = `imageUrls[${imageIndex}]`;
+  const dataImage = parseDataImageUrl(imageUrl);
+
+  if (/^data:/i.test(imageUrl)) {
+    if (!dataImage || !ANIMAL_IMAGE_DATA_MIME_TYPES.includes(dataImage.mimeType)) {
+      throw createHttpError(
+        400,
+        `Полето "${fieldLabel}" трябва да бъде JPEG, PNG или WebP image data URL.`
+      );
+    }
+
+    if (dataImage.byteLength > ANIMAL_IMAGE_MAX_BYTES) {
+      throw createHttpError(
+        400,
+        `Всяка снимка трябва да бъде до ${Math.floor(ANIMAL_IMAGE_MAX_BYTES / 1024 / 1024)} MB.`
+      );
+    }
+
+    return dataImage.byteLength;
+  }
+
+  if (!isAllowedStoredImagePath(imageUrl)) {
+    throw createHttpError(
+      400,
+      `Полето "${fieldLabel}" трябва да бъде HTTPS адрес, локален images път или image data URL.`
+    );
+  }
+
+  if (imageUrl.length > ANIMAL_IMAGE_URL_MAX_LENGTH) {
+    throw createHttpError(
+      400,
+      `Адресът в "${fieldLabel}" може да бъде най-много ${ANIMAL_IMAGE_URL_MAX_LENGTH} символа.`
+    );
+  }
+
+  return 0;
+}
+
+function canExposeStoredImageUrl(imageUrl) {
+  const dataImage = parseDataImageUrl(imageUrl);
+
+  if (dataImage) {
+    return (
+      ANIMAL_IMAGE_DATA_MIME_TYPES.includes(dataImage.mimeType) &&
+      dataImage.byteLength <= ANIMAL_IMAGE_MAX_BYTES
+    );
+  }
+
+  return isAllowedStoredImagePath(imageUrl) && imageUrl.length <= ANIMAL_IMAGE_URL_MAX_LENGTH;
+}
+
+function validateImageUrls(imageUrls) {
+  if (imageUrls.length > ANIMAL_IMAGE_MAX_COUNT) {
+    throw createHttpError(400, `Можеш да добавиш най-много ${ANIMAL_IMAGE_MAX_COUNT} снимки.`);
+  }
+
+  const totalEmbeddedImageBytes = imageUrls.reduce(
+    (totalBytes, imageUrl, index) => totalBytes + assertValidImageUrl(imageUrl, index),
+    0
+  );
+
+  if (totalEmbeddedImageBytes > ANIMAL_IMAGE_MAX_TOTAL_BYTES) {
+    throw createHttpError(
+      400,
+      `Общият размер на качените снимки трябва да бъде до ${Math.floor(ANIMAL_IMAGE_MAX_TOTAL_BYTES / 1024 / 1024)} MB.`
+    );
+  }
 }
 
 function normalizeImageUrls(payload, options = {}) {
@@ -689,14 +518,12 @@ function normalizeImageUrls(payload, options = {}) {
       throw createHttpError(400, 'Полето "imageUrls" трябва да бъде масив от адреси.');
     }
 
-    return payload.imageUrls
+    const imageUrls = payload.imageUrls
       .map((entry) => normalizeStoredAssetPath(entry))
       .filter(Boolean);
-  }
 
-  if (payload.imageUrl !== undefined) {
-    const imageUrl = normalizeStoredAssetPath(payload.imageUrl);
-    return imageUrl ? [imageUrl] : [];
+    validateImageUrls(imageUrls);
+    return imageUrls;
   }
 
   return options.defaultValue;
@@ -730,18 +557,19 @@ function buildLookupQuery(animalId) {
   return { $or: lookupQuery };
 }
 
-async function findAnimalRecordById(animalId) {
+async function findAnimalRecordById(animalId, options = {}) {
   const normalizedAnimalId = assertValidAnimalId(animalId);
-  return Animal.findOne(buildLookupQuery(normalizedAnimalId)).lean();
-}
+  const query = Animal.findOne(buildLookupQuery(normalizedAnimalId));
 
-async function ensureUniqueSlug(slug, currentAnimal = null) {
-  const query = { slug };
-
-  if (currentAnimal?._id) {
-    query._id = { $ne: currentAnimal._id };
+  if (options.session) {
+    query.session(options.session);
   }
 
+  return query.lean();
+}
+
+async function ensureUniqueSlug(slug) {
+  const query = { slug };
   const existingAnimal = await Animal.findOne(query).lean();
 
   if (existingAnimal) {
@@ -749,33 +577,129 @@ async function ensureUniqueSlug(slug, currentAnimal = null) {
   }
 }
 
-function synchronizeStatusAndActivity(status, isActive, currentAnimal = null) {
+function throwDuplicateAnimalError(error) {
+  const duplicateError = createDuplicateKeyHttpError(error, {
+    fieldMessages: {
+      slug: 'Вече съществува животно със същия slug.',
+    },
+    fallbackMessage: 'Животно с тези данни вече съществува.',
+  });
+
+  if (duplicateError) {
+    throw duplicateError;
+  }
+
+  throw error;
+}
+
+function isManagementAnimalRole(currentUser) {
+  return hasPermission(currentUser?.role, 'animals', 'view-all');
+}
+
+function canExposeAnimalRecord(animal, currentUser = null, options = {}) {
+  if (!animal) {
+    return false;
+  }
+
+  if (
+    options.restrictToPublicAnimal &&
+    !isManagementAnimalRole(currentUser) &&
+    (
+      options.publicVisibility === 'detail'
+        ? animal.isActive !== true || INACTIVE_ANIMAL_STATUSES.has(animal.status)
+        : animal.status !== 'available' || animal.isActive !== true
+    )
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+function serializeAnimalReference(animal) {
+  return {
+    databaseId: String(animal._id),
+    item: serializeAnimal(animal),
+  };
+}
+
+function assertCanWriteAnimalLifecycleStatus(currentUser, currentStatus, nextStatus) {
+  const touchesRestrictedLifecycleStatus = [currentStatus, nextStatus].some((status) =>
+    DEACTIVATE_PERMISSION_STATUSES.has(status)
+  );
+
+  if (
+    !touchesRestrictedLifecycleStatus ||
+    hasPermission(currentUser?.role, 'animals', 'deactivate')
+  ) {
+    return;
+  }
+
+  throw createHttpError(
+    403,
+    'Нямаш право да деактивираш, архивираш или реактивираш животни.'
+  );
+}
+
+function assertCanEditAnimalRecord(currentUser, currentStatus) {
+  if (
+    !DEACTIVATE_PERMISSION_STATUSES.has(currentStatus) ||
+    hasPermission(currentUser?.role, 'animals', 'deactivate')
+  ) {
+    return;
+  }
+
+  throw createHttpError(
+    403,
+    'Нямаш право да редактираш деактивирано или архивирано животно.'
+  );
+}
+
+function assertCreatableAnimalStatus(status) {
+  if (ANIMAL_CREATABLE_STATUS_VALUES.includes(status)) {
+    return;
+  }
+
+  throw createHttpError(400, 'Нов запис на животно не може да започне с този статус.', {
+    allowedStatuses: ANIMAL_CREATABLE_STATUS_VALUES,
+  });
+}
+
+function assertManualAnimalStatusTransition(currentStatus, nextStatus, { allowSystemManagedStatuses = false } = {}) {
+  if (allowSystemManagedStatuses) {
+    return;
+  }
+
+  const manuallyArchivesAdoptedAnimal = currentStatus === 'adopted' && nextStatus === 'archived';
+
+  if (!SYSTEM_MANAGED_ANIMAL_STATUSES.has(currentStatus) && !SYSTEM_MANAGED_ANIMAL_STATUSES.has(nextStatus)) {
+    return;
+  }
+
+  if (manuallyArchivesAdoptedAnimal) {
+    return;
+  }
+
+  throw createHttpError(
+    409,
+    'Статусите "reserved" и "adopted" се управляват през процеса на осиновяване.',
+    {
+      systemManagedStatuses: ANIMAL_SYSTEM_MANAGED_STATUS_VALUES,
+      manualStatuses: ANIMAL_MANUAL_STATUS_VALUES,
+    }
+  );
+}
+
+function getIsActiveForStatus(status) {
+  return !INACTIVE_ANIMAL_STATUSES.has(status);
+}
+
+function synchronizeStatusAndActivity(status, currentAnimal = null) {
   const nextStatus = status ?? currentAnimal?.status ?? 'available';
-
-  if (INACTIVE_ANIMAL_STATUSES.has(nextStatus)) {
-    return {
-      status: nextStatus,
-      isActive: false,
-    };
-  }
-
-  if (typeof isActive === 'boolean') {
-    return {
-      status: nextStatus,
-      isActive,
-    };
-  }
-
-  if (status !== undefined) {
-    return {
-      status: nextStatus,
-      isActive: true,
-    };
-  }
 
   return {
     status: nextStatus,
-    isActive: currentAnimal?.isActive ?? true,
+    isActive: getIsActiveForStatus(nextStatus),
   };
 }
 
@@ -800,8 +724,11 @@ function assertAllowedStatusTransition(currentStatus, nextStatus) {
 }
 
 function normalizeAnimalWritePayload(payload, options = {}) {
+  // In partial mode, only explicitly provided fields are normalized
+  // so omitted values are preserved during PATCH updates.
   const partial = Boolean(options.partial);
   const currentAnimal = options.currentAnimal ?? null;
+  const currentUser = options.currentUser ?? null;
   const normalizedPayload = {};
   let hasExplicitChanges = false;
 
@@ -813,28 +740,34 @@ function normalizeAnimalWritePayload(payload, options = {}) {
       throw createHttpError(400, 'Не може да бъде генериран валиден slug за животното.');
     }
 
+    if (slug.length > ANIMAL_TEXT_LIMITS.slug) {
+      throw createHttpError(400, `Полето "slug" може да бъде най-много ${ANIMAL_TEXT_LIMITS.slug} символа.`);
+    }
+
     normalizedPayload.slug = slug;
     hasExplicitChanges = true;
   }
 
   if (!partial || payload.name !== undefined) {
-    const name = normalizeDisplayText(payload.name);
-
-    if (!name) {
-      throw createHttpError(400, 'Полето "name" е задължително.');
-    }
+    const name = normalizeLimitedDisplayText(payload.name, 'name', ANIMAL_TEXT_LIMITS.name, {
+      required: true,
+    });
 
     normalizedPayload.name = name;
     hasExplicitChanges = true;
   }
 
   if (payload.displayName !== undefined) {
-    normalizedPayload.displayName = normalizeDisplayText(payload.displayName);
+    normalizedPayload.displayName = normalizeLimitedDisplayText(
+      payload.displayName,
+      'displayName',
+      ANIMAL_TEXT_LIMITS.displayName
+    );
     hasExplicitChanges = true;
   }
 
-  if (!partial || payload.species !== undefined || payload.type !== undefined) {
-    const species = normalizeSpecies(payload.species ?? payload.type);
+  if (!partial || payload.species !== undefined) {
+    const species = normalizeSpecies(payload.species);
 
     if (!species || !ANIMAL_SPECIES_VALUES.includes(species)) {
       throw createHttpError(400, 'Полето "species" съдържа невалидна стойност.');
@@ -845,18 +778,16 @@ function normalizeAnimalWritePayload(payload, options = {}) {
   }
 
   if (!partial || payload.breed !== undefined) {
-    const breed = normalizeDisplayText(payload.breed);
-
-    if (!breed) {
-      throw createHttpError(400, 'Полето "breed" е задължително.');
-    }
+    const breed = normalizeLimitedDisplayText(payload.breed, 'breed', ANIMAL_TEXT_LIMITS.breed, {
+      required: true,
+    });
 
     normalizedPayload.breed = breed;
     hasExplicitChanges = true;
   }
 
-  if (!partial || payload.age !== undefined || payload.ageYears !== undefined) {
-    normalizedPayload.age = parseNumberField(payload.age ?? payload.ageYears, 'age');
+  if (!partial || payload.age !== undefined) {
+    normalizedPayload.age = parseNumberField(payload.age, 'age');
     hasExplicitChanges = true;
   }
 
@@ -889,6 +820,11 @@ function normalizeAnimalWritePayload(payload, options = {}) {
       throw createHttpError(400, 'Полето "status" съдържа невалидна стойност.');
     }
 
+    if (!partial) {
+      assertCreatableAnimalStatus(status);
+    }
+
+    assertCanWriteAnimalLifecycleStatus(currentUser, currentAnimal?.status, status);
     normalizedPayload.status = status;
     hasExplicitChanges = true;
   }
@@ -899,18 +835,16 @@ function normalizeAnimalWritePayload(payload, options = {}) {
   }
 
   if (!partial || payload.healthStatus !== undefined) {
-    const healthStatus = normalizeDisplayText(payload.healthStatus);
-
-    if (!healthStatus) {
-      throw createHttpError(400, 'Полето "healthStatus" е задължително.');
-    }
+    const healthStatus = normalizeLimitedDisplayText(
+      payload.healthStatus,
+      'healthStatus',
+      ANIMAL_TEXT_LIMITS.healthStatus,
+      {
+        required: true,
+      }
+    );
 
     normalizedPayload.healthStatus = healthStatus;
-    hasExplicitChanges = true;
-  }
-
-  if (payload.healthCareItems !== undefined) {
-    normalizedPayload.healthCareItems = normalizeHealthCareItems(payload.healthCareItems);
     hasExplicitChanges = true;
   }
 
@@ -928,39 +862,45 @@ function normalizeAnimalWritePayload(payload, options = {}) {
     hasExplicitChanges = true;
   }
 
-  if (payload.isActive !== undefined) {
-    normalizedPayload.isActive = parseBooleanField(payload.isActive, 'isActive');
-    hasExplicitChanges = true;
-  }
-
-  if (!partial || payload.description !== undefined || payload.shortDescription !== undefined) {
-    const description = normalizeDisplayText(payload.description ?? payload.shortDescription);
-
-    if (!description) {
-      throw createHttpError(400, 'Полето "description" е задължително.');
-    }
+  if (!partial || payload.description !== undefined) {
+    const description = normalizeLimitedDisplayText(
+      payload.description,
+      'description',
+      ANIMAL_TEXT_LIMITS.description,
+      {
+        required: true,
+      }
+    );
 
     normalizedPayload.description = description;
     hasExplicitChanges = true;
   }
 
   if (payload.story !== undefined) {
-    normalizedPayload.story = normalizeDisplayText(payload.story);
+    normalizedPayload.story = normalizeLimitedDisplayText(payload.story, 'story', ANIMAL_TEXT_LIMITS.story);
     hasExplicitChanges = true;
   }
 
   if (payload.historyAndCharacter !== undefined) {
-    normalizedPayload.historyAndCharacter = normalizeDisplayText(payload.historyAndCharacter);
+    normalizedPayload.historyAndCharacter = normalizeLimitedDisplayText(
+      payload.historyAndCharacter,
+      'historyAndCharacter',
+      ANIMAL_TEXT_LIMITS.historyAndCharacter
+    );
     hasExplicitChanges = true;
   }
 
   if (payload.details !== undefined) {
-    normalizedPayload.details = normalizeDisplayText(payload.details);
+    normalizedPayload.details = normalizeLimitedDisplayText(payload.details, 'details', ANIMAL_TEXT_LIMITS.details);
     hasExplicitChanges = true;
   }
 
   if (payload.careConditions !== undefined) {
-    normalizedPayload.careConditions = normalizeDisplayText(payload.careConditions);
+    normalizedPayload.careConditions = normalizeLimitedDisplayText(
+      payload.careConditions,
+      'careConditions',
+      ANIMAL_TEXT_LIMITS.careConditions
+    );
     hasExplicitChanges = true;
   }
 
@@ -977,39 +917,35 @@ function normalizeAnimalWritePayload(payload, options = {}) {
     throw createHttpError(400, 'Няма подадени данни за редакция.');
   }
 
-  const statusAndActivity = synchronizeStatusAndActivity(
-    normalizedPayload.status,
-    normalizedPayload.isActive,
-    currentAnimal
-  );
+  if (normalizedPayload.status !== undefined) {
+    const statusAndActivity = synchronizeStatusAndActivity(normalizedPayload.status, currentAnimal);
 
-  assertAllowedStatusTransition(currentAnimal?.status, statusAndActivity.status);
+    assertAllowedStatusTransition(currentAnimal?.status, statusAndActivity.status);
 
-  normalizedPayload.status = statusAndActivity.status;
-  normalizedPayload.isActive = statusAndActivity.isActive;
+    normalizedPayload.status = statusAndActivity.status;
+    normalizedPayload.isActive = statusAndActivity.isActive;
+  }
 
   return normalizedPayload;
 }
 
-function normalizeStatusUpdatePayload(payload, currentAnimal) {
+function normalizeStatusUpdatePayload(payload, currentAnimal, currentUser = null, options = {}) {
   const status = normalizeText(payload.status);
 
   if (!ANIMAL_STATUS_VALUES.includes(status)) {
     throw createHttpError(400, 'Полето "status" съдържа невалидна стойност.');
   }
 
-  const isActive =
-    payload.isActive !== undefined
-      ? parseBooleanField(payload.isActive, 'isActive')
-      : currentAnimal?.isActive;
+  assertCanWriteAnimalLifecycleStatus(currentUser, currentAnimal?.status, status);
+  assertManualAnimalStatusTransition(currentAnimal?.status, status, options);
 
-  const nextStatusAndActivity = synchronizeStatusAndActivity(status, isActive, currentAnimal);
+  const nextStatusAndActivity = synchronizeStatusAndActivity(status, currentAnimal);
   assertAllowedStatusTransition(currentAnimal?.status, nextStatusAndActivity.status);
   return nextStatusAndActivity;
 }
 
-function normalizeDeactivatePayload(payload, currentAnimal) {
-  const requestedStatus = normalizeText(payload.status ?? payload.mode ?? 'inactive');
+function normalizeDeactivatePayload(payload, currentAnimal, options = {}) {
+  const requestedStatus = normalizeText(payload.status ?? 'inactive');
 
   if (!['inactive', 'archived'].includes(requestedStatus)) {
     throw createHttpError(
@@ -1018,17 +954,9 @@ function normalizeDeactivatePayload(payload, currentAnimal) {
     );
   }
 
-  const isActive =
-    payload.isActive !== undefined
-      ? parseBooleanField(payload.isActive, 'isActive')
-      : false;
+  const nextStatusAndActivity = synchronizeStatusAndActivity(requestedStatus, currentAnimal);
 
-  const nextStatusAndActivity = synchronizeStatusAndActivity(
-    requestedStatus,
-    isActive,
-    currentAnimal
-  );
-
+  assertManualAnimalStatusTransition(currentAnimal?.status, nextStatusAndActivity.status, options);
   assertAllowedStatusTransition(currentAnimal?.status, nextStatusAndActivity.status);
   return nextStatusAndActivity;
 }
@@ -1071,12 +999,13 @@ function normalizeAnimalListOptions(filters = {}) {
   };
 }
 
-function buildMongoFilters(filters) {
+function buildMongoFilters(filters, options = {}) {
   const searchTerms = getSearchTerms(filters.query);
   const species = normalizeSpecies(filters.species);
   const gender = normalizeGender(filters.gender);
   const size = normalizeSize(filters.size);
   const status = normalizeText(filters.status);
+  const restrictToPublicAnimals = Boolean(options.restrictToPublicAnimals);
   const mongoFilters = {};
 
   if (searchTerms.length > 0) {
@@ -1095,23 +1024,23 @@ function buildMongoFilters(filters) {
     mongoFilters.size = size;
   }
 
-  if (status) {
+  if (restrictToPublicAnimals) {
+    mongoFilters.status = PUBLIC_ANIMAL_LIST_STATUSES.has(status)
+      ? status
+      : { $in: [...PUBLIC_ANIMAL_LIST_STATUS_VALUES] };
+    mongoFilters.isActive = true;
+  } else if (status) {
     mongoFilters.status = status;
   }
 
   return mongoFilters;
 }
 
-export function getAnimalModulePolicy(roleCandidate) {
-  return {
-    resource: 'animals',
-    allowedActions: getAllowedAnimalActions(roleCandidate),
-  };
-}
-
-export async function getAnimalsCollection(filters = {}) {
+export async function getAnimalsCollection(filters = {}, currentUser = null) {
   const listOptions = normalizeAnimalListOptions(filters);
-  const mongoFilters = buildMongoFilters(filters);
+  const mongoFilters = buildMongoFilters(filters, {
+    restrictToPublicAnimals: !isManagementAnimalRole(currentUser),
+  });
   const total = await Animal.countDocuments(mongoFilters);
   const pagination = buildPagination(total, listOptions);
   const query = applyPagination(
@@ -1129,38 +1058,106 @@ export async function getAnimalsCollection(filters = {}) {
   };
 }
 
-export async function getAnimalById(animalId) {
-  const animal = await findAnimalRecordById(animalId);
+export async function getAnimalById(animalId, currentUser = null, options = {}) {
+  const animal = await findAnimalRecordById(animalId, {
+    session: options.session,
+  });
+
+  if (!canExposeAnimalRecord(animal, currentUser, options)) {
+    return null;
+  }
+
   return animal ? serializeAnimal(animal) : null;
 }
 
-export async function createAnimal(payload) {
-  const normalizedPayload = normalizeAnimalWritePayload(payload);
+export async function getAnimalReferenceById(animalId, currentUser = null, options = {}) {
+  const animal = await findAnimalRecordById(animalId);
+
+  if (!canExposeAnimalRecord(animal, currentUser, options)) {
+    return null;
+  }
+
+  return serializeAnimalReference(animal);
+}
+
+export async function getAnimalReferencesByIds(animalIds = [], currentUser = null, options = {}) {
+  const normalizedAnimalIds = [
+    ...new Set(
+      animalIds
+        .map((animalId) => String(animalId ?? '').trim())
+        .filter((animalId) => mongoose.isValidObjectId(animalId))
+    ),
+  ];
+
+  if (normalizedAnimalIds.length === 0) {
+    return [];
+  }
+
+  const mongoFilters = {
+    _id: { $in: normalizedAnimalIds },
+  };
+
+  if (options.restrictToPublicAnimal && !isManagementAnimalRole(currentUser)) {
+    mongoFilters.isActive = true;
+
+    if (options.publicVisibility === 'detail') {
+      mongoFilters.status = { $nin: [...INACTIVE_ANIMAL_STATUSES] };
+    } else {
+      mongoFilters.status = 'available';
+    }
+  }
+
+  const animals = await Animal.find(mongoFilters).lean();
+  return animals.map(serializeAnimalReference);
+}
+
+export async function createAnimal(payload, currentUser = null) {
+  assertBodyObject(payload);
+  assertAllowedFields(payload, CREATE_ANIMAL_ALLOWED_FIELDS);
+
+  const normalizedPayload = normalizeAnimalWritePayload(payload, {
+    currentUser,
+  });
   await ensureUniqueSlug(normalizedPayload.slug);
-  const createdAnimal = await Animal.create(normalizedPayload);
+  let createdAnimal = null;
+
+  try {
+    createdAnimal = await Animal.create(normalizedPayload);
+  } catch (error) {
+    throwDuplicateAnimalError(error);
+  }
+
   return serializeAnimal(createdAnimal.toObject());
 }
 
-export async function updateAnimal(animalId, payload) {
+export async function updateAnimal(animalId, payload, currentUser = null) {
+  assertBodyObject(payload, { allowEmpty: true });
+  assertAllowedFields(payload, UPDATE_ANIMAL_ALLOWED_FIELDS);
+
   const currentAnimal = await findAnimalRecordById(animalId);
 
   if (!currentAnimal) {
     throw createHttpError(404, 'Животното не беше намерено.');
   }
 
+  assertCanEditAnimalRecord(currentUser, currentAnimal.status);
+
   const normalizedPayload = normalizeAnimalWritePayload(payload, {
     partial: true,
     currentAnimal,
+    currentUser,
   });
 
-  if (normalizedPayload.slug && normalizedPayload.slug !== currentAnimal.slug) {
-    await ensureUniqueSlug(normalizedPayload.slug, currentAnimal);
-  }
+  let updatedAnimal = null;
 
-  const updatedAnimal = await Animal.findOneAndUpdate(buildLookupQuery(animalId), normalizedPayload, {
-    new: true,
-    runValidators: true,
-  }).lean();
+  try {
+    updatedAnimal = await Animal.findOneAndUpdate(buildLookupQuery(animalId), normalizedPayload, {
+      returnDocument: 'after',
+      runValidators: true,
+    }).lean();
+  } catch (error) {
+    throwDuplicateAnimalError(error);
+  }
 
   if (!updatedAnimal) {
     throw createHttpError(404, 'Животното не беше намерено.');
@@ -1169,28 +1166,56 @@ export async function updateAnimal(animalId, payload) {
   return serializeAnimal(updatedAnimal);
 }
 
-export async function updateAnimalStatus(animalId, payload) {
-  const currentAnimal = await findAnimalRecordById(animalId);
+export async function updateAnimalStatus(animalId, payload, currentUser = null, options = {}) {
+  assertBodyObject(payload);
+  assertAllowedFields(payload, ANIMAL_STATUS_UPDATE_ALLOWED_FIELDS);
+
+  const currentAnimal = await findAnimalRecordById(animalId, {
+    session: options.session,
+  });
 
   if (!currentAnimal) {
     throw createHttpError(404, 'Животното не беше намерено.');
   }
 
-  const normalizedPayload = normalizeStatusUpdatePayload(payload, currentAnimal);
+  const normalizedPayload = normalizeStatusUpdatePayload(payload, currentAnimal, currentUser, options);
 
-  const updatedAnimal = await Animal.findOneAndUpdate(buildLookupQuery(animalId), normalizedPayload, {
-    new: true,
-    runValidators: true,
-  }).lean();
+  // The previous status is part of the filter so only one concurrent lifecycle transition can succeed.
+  const updatedAnimal = await Animal.findOneAndUpdate(
+    {
+      ...buildLookupQuery(animalId),
+      status: currentAnimal.status,
+    },
+    normalizedPayload,
+    {
+      returnDocument: 'after',
+      runValidators: true,
+      session: options.session,
+    }
+  ).lean();
 
   if (!updatedAnimal) {
-    throw createHttpError(404, 'Животното не беше намерено.');
+    throw createHttpError(409, 'Статусът е променен от друга операция. Обнови данните.');
+  }
+
+  if (updatedAnimal.status === 'adopted') {
+    // Adoption makes the animal irrelevant to every user's favorites; reuse the session for atomic cleanup.
+    const deleteFavoritesQuery = Favorite.deleteMany({ animalId: updatedAnimal._id });
+
+    if (options.session) {
+      deleteFavoritesQuery.session(options.session);
+    }
+
+    await deleteFavoritesQuery;
   }
 
   return serializeAnimal(updatedAnimal);
 }
 
 export async function deactivateAnimal(animalId, payload = {}) {
+  assertBodyObject(payload, { allowEmpty: true });
+  assertAllowedFields(payload, ANIMAL_DEACTIVATE_ALLOWED_FIELDS);
+
   const currentAnimal = await findAnimalRecordById(animalId);
 
   if (!currentAnimal) {
@@ -1199,13 +1224,20 @@ export async function deactivateAnimal(animalId, payload = {}) {
 
   const normalizedPayload = normalizeDeactivatePayload(payload, currentAnimal);
 
-  const updatedAnimal = await Animal.findOneAndUpdate(buildLookupQuery(animalId), normalizedPayload, {
-    new: true,
-    runValidators: true,
-  }).lean();
+  const updatedAnimal = await Animal.findOneAndUpdate(
+    {
+      ...buildLookupQuery(animalId),
+      status: currentAnimal.status,
+    },
+    normalizedPayload,
+    {
+      returnDocument: 'after',
+      runValidators: true,
+    }
+  ).lean();
 
   if (!updatedAnimal) {
-    throw createHttpError(404, 'Животното не беше намерено.');
+    throw createHttpError(409, 'Статусът е променен от друга операция. Обнови данните.');
   }
 
   return serializeAnimal(updatedAnimal);

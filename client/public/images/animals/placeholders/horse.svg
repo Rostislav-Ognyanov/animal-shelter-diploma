@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-label="Horse placeholder">
+  <rect width="320" height="240" fill="#f3f7f2"/>
+  <circle cx="262" cy="58" r="39" fill="#dcecdf"/>
+  <ellipse cx="168" cy="145" rx="82" ry="42" fill="#2f6f4e"/>
+  <path d="M102 91c30-33 80-24 91 12 6 20-2 46-25 58l-64-3c18-21 18-48-2-67z" fill="#3d7a57"/>
+  <path d="M108 88l-10-39 32 28z" fill="#6d8f77"/>
+  <path d="M138 76c20 16 25 44 12 82" fill="none" stroke="#6d8f77" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="126" cy="101" r="5" fill="#f7fbf8"/>
+  <path d="M120 121c9 5 18 5 27 0" fill="none" stroke="#f7fbf8" stroke-width="5" stroke-linecap="round"/>
+  <path d="M109 194v-34M157 199v-35M209 197v-34M239 190v-28" stroke="#2f6f4e" stroke-width="13" stroke-linecap="round"/>
+</svg>

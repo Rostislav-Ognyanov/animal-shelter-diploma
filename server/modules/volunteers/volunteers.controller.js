@@ -1,4 +1,4 @@
-﻿import {
+import {
   sendCollectionSuccess,
   sendItemSuccess,
   sendMutationSuccess,
@@ -7,8 +7,7 @@ import {
   createVolunteerApplication,
   getVolunteerApplicationById,
   getVolunteerApplicationCollection,
-  getVolunteerApplicationModulePolicy,
-  updateVolunteerApplicationStatus,
+  updateVolunteerApplicationReview,
 } from './volunteers.service.js';
 
 function readVolunteerApplicationFilters(query = {}) {
@@ -20,13 +19,6 @@ function readVolunteerApplicationFilters(query = {}) {
   };
 }
 
-function buildVolunteerApplicationResponseData(application, roleCandidate) {
-  return {
-    ...application,
-    policy: getVolunteerApplicationModulePolicy(roleCandidate),
-  };
-}
-
 export async function createVolunteerApplicationEntry(req, res, next) {
   try {
     const createdApplication = await createVolunteerApplication(req.body);
@@ -34,7 +26,7 @@ export async function createVolunteerApplicationEntry(req, res, next) {
     return sendMutationSuccess(res, {
       status: 201,
       message: 'Кандидатурата за доброволец е изпратена успешно.',
-      data: buildVolunteerApplicationResponseData(createdApplication, req.user?.role),
+      data: createdApplication,
     });
   } catch (error) {
     return next(error);
@@ -50,9 +42,6 @@ export async function listVolunteerApplications(req, res, next) {
       message: 'Кандидатурите за доброволци са заредени успешно.',
       items: applications.items,
       total: applications.total,
-      data: {
-        policy: getVolunteerApplicationModulePolicy(req.user?.role),
-      },
       meta: {
         filters,
         pagination: applications.pagination,
@@ -69,16 +58,16 @@ export async function getVolunteerApplication(req, res, next) {
 
     return sendItemSuccess(res, {
       message: 'Данните за кандидатурата са заредени успешно.',
-      data: buildVolunteerApplicationResponseData(application, req.user?.role),
+      data: application,
     });
   } catch (error) {
     return next(error);
   }
 }
 
-export async function updateVolunteerApplicationStatusEntry(req, res, next) {
+export async function updateVolunteerApplicationReviewEntry(req, res, next) {
   try {
-    const updatedApplication = await updateVolunteerApplicationStatus(
+    const updatedApplication = await updateVolunteerApplicationReview(
       req.params.applicationId,
       req.body,
       req.user
@@ -86,7 +75,7 @@ export async function updateVolunteerApplicationStatusEntry(req, res, next) {
 
     return sendMutationSuccess(res, {
       message: 'Кандидатурата е обновена успешно.',
-      data: buildVolunteerApplicationResponseData(updatedApplication, req.user?.role),
+      data: updatedApplication,
     });
   } catch (error) {
     return next(error);

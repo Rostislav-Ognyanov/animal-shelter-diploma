@@ -29,12 +29,12 @@
         </div>
 
         <div className="confirm-dialog-actions">
-          <button type="button" className="animals-secondary-action" onClick={onClose} disabled={isSubmitting}>
+          <button type="button" className="app-secondary-action" onClick={onClose} disabled={isSubmitting}>
             {cancelLabel}
           </button>
           <button
             type="button"
-            className={`animals-primary-action confirm-dialog-confirm is-${tone}`}
+            className={`app-primary-action confirm-dialog-confirm is-${tone}`}
             onClick={onConfirm}
             disabled={isSubmitting}
           >

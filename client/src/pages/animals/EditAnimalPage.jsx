@@ -1,10 +1,10 @@
-﻿import { useEffect, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
-import { getRoleLabel } from '../../auth/roleUi.js';
 import { AnimalNotFoundState } from '../../components/animals/AnimalNotFoundState.jsx';
 import { AnimalEntryForm } from '../../components/animals/AnimalEntryForm.jsx';
 import { createSuccessFeedback } from '../../lib/feedback.js';
+import { focusErrorFeedback, focusFirstInvalidField } from '../../lib/formFocus.js';
 import { fetchJson, patchJson } from '../../lib/api.js';
 import {
   ANIMAL_FORM_VALIDATION_MESSAGE,
@@ -15,6 +15,7 @@ import {
 
 export function EditAnimalPage({ role }) {
   const { animalId } = useParams();
+  const errorFeedbackRef = useRef(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [formValues, setFormValues] = useState(null);
   const [initialValues, setInitialValues] = useState(null);
@@ -30,8 +31,6 @@ export function EditAnimalPage({ role }) {
     success: '',
     updatedAnimal: null,
   });
-
-  const pageRoleLabel = getRoleLabel(role);
 
   useEffect(() => {
     let isMounted = true;
@@ -52,11 +51,21 @@ export function EditAnimalPage({ role }) {
         setFormErrors({});
 
         const animal = await fetchJson(`/api/animals/${animalId}`);
-        const nextFormValues = mapAnimalToFormValues(animal);
 
         if (!isMounted) {
           return;
         }
+
+        if (role === 'employee' && ['inactive', 'archived'].includes(animal.status)) {
+          setPageState({
+            isLoading: false,
+            error: 'Нямаш право да редактираш деактивирано или архивирано животно.',
+            statusCode: 403,
+          });
+          return;
+        }
+
+        const nextFormValues = mapAnimalToFormValues(animal);
 
         setFormValues(nextFormValues);
         setInitialValues(nextFormValues);
@@ -83,7 +92,7 @@ export function EditAnimalPage({ role }) {
     return () => {
       isMounted = false;
     };
-  }, [animalId, reloadToken]);
+  }, [animalId, reloadToken, role]);
 
   function handleFieldChange(field, value) {
     setFormValues((currentValue) => ({
@@ -128,6 +137,7 @@ export function EditAnimalPage({ role }) {
         error: ANIMAL_FORM_VALIDATION_MESSAGE,
         success: '',
       }));
+      focusFirstInvalidField(event.currentTarget, validationErrors);
       return;
     }
 
@@ -139,7 +149,10 @@ export function EditAnimalPage({ role }) {
         updatedAnimal: null,
       });
 
-      const updatedAnimal = await patchJson(`/api/animals/${animalId}`, buildAnimalPayload(formValues));
+      const updatedAnimal = await patchJson(
+        `/api/animals/${animalId}`,
+        buildAnimalPayload(formValues, { includeStatus: false })
+      );
       const nextFormValues = mapAnimalToFormValues(updatedAnimal);
       const successMessage = `Промените по „${updatedAnimal.displayName ?? updatedAnimal.name}“ са записани успешно.`;
 
@@ -159,6 +172,7 @@ export function EditAnimalPage({ role }) {
         success: '',
         updatedAnimal: null,
       });
+      focusErrorFeedback(errorFeedbackRef);
     }
   }
 
@@ -170,7 +184,11 @@ export function EditAnimalPage({ role }) {
     return (
       <main className="route-shell animal-form-shell">
         <section className="route-card animal-form-loading-card" aria-live="polite" aria-busy="true">
-                    <div className="animal-skeleton-line animal-skeleton-line-hero-title" />
+          <p className="sr-only" role="status">
+            Зареждане на данните за редакция...
+          </p>
+
+          <div className="animal-skeleton-line animal-skeleton-line-hero-title" />
           <div className="animal-skeleton-line animal-skeleton-line-body" />
           <div className="animal-skeleton-line animal-skeleton-line-body" />
           <div className="animal-form-loading-grid">
@@ -207,6 +225,16 @@ export function EditAnimalPage({ role }) {
     );
   }
 
+  if (pageState.statusCode === 403) {
+    return (
+      <AnimalNotFoundState
+        code="403"
+        title="Редакцията не е достъпна"
+        description={pageState.error}
+      />
+    );
+  }
+
   if (pageState.error) {
     return (
       <main className="route-shell animal-form-shell">
@@ -214,10 +242,10 @@ export function EditAnimalPage({ role }) {
                     <h1>Редакцията не може да се зареди</h1>
           <p>{pageState.error}</p>
           <div className="animals-feedback-actions">
-            <button type="button" className="animals-primary-action" onClick={handleRetryLoad}>
+            <button type="button" className="app-primary-action" onClick={handleRetryLoad}>
               Опитай отново
             </button>
-            <Link className="animals-secondary-action" to="/search">
+            <Link className="app-secondary-action" to="/animals">
               Към списъка с животни
             </Link>
           </div>
@@ -233,20 +261,14 @@ export function EditAnimalPage({ role }) {
   return (
     <main className="route-shell animal-form-shell">
       <div className="animal-form-back-row">
-        <Link className="animals-secondary-action" to={`/animals/${animalId}`}>
+        <Link className="app-secondary-action" to={`/animals/${animalId}`}>
           Към детайлите
         </Link>
       </div>
 
       <section className="animal-form-hero">
         <div>
-                    <h1>Редакция на животно</h1>
-
-        </div>
-
-        <div className="animal-form-hero-note">
-          <strong>Роля: {pageRoleLabel}</strong>
-          <span>Достъп само за служители и администратори.</span>
+          <h1>Редакция на животно</h1>
         </div>
       </section>
 
@@ -258,16 +280,25 @@ export function EditAnimalPage({ role }) {
           </div>
         </div>
 
-        {submitState.error ? <div className="auth-status auth-status-error">{submitState.error}</div> : null}
+        {submitState.error ? (
+          <div
+            ref={errorFeedbackRef}
+            className="feedback-message feedback-message-error"
+            role="alert"
+            tabIndex={-1}
+          >
+            {submitState.error}
+          </div>
+        ) : null}
         {submitState.success ? (
-          <div className="auth-status auth-status-info animal-form-success-box">
+          <div className="feedback-message feedback-message-info animal-form-success-box">
             <div>
               <strong>{submitState.success}</strong>
               <p>Промените са запазени и могат да бъдат прегледани веднага.</p>
             </div>
             <div className="animal-form-success-actions">
               <Link
-                className="animals-primary-action"
+                className="app-primary-action"
                 to={`/animals/${submitState.updatedAnimal?.id ?? animalId}`}
                 state={{
                   feedback: createSuccessFeedback(submitState.success),
@@ -275,7 +306,7 @@ export function EditAnimalPage({ role }) {
               >
                 Виж детайли
               </Link>
-              <button type="button" className="animals-secondary-action" onClick={handleReset}>
+              <button type="button" className="app-secondary-action" onClick={handleReset}>
                 Върни стойностите
               </button>
             </div>
@@ -291,6 +322,8 @@ export function EditAnimalPage({ role }) {
           submitLabel="Запази промените"
           resetLabel="Върни оригинала"
           isSubmitting={submitState.isSubmitting}
+          role={role}
+          showStatusField={false}
         />
       </section>
     </main>

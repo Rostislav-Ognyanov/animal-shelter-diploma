@@ -1,207 +1,112 @@
-﻿# Animal Shelter Platform
+# Animal Shelter Platform
 
-Уеб-базирана модулна система за управление на приюти за животни с REST архитектура.
+Уеб-базирана модулна система за управление на приют за животни, изградена с REST архитектура.
 
-## Пълна документация
-
-Подробната документация за архитектура, роли, модули, база данни, REST endpoint-и, use case-и и диаграми е в [docs/SYSTEM_DOCUMENTATION.md](docs/SYSTEM_DOCUMENTATION.md).
-
-Краткият guide за защита, demo профили, примерни данни и checklist е в [docs/DEMO_READINESS.md](docs/DEMO_READINESS.md).
+Системата предоставя публична част за посетители и клиенти, оперативни инструменти за служители и административен панел за управление на потребители, съдържание, отчети и настройки.
 
 ## Технологии
 
-- Node.js + Express.js
-- React + Vite
-- MongoDB + Mongoose
-- JWT + bcrypt
+- React 19, React Router и Vite
+- Node.js и Express 5
+- MongoDB 7 и Mongoose 9
+- JWT автентикация чрез `HttpOnly` cookie
+- bcrypt
+- Docker Compose
+
+Минимална поддържана версия: Node.js `>=20.19.0`.
+
+## Основни функционалности
+
+- управление на животни, статуси, търсене, филтриране и pagination;
+- заявки за осиновяване и синхронизация със статуса на животното;
+- любими животни;
+- доброволчески кандидатури;
+- сигнали за животни;
+- контактни запитвания;
+- регистрация и проследяване на дарителски намерения;
+- вътрешни известия;
+- управление на потребители и роли;
+- оперативни отчети;
+- CMS за публичните страници и видовете животни;
+- спасителни истории с draft/publish workflow;
+- versioned Privacy Policy и Terms;
+- глобални настройки на сайта;
+- role-based access control.
 
 ## Роли
 
-- `guest`: вижда началната страница, животните, детайлите, търсене и филтриране, както и страниците за вход и регистрация.
-- `client`: всичко от `guest`, плюс подаване на заявки за осиновяване, преглед на собствените заявки и отмяна на `pending` заявка.
-- `employee`: всичко нужно за оперативна работа с животни и заявки; може да създава и редактира животни, да сменя статуси и да обработва заявки.
-- `admin`: всичко от `employee`, плюс административен достъп до потребителския списък, отчети и деактивиране/архивиране на животни.
+- `guest`: публично съдържание и животни;
+- `client`: клиентски функции, осиновявания и любими;
+- `employee`: оперативна работа с животни, заявки, сигнали и кандидатури;
+- `admin`: административен достъп, потребители, отчети, CMS и системни настройки.
 
-## Auth flow
+Достъпът се контролира едновременно от frontend route guards и централизирана backend RBAC политика.
 
-Готовият auth модул покрива:
+## Архитектура
 
-- регистрация на публичен `client`
-- вход
-- изход
-- хеширане на пароли с `bcrypt`
-- JWT token в API отговора
-- cookie + bearer token поддръжка
-- backend middleware за `requireAuth`, роли и permissions
-- frontend route guards за `guest`, `client`, `employee` и `admin`
+```text
+React frontend
+      ↓ REST / JSON
+Express API
+      ↓
+Service / domain layer
+      ↓
+Mongoose
+      ↓
+MongoDB
+```
 
-## Animals flow
+Автентикацията се извършва чрез JWT в `HttpOnly` cookie. JWT не се съхранява в `localStorage` и не се връща в API response body.
 
-Готовият Animals модул покрива:
+Операциите, които изискват атомарност, използват MongoDB transactions. Чувствителните status updates използват и CAS проверки срещу конкурентни промени.
 
-- публичен list view
-- details view
-- филтриране, търсене, сортиране и pagination през query параметри
-- create/edit/status change за `employee` и `admin`
-- deactivate/archive за `admin`
-- role-based UI и backend защита
-- постоянство през MongoDB и Mongoose модели
+## Локална конфигурация
 
-Основни API маршрути:
-
-- `GET /api/animals`
-- `GET /api/animals/:animalId`
-- `POST /api/animals`
-- `PATCH /api/animals/:animalId`
-- `PATCH /api/animals/:animalId/status`
-- `PATCH /api/animals/:animalId/deactivate`
-
-## Adoption flow
-
-Готовият Adoption модул покрива:
-
-- подаване на заявка от `client`
-- страница „Моите заявки“
-- списък на всички заявки за `employee`/`admin`
-- филтриране по статус
-- промяна на статус от служебната част
-- отмяна на `pending` заявка от клиента
-- синхронизация със статуса на животното
-
-Домейн логика:
-
-- заявка се подава само за животно със статус `available`
-- `under-review`/`approved` резервира животното като `reserved`
-- `completed` прави животното `adopted`
-- `cancelled`/`rejected` връща животното към `available`, ако няма друга активна служебна заявка за него
-
-Основни API маршрути:
-
-- `POST /api/adoptions`
-- `GET /api/adoptions/my`
-- `GET /api/adoptions/:id`
-- `GET /api/adoptions`
-- `PATCH /api/adoptions/:id/status`
-- `PATCH /api/adoptions/:id/cancel`
-
-## .env и локална конфигурация
-
-1. Копирай `.env.example` като `.env`.
-2. Попълни нужните стойности.
-3. Инсталирай зависимостите локално за текущата машина.
-
-Примерен `.env.example`:
+Копирай `.env.example` като `.env` и попълни локалните стойности:
 
 ```env
 PORT=5000
-DB_URL=mongodb://127.0.0.1:27017/animal_shelter
+DB_URL=mongodb://127.0.0.1:27017/animal_shelter?replicaSet=rs0
 JWT_SECRET=your_jwt_secret_here
 VITE_DEV_SERVER_PORT=5173
 VITE_DEV_API_TARGET=http://localhost:5000
 ```
 
-Бележки:
+MongoDB трябва да работи като replica set. Предоставеният Docker Compose използва single-node replica set.
 
-- `DB_URL` е основният MongoDB connection string. Ако липсва напълно, backend-ът пробва локално `mongodb://127.0.0.1:27017/animal_shelter`.
-- `JWT_SECRET` е задължителен за предвидим локален auth.
-- `VITE_DEV_API_TARGET` се попълва локално в `.env`, за да проксира `/api` заявките от Vite към backend-а.
-
-## Стартиране на проекта
-
-Инсталиране на зависимости:
+## Стартиране
 
 ```bash
 npm ci
-```
-
-Ако `npm ci` не мине заради lock файла:
-
-```bash
-npm install
-```
-
-Еднократна подготовка на локална MongoDB с Docker и demo данни:
-
-```bash
 npm run setup:mongo
-```
-
-Това стартира MongoDB контейнер от `docker-compose.yml`, изчаква базата да приеме връзка и изпълнява `npm run seed:demo`, за да зареди примерни профили, животни и заявки в MongoDB.
-
-Разработка:
-
-```bash
 npm run dev
 ```
 
-Алтернативно, ако искаш в една команда да стартираш MongoDB и dev средата:
+`setup:mongo` стартира MongoDB, изчаква връзката и изпълнява `seed:demo` и `seed:content` за примерните профили, животни, заявки и CMS съдържание.
 
-```bash
-npm run dev:mongo
-```
+Алтернативно `npm run dev:mongo` стартира MongoDB и development средата. Контейнерът може да бъде спрян с `npm run db:down`.
 
-Production build:
+## Демо профили
+
+Профилите се създават от `npm run seed:demo` и са предназначени единствено за локална демонстрационна среда. Не трябва да се използват в production.
+
+| Роля | Потребител | Парола | Състояние | Основен достъп |
+|---|---|---|---|---|
+| admin | `admin` | `Admin1234` | активен | потребители, отчети, съдържание, настройки и пълен административен контрол |
+| employee | `employee` | `Employee1234` | активен | животни, осиновявания, доброволчество, сигнали, запитвания и редакция на съдържание |
+| client | `client` | `Client1234` | активен | осиновяване, любими животни, собствени заявки и известия |
+| client | `client2` | `Client2345` | активен | втори клиентски профил за независими заявки и проверка на собствеността върху данните |
+| employee | `employee.inactive` | `Inactive1234` | неактивен | проверка на ограничаването на достъпа за неактивен профил |
+
+## Build и проверки
 
 ```bash
 npm run build
-npm start
-```
-
-## Regression check
-
-Наличен е минимален локален smoke/regression script за вече готовите сценарии:
-
-```bash
 npm run check:regression
 ```
 
-Скриптът използва отделна MongoDB база `animal_shelter_regression`, seed-ва тестови записи директно в колекциите, изпълнява основните auth/animals/adoptions сценарии и накрая почиства regression данните.
+Regression script-ът покрива основните бизнес модули, CMS и общата инфраструктура. Той използва отделна временна база и отказва изчистване, ако името й няма `regression` маркер.
 
-## Demo seed
+## Документация
 
-За подготовка на примерни профили, животни и заявки за защита:
-
-```bash
-npm run seed:demo
-```
-
-Скриптът зарежда demo профили, животни и заявки директно в MongoDB. Първо стартирай базата с `npm run db:up` или използвай `npm run setup:mongo`.
-
-## MongoDB команди
-
-```bash
-npm run db:up
-npm run db:wait
-npm run db:logs
-npm run db:down
-```
-
-- `db:up` стартира локалния MongoDB контейнер.
-- `db:wait` проверява кога `DB_URL` приема връзка.
-- `db:logs` показва логовете на MongoDB контейнера.
-- `db:down` спира контейнера. Данните остават в Docker volume `mongodb-data`.
-
-## Полезни файлове
-
-- [server/app.js](server/app.js)
-- [server/modules/auth](server/modules/auth)
-- [server/modules/animals](server/modules/animals)
-- [server/modules/adoptions](server/modules/adoptions)
-- [client/src/routes/AppRoutes.jsx](client/src/routes/AppRoutes.jsx)
-- [client/src/auth/AuthProvider.jsx](client/src/auth/AuthProvider.jsx)
-
-## Важно при архивиране
-
-Не включвай в `.zip` или Git:
-
-- `node_modules/`
-- `client/node_modules/`
-- `dist/`
-- `client/dist/`
-- `.env`
-- `.codex-*.log`
-
-`package-lock.json` трябва да остане в проекта. `node_modules` не трябва да се пренася между различни операционни системи.
-
-
-
+- [Технически преглед на системата](docs/SYSTEM_DOCUMENTATION.md)

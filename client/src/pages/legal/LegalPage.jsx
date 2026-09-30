@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 
+import { PageErrorState, PageLoadingState } from '../../components/common/PageStatusStates.jsx';
 import { useLegalContent } from './useLegalContent.js';
 
 function LegalSection({ section }) {
@@ -28,7 +29,26 @@ function LegalSection({ section }) {
 }
 
 export function LegalPage({ type }) {
-  const { legalContent } = useLegalContent(type);
+  const { legalContent, isLoading, errorMessage, reload } = useLegalContent(type);
+
+  if (isLoading) {
+    return (
+      <PageLoadingState
+        className="legal-page-shell"
+        message="Зареждане на актуалното юридическо съдържание..."
+      />
+    );
+  }
+
+  if (errorMessage || !legalContent) {
+    return (
+      <PageErrorState
+        className="legal-page-shell"
+        message={errorMessage || 'Публикуваното юридическо съдържание не може да бъде заредено.'}
+        onRetry={reload}
+      />
+    );
+  }
 
   return (
     <main className="route-shell legal-page-shell">
@@ -50,11 +70,11 @@ export function LegalPage({ type }) {
       </article>
 
       <section className="legal-contact-card">
-        <h2>Имате въпрос?</h2>
+        <h2>Имаш въпрос?</h2>
         <p>
-          Свържете се с екипа на приюта, ако имате нужда от уточнение относно тази информация.
+          Свържи се с екипа на приюта, ако имаш нужда от уточнение относно тази информация.
         </p>
-        <Link className="about-page-contact-link" to="/svurji-se-s-nas">
+        <Link className="page-contact-link" to="/svurji-se-s-nas">
           Свържи се с нас
         </Link>
       </section>

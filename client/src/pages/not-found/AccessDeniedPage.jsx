@@ -16,7 +16,7 @@ export function AccessDeniedPage() {
         <p className="route-meta">Контрол на достъпа</p>
         <h1>Нямате права за достъп</h1>
         <p>
-          Тази страница е ограничена за текущата ви роля и не може да бъде отворена от този профил.
+          Тази страница е ограничена за текущата ти роля и не може да бъде отворена от този профил.
         </p>
 
         <div className="access-denied-summary">
@@ -46,10 +46,10 @@ export function AccessDeniedPage() {
         ) : null}
 
         <div className="route-actions">
-          <Link className="animals-primary-action" to="/">
+          <Link className="app-primary-action" to="/">
             Към началната страница
           </Link>
-          <Link className="animals-secondary-action" to="/search">
+          <Link className="app-secondary-action" to="/animals">
             Към списъка с животни
           </Link>
         </div>

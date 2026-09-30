@@ -1,14 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
+import { ConfirmDialog } from '../../components/common/ConfirmDialog.jsx';
+import { useErrorFeedbackFocus } from '../../hooks/useErrorFeedbackFocus.js';
+import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard.js';
 import { fetchJson, patchJson } from '../../lib/api.js';
+import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
 import {
   getDefaultPageContent,
   PAGE_CONTENT_CONFIGS,
 } from './pageContentDefaults.js';
+import { getPageContentCtaTargetOptions } from '../../../../shared/content-defaults/pageContentCtaTargets.js';
+import {
+  PAGE_CONTENT_IMAGE_POSITION_VALUES,
+  PAGE_CONTENT_KEYS,
+  PAGE_CONTENT_LABELS,
+  PAGE_CONTENT_LIMITS,
+} from '../../../../shared/domain/pageContentConstants.js';
 import { clonePageContent, mergePageContent } from './pageContentUtils.js';
-
-const PAGE_CONTENT_KEYS = PAGE_CONTENT_CONFIGS.map((config) => config.key);
 
 function textToParagraphs(value) {
   return String(value ?? '')
@@ -17,9 +26,17 @@ function textToParagraphs(value) {
     .filter(Boolean);
 }
 
+function createBlockId() {
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return `block-${globalThis.crypto.randomUUID()}`;
+  }
+
+  return `block-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function buildEmptyItem(bodyField = 'text') {
   return {
-    id: `block-${Date.now()}`,
+    id: createBlockId(),
     isVisible: true,
     title: 'Нов блок',
     [bodyField]: '',
@@ -31,12 +48,37 @@ function buildEmptyItem(bodyField = 'text') {
   };
 }
 
-function TextField({ label, value, onChange, placeholder = '' }) {
+function TextField({ label, value, onChange, placeholder = '', disabled = false }) {
   return (
     <label className="page-content-admin-field">
       <span>{label}</span>
-      <input value={value ?? ''} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
+      <input
+        value={value ?? ''}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        disabled={disabled}
+      />
     </label>
+  );
+}
+
+function ImagePathField({ imagePath, imageAlt, onChange }) {
+  return (
+    <div className="page-content-admin-image-field">
+      <TextField
+        label="URL или публичен път до снимката"
+        value={imagePath}
+        onChange={(value) => onChange({ imagePath: value })}
+      />
+      {imagePath ? (
+        <div className="page-content-admin-image-preview">
+          <img src={buildPublicAssetPath(imagePath)} alt={imageAlt || ''} />
+          <button type="button" onClick={() => onChange({ imagePath: '', imageAlt: '' })}>
+            Премахни снимката
+          </button>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -54,7 +96,13 @@ function TextareaField({ label, value, onChange, placeholder = '', rows = 5 }) {
   );
 }
 
-function NumberField({ label, value, onChange, min = 1, max = 12 }) {
+function NumberField({
+  label,
+  value,
+  onChange,
+  min = PAGE_CONTENT_LIMITS.sectionCountMin,
+  max = PAGE_CONTENT_LIMITS.sectionCountMax,
+}) {
   return (
     <label className="page-content-admin-field">
       <span>{label}</span>
@@ -145,11 +193,19 @@ function useContentObjectEditor(content, setContent) {
     }));
   }
 
-  function addArrayItem(arrayKey, bodyField) {
-    setContent((currentContent) => ({
-      ...currentContent,
-      [arrayKey]: [...(currentContent[arrayKey] ?? []), buildEmptyItem(bodyField)],
-    }));
+  function addArrayItem(arrayKey, bodyField, maxItems = PAGE_CONTENT_LIMITS.blocks) {
+    setContent((currentContent) => {
+      const currentItems = currentContent[arrayKey] ?? [];
+
+      if (currentItems.length >= maxItems) {
+        return currentContent;
+      }
+
+      return {
+        ...currentContent,
+        [arrayKey]: [...currentItems, buildEmptyItem(bodyField)],
+      };
+    });
   }
 
   return {
@@ -165,14 +221,21 @@ function useContentObjectEditor(content, setContent) {
 function ImageFields({ imagePath, imageAlt, imagePosition, includePosition = false, onChange }) {
   return (
     <>
-      <TextField label="Снимка" value={imagePath} onChange={(value) => onChange({ imagePath: value })} />
-      <TextField label="Alt текст" value={imageAlt} onChange={(value) => onChange({ imageAlt: value })} />
+      <ImagePathField imagePath={imagePath} imageAlt={imageAlt} onChange={onChange} />
+      <TextField
+        label="Alt текст (задължителен при снимка)"
+        value={imageAlt}
+        onChange={(value) => onChange({ imageAlt: value })}
+      />
       {includePosition ? (
         <label className="page-content-admin-field">
           <span>Позиция на снимката</span>
           <select value={imagePosition ?? 'right'} onChange={(event) => onChange({ imagePosition: event.target.value })}>
-            <option value="right">Дясно</option>
-            <option value="left">Ляво</option>
+            {PAGE_CONTENT_IMAGE_POSITION_VALUES.map((position) => (
+              <option key={position} value={position}>
+                {position === 'left' ? 'Ляво' : 'Дясно'}
+              </option>
+            ))}
           </select>
         </label>
       ) : null}
@@ -180,21 +243,51 @@ function ImageFields({ imagePath, imageAlt, imagePosition, includePosition = fal
   );
 }
 
-function CtaFields({ item, onChange }) {
+function CtaFields({ item = {}, onChange, targetOptions = [] }) {
+  const hasTarget = Boolean(item.ctaTo);
+
+  useEffect(() => {
+    if (!hasTarget && item.ctaLabel) {
+      onChange({ ctaLabel: '', ctaTo: '' });
+    }
+  }, [hasTarget, item.ctaLabel, onChange]);
+
   return (
     <>
-      <TextField label="CTA надпис" value={item.ctaLabel} onChange={(value) => onChange({ ctaLabel: value })} />
-      <TextField label="CTA линк" value={item.ctaTo} onChange={(value) => onChange({ ctaTo: value })} />
+      <label className="page-content-admin-field">
+        <span>Дестинация на бутона</span>
+        <select
+          value={item.ctaTo ?? ''}
+          onChange={(event) => {
+            const ctaTo = event.target.value;
+            onChange(ctaTo ? { ctaTo } : { ctaLabel: '', ctaTo: '' });
+          }}
+        >
+          <option value="">Без бутон</option>
+          {targetOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <TextField
+        label="Текст на бутона"
+        value={hasTarget ? item.ctaLabel : ''}
+        disabled={!hasTarget}
+        placeholder={hasTarget ? '' : 'Първо избери дестинация'}
+        onChange={(value) => onChange({ ctaLabel: value })}
+      />
     </>
   );
 }
 
-function HeroEditor({ hero = {}, onChange, includeDescription = false, includeCta = false }) {
+function HeroEditor({ hero = {}, onChange, includeDescription = false, includeCta = false, ctaTargetOptions = [] }) {
   return (
     <SectionCard title="Първи блок">
       <div className="page-content-admin-form-grid">
         <TextField label="Заглавие" value={hero.title} onChange={(value) => onChange({ title: value })} />
-        <TextField label="Фонова снимка" value={hero.imagePath} onChange={(value) => onChange({ imagePath: value })} />
+        <ImagePathField imagePath={hero.imagePath} imageAlt="" onChange={onChange} />
         {includeDescription ? (
           <TextareaField
             label="Подзаглавие"
@@ -202,7 +295,7 @@ function HeroEditor({ hero = {}, onChange, includeDescription = false, includeCt
             onChange={(value) => onChange({ description: value })}
           />
         ) : null}
-        {includeCta ? <CtaFields item={hero} onChange={onChange} /> : null}
+        {includeCta ? <CtaFields item={hero} onChange={onChange} targetOptions={ctaTargetOptions} /> : null}
       </div>
     </SectionCard>
   );
@@ -219,6 +312,7 @@ function ObjectBlockEditor({
   includeImagePosition = false,
   includeCta = true,
   wrapInCard = true,
+  ctaTargetOptions = [],
 }) {
   const bodyValue = useParagraphs ? (item.paragraphs ?? []).join('\n\n') : item[bodyField];
   const fields = (
@@ -241,7 +335,7 @@ function ObjectBlockEditor({
           onChange={onChange}
         />
       ) : null}
-      {includeCta ? <CtaFields item={item} onChange={onChange} /> : null}
+      {includeCta ? <CtaFields item={item} onChange={onChange} targetOptions={ctaTargetOptions} /> : null}
     </div>
   );
 
@@ -271,6 +365,7 @@ function EditableArray({
   onMove,
   onRemove,
   onAdd,
+  maxItems = PAGE_CONTENT_LIMITS.blocks,
 }) {
   return (
     <SectionCard title={title}>
@@ -299,14 +394,19 @@ function EditableArray({
         ))}
       </div>
 
-      <button type="button" className="page-content-admin-secondary-action" onClick={() => onAdd(arrayKey, bodyField)}>
+      <button
+        type="button"
+        className="page-content-admin-secondary-action"
+        disabled={items.length >= maxItems}
+        onClick={() => onAdd(arrayKey, bodyField, maxItems)}
+      >
         Добави блок
       </button>
     </SectionCard>
   );
 }
 
-function SectionMetaEditor({ item = {}, title, onChange, includeCount = false }) {
+function SectionMetaEditor({ item = {}, title, onChange, includeCount = false, countLabel = 'Брой елементи', ctaTargetOptions = [] }) {
   return (
     <SectionCard title={title}>
       <div className="page-content-admin-form-grid">
@@ -317,22 +417,23 @@ function SectionMetaEditor({ item = {}, title, onChange, includeCount = false })
           onChange={(value) => onChange({ description: value })}
           rows={4}
         />
-        <CtaFields item={item} onChange={onChange} />
+        <CtaFields item={item} onChange={onChange} targetOptions={ctaTargetOptions} />
         {includeCount ? (
-          <NumberField label="Брой истории" value={item.count} onChange={(value) => onChange({ count: value })} />
+          <NumberField label={countLabel} value={item.count} onChange={(value) => onChange({ count: value })} />
         ) : null}
       </div>
     </SectionCard>
   );
 }
 
-function HomeContentEditor({ content, editors }) {
+function HomeContentEditor({ content, editors, ctaTargetOptions }) {
   return (
     <>
       <HeroEditor
         hero={content.hero}
         includeDescription
         includeCta
+        ctaTargetOptions={ctaTargetOptions}
         onChange={(patch) => editors.updateObject('hero', patch)}
       />
       <ObjectBlockEditor
@@ -342,6 +443,7 @@ function HomeContentEditor({ content, editors }) {
         useParagraphs
         includeImage
         includeCta
+        ctaTargetOptions={ctaTargetOptions}
         onChange={(patch) => editors.updateObject('about', patch)}
       />
       <EditableArray
@@ -353,6 +455,7 @@ function HomeContentEditor({ content, editors }) {
         onMove={editors.moveArrayItem}
         onRemove={editors.removeArrayItem}
         onAdd={editors.addArrayItem}
+        maxItems={PAGE_CONTENT_LIMITS.cards}
         editor={(item, onChange) => (
           <ObjectBlockEditor
             item={item}
@@ -361,6 +464,7 @@ function HomeContentEditor({ content, editors }) {
             bodyLabel="Описание"
             includeImage={false}
             includeCta
+            ctaTargetOptions={ctaTargetOptions}
             wrapInCard={false}
             onChange={onChange}
           />
@@ -369,13 +473,16 @@ function HomeContentEditor({ content, editors }) {
       <SectionMetaEditor
         title="Секция „Истории за спасявания“"
         item={content.rescueStoriesSection}
+        includeCount
+        countLabel="Брой истории"
+        ctaTargetOptions={ctaTargetOptions}
         onChange={(patch) => editors.updateObject('rescueStoriesSection', patch)}
       />
     </>
   );
 }
 
-function AboutContentEditor({ content, editors }) {
+function AboutContentEditor({ content, editors, ctaTargetOptions }) {
   return (
     <>
       <HeroEditor hero={content.hero} onChange={(patch) => editors.updateObject('hero', patch)} />
@@ -396,6 +503,7 @@ function AboutContentEditor({ content, editors }) {
             includeImage
             includeImagePosition
             includeCta
+            ctaTargetOptions={ctaTargetOptions}
             wrapInCard={false}
             onChange={onChange}
           />
@@ -410,6 +518,7 @@ function AboutContentEditor({ content, editors }) {
         onMove={editors.moveArrayItem}
         onRemove={editors.removeArrayItem}
         onAdd={editors.addArrayItem}
+        maxItems={PAGE_CONTENT_LIMITS.cards}
         editor={(item, onChange) => (
           <ObjectBlockEditor
             item={item}
@@ -426,7 +535,7 @@ function AboutContentEditor({ content, editors }) {
   );
 }
 
-function SupportContentEditor({ content, editors }) {
+function SupportContentEditor({ content, editors, ctaTargetOptions }) {
   return (
     <>
       <HeroEditor hero={content.hero} onChange={(patch) => editors.updateObject('hero', patch)} />
@@ -447,6 +556,7 @@ function SupportContentEditor({ content, editors }) {
             includeImage
             includeImagePosition
             includeCta
+            ctaTargetOptions={ctaTargetOptions}
             wrapInCard={false}
             onChange={onChange}
           />
@@ -461,6 +571,7 @@ function SupportContentEditor({ content, editors }) {
         onMove={editors.moveArrayItem}
         onRemove={editors.removeArrayItem}
         onAdd={editors.addArrayItem}
+        maxItems={PAGE_CONTENT_LIMITS.cards}
         editor={(item, onChange) => (
           <ObjectBlockEditor
             item={item}
@@ -469,6 +580,7 @@ function SupportContentEditor({ content, editors }) {
             bodyLabel="Описание"
             includeImage
             includeCta
+            ctaTargetOptions={ctaTargetOptions}
             wrapInCard={false}
             onChange={onChange}
           />
@@ -478,7 +590,7 @@ function SupportContentEditor({ content, editors }) {
   );
 }
 
-function AnimalsOverviewContentEditor({ content, editors }) {
+function AnimalsOverviewContentEditor({ content, editors, ctaTargetOptions }) {
   return (
     <>
       <HeroEditor hero={content.hero} onChange={(patch) => editors.updateObject('hero', patch)} />
@@ -499,6 +611,7 @@ function AnimalsOverviewContentEditor({ content, editors }) {
             includeImage
             includeImagePosition
             includeCta
+            ctaTargetOptions={ctaTargetOptions}
             wrapInCard={false}
             onChange={onChange}
           />
@@ -507,18 +620,24 @@ function AnimalsOverviewContentEditor({ content, editors }) {
       <SectionMetaEditor
         title="Секция „Видове животни“"
         item={content.speciesSection}
+        includeCount
+        countLabel="Брой видове"
+        ctaTargetOptions={ctaTargetOptions}
         onChange={(patch) => editors.updateObject('speciesSection', patch)}
       />
       <SectionMetaEditor
         title="Секция „Истории“"
         item={content.storiesSection}
+        includeCount
+        countLabel="Брой истории"
+        ctaTargetOptions={ctaTargetOptions}
         onChange={(patch) => editors.updateObject('storiesSection', patch)}
       />
     </>
   );
 }
 
-function AnimalsInfoContentEditor({ content, editors }) {
+function AnimalsInfoContentEditor({ content, editors, ctaTargetOptions }) {
   return (
     <>
       <HeroEditor hero={content.hero} onChange={(patch) => editors.updateObject('hero', patch)} />
@@ -546,7 +665,7 @@ function AnimalsInfoContentEditor({ content, editors }) {
   );
 }
 
-function RescueStoriesContentEditor({ content, editors }) {
+function RescueStoriesContentEditor({ content, editors, ctaTargetOptions }) {
   return (
     <>
       <HeroEditor hero={content.hero} onChange={(patch) => editors.updateObject('hero', patch)} />
@@ -567,7 +686,7 @@ function RescueStoriesContentEditor({ content, editors }) {
             onChange={(value) => editors.updateObject('listSection', { title: value })}
           />
           <TextField
-            label="CTA заглавие"
+            label="Заглавие над бутона"
             value={content.listSection?.ctaTitle}
             onChange={(value) => editors.updateObject('listSection', { ctaTitle: value })}
           />
@@ -577,15 +696,10 @@ function RescueStoriesContentEditor({ content, editors }) {
             onChange={(value) => editors.updateObject('listSection', { emptyState: value })}
             rows={3}
           />
-          <TextField
-            label="CTA надпис"
-            value={content.listSection?.ctaLabel}
-            onChange={(value) => editors.updateObject('listSection', { ctaLabel: value })}
-          />
-          <TextField
-            label="CTA линк"
-            value={content.listSection?.ctaTo}
-            onChange={(value) => editors.updateObject('listSection', { ctaTo: value })}
+          <CtaFields
+            item={content.listSection}
+            targetOptions={ctaTargetOptions}
+            onChange={(patch) => editors.updateObject('listSection', patch)}
           />
         </div>
       </SectionCard>
@@ -593,7 +707,7 @@ function RescueStoriesContentEditor({ content, editors }) {
   );
 }
 
-function VolunteeringContentEditor({ content, editors }) {
+function VolunteeringContentEditor({ content, editors, ctaTargetOptions }) {
   return (
     <>
       <HeroEditor hero={content.hero} onChange={(patch) => editors.updateObject('hero', patch)} />
@@ -603,6 +717,7 @@ function VolunteeringContentEditor({ content, editors }) {
         bodyField="text"
         includeImage
         includeCta
+        ctaTargetOptions={ctaTargetOptions}
         onChange={(patch) => editors.updateObject('reasonBlock', patch)}
       />
       <SectionCard title="Текстове около формата">
@@ -625,7 +740,7 @@ function VolunteeringContentEditor({ content, editors }) {
   );
 }
 
-function DonationsContentEditor({ content, editors }) {
+function DonationsContentEditor({ content, editors, ctaTargetOptions }) {
   return (
     <>
       <HeroEditor hero={content.hero} onChange={(patch) => editors.updateObject('hero', patch)} />
@@ -635,6 +750,7 @@ function DonationsContentEditor({ content, editors }) {
         bodyField="text"
         includeImage
         includeCta
+        ctaTargetOptions={ctaTargetOptions}
         onChange={(patch) => editors.updateObject('reasonBlock', patch)}
       />
       <SectionCard title="Допълнителни указания">
@@ -657,7 +773,7 @@ function DonationsContentEditor({ content, editors }) {
   );
 }
 
-function ContactContentEditor({ content, editors }) {
+function ContactContentEditor({ content, editors, ctaTargetOptions }) {
   const contactTypeEntries = Object.entries(content.contactTypeLabels ?? {});
 
   return (
@@ -745,16 +861,32 @@ function ContactContentEditor({ content, editors }) {
 export function PageContentManagementPage({ role }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const pageFromUrl = searchParams.get('page');
-  const initialPage = PAGE_CONTENT_KEYS.includes(pageFromUrl) ? pageFromUrl : 'home';
-  const [selectedPage, setSelectedPage] = useState(initialPage);
+  const selectedPage = PAGE_CONTENT_KEYS.includes(pageFromUrl) ? pageFromUrl : 'home';
   const defaultContent = useMemo(() => getDefaultPageContent(selectedPage), [selectedPage]);
   const [content, setContent] = useState(() => clonePageContent(defaultContent));
+  const [lastSavedContent, setLastSavedContent] = useState(() => clonePageContent(defaultContent));
+  const [pendingPage, setPendingPage] = useState('');
+  const [pendingBlockRemoval, setPendingBlockRemoval] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const dashboardPath = role === 'admin' ? '/admin' : '/staff';
-  const editors = useContentObjectEditor(content, setContent);
+  const errorFeedbackRef = useErrorFeedbackFocus(errorMessage);
+  const contentDashboardPath = role === 'admin' ? '/admin/content' : '/staff/content';
+  const contentEditors = useContentObjectEditor(content, setContent);
+  const editors = {
+    ...contentEditors,
+    removeArrayItem: (arrayKey, itemIndex) => {
+      setPendingBlockRemoval({ arrayKey, itemIndex });
+    },
+  };
+  const ctaTargetOptions = useMemo(() => getPageContentCtaTargetOptions(selectedPage), [selectedPage]);
+  const hasUnsavedChanges = useMemo(
+    () => JSON.stringify(content) !== JSON.stringify(lastSavedContent),
+    [content, lastSavedContent]
+  );
+  const { pendingNavigationPath, confirmNavigation, cancelNavigation } =
+    useUnsavedChangesGuard(hasUnsavedChanges);
 
   useEffect(() => {
     let isMounted = true;
@@ -762,12 +894,18 @@ export function PageContentManagementPage({ role }) {
     setIsLoading(true);
     setStatusMessage('');
     setErrorMessage('');
-    setContent(clonePageContent(defaultContent));
+    const nextDefaultContent = clonePageContent(defaultContent);
+    setContent(nextDefaultContent);
+    setLastSavedContent(clonePageContent(nextDefaultContent));
+    setPendingPage('');
+    setPendingBlockRemoval(null);
 
     fetchJson(`/api/page-content/${selectedPage}`)
       .then((pageContent) => {
         if (isMounted) {
-          setContent(mergePageContent(defaultContent, pageContent?.content));
+          const nextContent = mergePageContent(defaultContent, pageContent?.content);
+          setContent(nextContent);
+          setLastSavedContent(clonePageContent(nextContent));
         }
       })
       .catch((error) => {
@@ -787,8 +925,38 @@ export function PageContentManagementPage({ role }) {
   }, [defaultContent, selectedPage]);
 
   function handlePageChange(nextPage) {
-    setSelectedPage(nextPage);
+    if (nextPage === selectedPage) {
+      return;
+    }
+
+    if (hasUnsavedChanges) {
+      setPendingPage(nextPage);
+      return;
+    }
+
     setSearchParams({ page: nextPage });
+  }
+
+  function confirmPageChange() {
+    if (!pendingPage) {
+      return;
+    }
+
+    const nextPage = pendingPage;
+    setPendingPage('');
+    setSearchParams({ page: nextPage });
+  }
+
+  function confirmBlockRemoval() {
+    if (!pendingBlockRemoval) {
+      return;
+    }
+
+    contentEditors.removeArrayItem(
+      pendingBlockRemoval.arrayKey,
+      pendingBlockRemoval.itemIndex
+    );
+    setPendingBlockRemoval(null);
   }
 
   async function handleSave(event) {
@@ -799,7 +967,9 @@ export function PageContentManagementPage({ role }) {
 
     try {
       const savedContent = await patchJson(`/api/page-content/${selectedPage}`, { content });
-      setContent(mergePageContent(defaultContent, savedContent?.content));
+      const nextContent = mergePageContent(defaultContent, savedContent?.content);
+      setContent(nextContent);
+      setLastSavedContent(clonePageContent(nextContent));
       setStatusMessage('Промените са запазени успешно.');
     } catch (error) {
       setErrorMessage(error.message);
@@ -814,53 +984,53 @@ export function PageContentManagementPage({ role }) {
   }
 
   function renderEditor() {
+    const editorProps = { content, editors, ctaTargetOptions };
+
     if (selectedPage === 'about') {
-      return <AboutContentEditor content={content} editors={editors} />;
+      return <AboutContentEditor {...editorProps} />;
     }
 
     if (selectedPage === 'support') {
-      return <SupportContentEditor content={content} editors={editors} />;
+      return <SupportContentEditor {...editorProps} />;
     }
 
     if (selectedPage === 'animals-overview') {
-      return <AnimalsOverviewContentEditor content={content} editors={editors} />;
+      return <AnimalsOverviewContentEditor {...editorProps} />;
     }
 
     if (selectedPage === 'animals-info') {
-      return <AnimalsInfoContentEditor content={content} editors={editors} />;
+      return <AnimalsInfoContentEditor {...editorProps} />;
     }
 
     if (selectedPage === 'rescue-stories') {
-      return <RescueStoriesContentEditor content={content} editors={editors} />;
+      return <RescueStoriesContentEditor {...editorProps} />;
     }
 
     if (selectedPage === 'volunteering') {
-      return <VolunteeringContentEditor content={content} editors={editors} />;
+      return <VolunteeringContentEditor {...editorProps} />;
     }
 
     if (selectedPage === 'donations') {
-      return <DonationsContentEditor content={content} editors={editors} />;
+      return <DonationsContentEditor {...editorProps} />;
     }
 
     if (selectedPage === 'contact') {
-      return <ContactContentEditor content={content} editors={editors} />;
+      return <ContactContentEditor {...editorProps} />;
     }
 
-    return <HomeContentEditor content={content} editors={editors} />;
+    return <HomeContentEditor {...editorProps} />;
   }
 
   return (
     <main className="route-shell page-content-admin-shell">
-      <section className="route-card page-content-admin-hero">
+      <section className="route-card page-content-admin-hero page-content-admin-hero-wide">
         <div>
           <p className="route-meta">Съдържание на публичните страници</p>
           <h1>Редакция на блокове</h1>
-          <p>
-            Промените се записват в MongoDB и се показват веднага в публичните страници.
-          </p>
+          <p>Запазените промени се показват веднага в публичните страници.</p>
         </div>
-        <Link className="animals-secondary-action" to={dashboardPath}>
-          Назад
+        <Link className="app-secondary-action" to={contentDashboardPath}>
+          Към управление на съдържанието
         </Link>
       </section>
 
@@ -868,7 +1038,11 @@ export function PageContentManagementPage({ role }) {
         <aside className="page-content-admin-sidebar">
           <label className="page-content-admin-field">
             <span>Страница</span>
-            <select value={selectedPage} onChange={(event) => handlePageChange(event.target.value)}>
+            <select
+              value={selectedPage}
+              disabled={isLoading || isSaving}
+              onChange={(event) => handlePageChange(event.target.value)}
+            >
               {PAGE_CONTENT_CONFIGS.map((page) => (
                 <option key={page.key} value={page.key}>
                   {page.label}
@@ -880,18 +1054,62 @@ export function PageContentManagementPage({ role }) {
           <button type="submit" disabled={isSaving || isLoading}>
             {isSaving ? 'Запазване...' : 'Запази промените'}
           </button>
-          <button type="button" className="page-content-admin-secondary-action" onClick={handleResetDefaults}>
+          <button
+            type="button"
+            className="page-content-admin-secondary-action"
+            disabled={isLoading || isSaving}
+            onClick={handleResetDefaults}
+          >
             Върни началните стойности
           </button>
 
-          {statusMessage ? <p className="form-success-message">{statusMessage}</p> : null}
-          {errorMessage ? <p className="form-error-message">{errorMessage}</p> : null}
+          {statusMessage ? <p className="feedback-message feedback-message-info">{statusMessage}</p> : null}
+          {errorMessage ? (
+            <p
+              ref={errorFeedbackRef}
+              className="feedback-message feedback-message-error"
+              role="alert"
+              tabIndex={-1}
+            >
+              {errorMessage}
+            </p>
+          ) : null}
         </aside>
 
         <div className="page-content-admin-editor">
           {isLoading ? <p className="route-card">Зареждане на съдържанието...</p> : renderEditor()}
         </div>
       </form>
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingNavigationPath)}
+        title="Незапазени промени"
+        description="Промените по текущата страница не са запазени. Сигурен ли си, че искаш да я напуснеш?"
+        confirmLabel="Продължи без запазване"
+        tone="default"
+        onConfirm={confirmNavigation}
+        onClose={cancelNavigation}
+      />
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingPage)}
+        title="Незапазени промени"
+        description={`Промените по „${PAGE_CONTENT_LABELS[selectedPage]}“ не са запазени. Да преминем ли към „${PAGE_CONTENT_LABELS[pendingPage] ?? ''}“?`}
+        confirmLabel="Продължи без запазване"
+        tone="default"
+        onConfirm={confirmPageChange}
+        onClose={() => setPendingPage('')}
+      />
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingBlockRemoval)}
+        title="Премахване на блок"
+        description="Сигурен ли си, че искаш да премахнеш този блок? Промяната ще бъде приложена след записване на страницата."
+        confirmLabel="Премахни блока"
+        tone="danger"
+        onConfirm={confirmBlockRemoval}
+        onClose={() => setPendingBlockRemoval(null)}
+      />
     </main>
   );
 }

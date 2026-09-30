@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react';
+
 export function buildEmptyPagination(defaultLimit = 10, total = 0) {
   return {
     page: 1,
@@ -9,11 +11,50 @@ export function buildEmptyPagination(defaultLimit = 10, total = 0) {
   };
 }
 
-export function PaginationControls({ pagination, isLoading = false, onPageChange }) {
+export function PaginationControls({
+  pagination,
+  isLoading = false,
+  onPageChange,
+  scrollTargetId,
+}) {
+  const [pendingPage, setPendingPage] = useState(null);
+  const hasPendingLoadStarted = useRef(false);
   const currentPage = Number(pagination?.page ?? 1);
   const totalPages = Math.max(Number(pagination?.totalPages ?? 0), 1);
 
-  if (!pagination || totalPages <= 1) {
+  useEffect(() => {
+    if (pendingPage === null) {
+      return undefined;
+    }
+
+    if (isLoading) {
+      hasPendingLoadStarted.current = true;
+      return undefined;
+    }
+
+    if (!hasPendingLoadStarted.current) {
+      return undefined;
+    }
+
+    const animationFrameId = window.requestAnimationFrame(() => {
+      if (scrollTargetId) {
+        document.getElementById(scrollTargetId)?.scrollIntoView({ block: 'start' });
+      }
+
+      hasPendingLoadStarted.current = false;
+      setPendingPage(null);
+    });
+
+    return () => window.cancelAnimationFrame(animationFrameId);
+  }, [isLoading, pendingPage, scrollTargetId]);
+
+  function handlePageChange(nextPage) {
+    hasPendingLoadStarted.current = false;
+    setPendingPage(nextPage);
+    onPageChange(nextPage);
+  }
+
+  if (!pagination || isLoading || totalPages <= 1) {
     return null;
   }
 
@@ -21,9 +62,9 @@ export function PaginationControls({ pagination, isLoading = false, onPageChange
     <div className="animals-pagination">
       <button
         type="button"
-        className="animals-secondary-action"
+        className="app-secondary-action"
         disabled={isLoading || !pagination.hasPreviousPage}
-        onClick={() => onPageChange(currentPage - 1)}
+        onClick={() => handlePageChange(currentPage - 1)}
       >
         Предишна
       </button>
@@ -35,9 +76,9 @@ export function PaginationControls({ pagination, isLoading = false, onPageChange
 
       <button
         type="button"
-        className="animals-primary-action"
+        className="app-primary-action"
         disabled={isLoading || !pagination.hasNextPage}
-        onClick={() => onPageChange(currentPage + 1)}
+        onClick={() => handlePageChange(currentPage + 1)}
       >
         Следваща
       </button>

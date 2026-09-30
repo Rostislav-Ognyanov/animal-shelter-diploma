@@ -1,0 +1,242 @@
+.animal-form-success-actions {
+  align-items: center;
+}
+
+.animal-form-shell {
+  display: grid;
+  gap: 1rem;
+}
+
+.animal-form-back-row {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.animal-form-hero,
+.animal-form-card {
+  border: 1px solid var(--border-soft);
+  border-radius: 28px;
+  background: var(--surface-color);
+  box-shadow: 0 16px 32px rgba(24, 48, 34, 0.08);
+}
+
+.animal-form-hero {
+  padding: 1.75rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.2rem;
+  align-items: start;
+}
+
+.animal-form-hero h1 {
+  margin: 0 0 0.85rem;
+  line-height: 1.08;
+  font-size: clamp(2.1rem, 4vw, 3rem);
+}
+
+.animal-form-hero p:last-child {
+  margin: 0;
+  color: var(--text-soft);
+  max-width: 64ch;
+}
+
+.animal-form-card {
+  padding: 1.35rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.animal-form-header h2 {
+  margin: 0;
+  color: var(--primary);
+}
+
+.animal-form-header p {
+  margin: 0.35rem 0 0;
+  color: var(--text-soft);
+}
+
+.animal-form-success-box {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.animal-form-success-box p {
+  margin: 0.35rem 0 0;
+}
+
+.animal-form-success-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.animal-entry-form {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.animal-entry-grid {
+  display: grid;
+  align-items: start;
+  gap: 1rem;
+}
+
+.animal-entry-grid-primary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.animal-entry-grid-secondary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.animal-entry-form label {
+  display: grid;
+  align-content: start;
+  gap: 0.45rem;
+  min-width: 0;
+  height: 100%;
+  color: #355240;
+  font-weight: 600;
+}
+
+.animal-entry-form input,
+.animal-entry-form select,
+.animal-entry-form textarea {
+  width: 100%;
+  min-height: 52px;
+  padding: 0.9rem 1rem;
+  border: 1px solid #d1dfd5;
+  border-radius: 14px;
+  background: #f8fbf9;
+  color: var(--text-main);
+}
+
+.animal-entry-form textarea {
+  min-height: 152px;
+  resize: vertical;
+}
+
+.animal-entry-checkboxes {
+  display: flex;
+  justify-content: flex-start;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.animal-entry-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-width: 205px;
+  min-height: 52px;
+  padding: 0.8rem 1rem;
+  border: 1px solid rgba(47, 111, 78, 0.14);
+  border-radius: 16px;
+  background: #f8fbf9;
+  text-align: center;
+}
+
+.animal-entry-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.animal-form-error {
+  color: #b13838;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+@media (max-width: 1080px) {
+  .animal-form-hero {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .animal-form-hero,
+  .animal-form-card {
+    border-radius: 22px;
+  }
+
+  .animal-entry-actions,
+  .animal-form-success-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
+.animal-entry-form input:disabled,
+.animal-entry-form select:disabled,
+.animal-entry-form textarea:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.animal-entry-field-wide {
+  grid-column: 1 / -1;
+}
+
+.animal-entry-form label > span:first-child,
+.animal-image-upload-header > span:first-child {
+  min-height: 1.35rem;
+}
+
+.animal-image-upload-input {
+  width: 100%;
+}
+
+.animal-image-upload-panel {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.animal-image-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.9rem;
+}
+
+.animal-entry-checkbox input[type='checkbox'] {
+  width: 14px;
+  height: 14px;
+}
+
+@media (max-width: 900px) {
+  .animal-entry-grid-primary,
+  .animal-entry-grid-secondary {
+    grid-template-columns: 1fr;
+  }
+}
+
+.animal-image-upload-trigger {
+  justify-self: start;
+}
+
+.animal-image-upload-input {
+  display: none;
+}
+
+.animal-image-preview-card {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.65rem;
+}
+
+.animal-image-remove-button {
+  min-height: 38px;
+  border: 1px solid rgba(47, 111, 78, 0.14);
+  border-radius: 12px;
+  background: #ffffff;
+  color: var(--text-main);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.animal-image-panel-actions {
+  display: flex;
+  justify-content: flex-start;
+}

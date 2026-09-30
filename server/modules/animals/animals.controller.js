@@ -4,11 +4,11 @@ import {
   sendMutationSuccess,
 } from '../../utils/apiResponse.js';
 import { createHttpError } from '../../utils/httpError.js';
+import { hasPermission } from '../shared/rolePolicies.js';
 import {
   createAnimal,
   deactivateAnimal,
   getAnimalById,
-  getAnimalModulePolicy,
   getAnimalsCollection,
   updateAnimal,
   updateAnimalStatus,
@@ -27,40 +27,37 @@ function readAnimalListFilters(query = {}) {
   };
 }
 
-function canViewAnimalPolicy(roleCandidate) {
-  return roleCandidate === 'employee' || roleCandidate === 'admin';
+function canViewAnimalManagementData(roleCandidate) {
+  return hasPermission(roleCandidate, 'animals', 'view-all');
 }
 
 function stripInternalAnimalFields(animal) {
-  const { createdAt, isActive, policy, updatedAt, ...publicAnimal } = animal;
+  const { createdAt, isActive, updatedAt, ...publicAnimal } = animal;
   return publicAnimal;
 }
 
 function buildAnimalResponseData(animal, roleCandidate) {
-  if (!canViewAnimalPolicy(roleCandidate)) {
+  if (!canViewAnimalManagementData(roleCandidate)) {
     return stripInternalAnimalFields(animal);
   }
 
-  return {
-    ...animal,
-    policy: getAnimalModulePolicy(roleCandidate),
-  };
+  return animal;
 }
 
 export async function listAnimals(req, res, next) {
   try {
     const animalFilters = readAnimalListFilters(req.query);
-    const animalCollection = await getAnimalsCollection(animalFilters);
+    const role = req.user?.role ?? 'guest';
+    const canViewManagementData = canViewAnimalManagementData(role);
+    const animalCollection = await getAnimalsCollection(animalFilters, req.user);
+    const responseItems = canViewManagementData
+      ? animalCollection.items
+      : animalCollection.items.map(stripInternalAnimalFields);
 
     return sendCollectionSuccess(res, {
       message: 'Списъкът с животни е зареден успешно.',
-      items: animalCollection.items,
+      items: responseItems,
       total: animalCollection.total,
-      data: canViewAnimalPolicy(req.user?.role)
-        ? {
-            policy: getAnimalModulePolicy(req.user.role),
-          }
-        : {},
       meta: {
         pagination: animalCollection.pagination,
         sort: animalCollection.sort,
@@ -73,7 +70,10 @@ export async function listAnimals(req, res, next) {
 
 export async function getAnimal(req, res, next) {
   try {
-    const animal = await getAnimalById(req.params.animalId);
+    const animal = await getAnimalById(req.params.animalId, req.user ?? null, {
+      restrictToPublicAnimal: true,
+      publicVisibility: 'detail',
+    });
 
     if (!animal) {
       throw createHttpError(404, 'Животното не беше намерено.');
@@ -90,7 +90,7 @@ export async function getAnimal(req, res, next) {
 
 export async function createAnimalEntry(req, res, next) {
   try {
-    const createdAnimal = await createAnimal(req.body);
+    const createdAnimal = await createAnimal(req.body, req.user);
 
     return sendMutationSuccess(res, {
       status: 201,
@@ -104,7 +104,7 @@ export async function createAnimalEntry(req, res, next) {
 
 export async function updateAnimalEntry(req, res, next) {
   try {
-    const updatedAnimal = await updateAnimal(req.params.animalId, req.body);
+    const updatedAnimal = await updateAnimal(req.params.animalId, req.body, req.user);
 
     return sendMutationSuccess(res, {
       message: 'Данните за животното са обновени успешно.',
@@ -117,7 +117,7 @@ export async function updateAnimalEntry(req, res, next) {
 
 export async function updateAnimalStatusEntry(req, res, next) {
   try {
-    const updatedAnimal = await updateAnimalStatus(req.params.animalId, req.body);
+    const updatedAnimal = await updateAnimalStatus(req.params.animalId, req.body, req.user);
 
     return sendMutationSuccess(res, {
       message: 'Статусът на животното е обновен успешно.',
@@ -131,9 +131,13 @@ export async function updateAnimalStatusEntry(req, res, next) {
 export async function deactivateAnimalEntry(req, res, next) {
   try {
     const updatedAnimal = await deactivateAnimal(req.params.animalId, req.body ?? {});
+    const message =
+      updatedAnimal.status === 'archived'
+        ? 'Животното е архивирано успешно.'
+        : 'Животното е деактивирано успешно.';
 
     return sendMutationSuccess(res, {
-      message: 'Животното е деактивирано успешно.',
+      message,
       data: buildAnimalResponseData(updatedAnimal, req.user?.role ?? 'guest'),
     });
   } catch (error) {

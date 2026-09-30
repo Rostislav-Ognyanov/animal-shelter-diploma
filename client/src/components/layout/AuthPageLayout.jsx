@@ -2,7 +2,7 @@
   return (
     <section className="auth-shell">
       <div className="auth-card">
-        <div className="auth-form-panel auth-form-panel-left">
+        <div className="auth-form-panel">
           <div className="auth-panel-header">
             <p className="auth-panel-kicker">{kicker}</p>
             <h1>{title}</h1>

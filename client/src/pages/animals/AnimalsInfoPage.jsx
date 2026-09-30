@@ -1,13 +1,31 @@
 import { Link } from 'react-router-dom';
 
+import { PageErrorState, PageLoadingState } from '../../components/common/PageStatusStates.jsx';
 import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
-import { DEFAULT_PAGE_CONTENT } from '../page-content/pageContentDefaults.js';
 import { buildHeroBackgroundStyle, usePageContent } from '../page-content/pageContentUtils.js';
 import { usePublishedSpeciesContentList } from './useSpeciesContent.js';
 
 export function AnimalsInfoPage() {
-  const { content } = usePageContent('animals-info', DEFAULT_PAGE_CONTENT['animals-info']);
-  const { speciesContent } = usePublishedSpeciesContentList();
+  const { content, error, isLoading, reload } = usePageContent('animals-info');
+  const {
+    speciesContent,
+    errorMessage,
+    isLoading: isSpeciesLoading,
+  } = usePublishedSpeciesContentList();
+
+  if (isLoading) {
+    return <PageLoadingState className="animals-overview-shell animals-page-shell animals-info-page-shell" />;
+  }
+
+  if (error) {
+    return (
+      <PageErrorState
+        className="animals-overview-shell animals-page-shell animals-info-page-shell"
+        message={error}
+        onRetry={reload}
+      />
+    );
+  }
 
   return (
     <main className="route-shell animals-overview-shell animals-page-shell animals-info-page-shell">
@@ -36,6 +54,20 @@ export function AnimalsInfoPage() {
             </Link>
           ))}
         </div>
+
+        {isSpeciesLoading ? (
+          <p className="content-state-message" role="status">
+            Зареждане...
+          </p>
+        ) : errorMessage ? (
+          <p className="content-state-message" role="alert">
+            {errorMessage}
+          </p>
+        ) : speciesContent.length === 0 ? (
+          <p className="content-state-message" role="status">
+            В момента няма публикувана информация за видове животни.
+          </p>
+        ) : null}
       </section>
     </main>
   );

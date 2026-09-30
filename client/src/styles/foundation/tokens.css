@@ -1,0 +1,17 @@
+:root {
+  --header-height: 78px;
+  --header-scroll-offset: var(--header-height);
+  --page-max-width: 1600px;
+  --content-max-width: 1300px;
+  --page-gap: 1.25rem;
+  --surface-color: #ffffff;
+  --surface-muted: #f2f6f3;
+  --primary: #2f6f4e;
+  --primary-deep: #24553b;
+  --text-main: #2e3d33;
+  --text-soft: #5a6d61;
+  --border-soft: rgba(47, 111, 78, 0.12);
+  --shadow-soft: 0 16px 32px rgba(24, 48, 34, 0.08);
+  --color-ink: var(--text-main);
+  --color-ink-soft: var(--text-soft);
+}

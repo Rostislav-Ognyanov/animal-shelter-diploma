@@ -22,7 +22,7 @@ function SpeciesDetailSection({ section }) {
       }
 
       const copyHeight = copyRef.current.getBoundingClientRect().height;
-      setImageHeight(Math.min(430, Math.round(copyHeight * 2)));
+      setImageHeight(Math.min(430, Math.max(280, Math.round(copyHeight * 1.4))));
     }
 
     updateImageHeight();
@@ -84,18 +84,29 @@ function SpeciesDetailSection({ section }) {
 
 export function SpeciesInfoPage() {
   const { species } = useParams();
-  const { speciesContent } = usePublishedSpeciesContent(species);
+  const { speciesContent, isLoading, errorMessage } = usePublishedSpeciesContent(species);
   const visibleSections = (speciesContent?.sections ?? [])
     .filter((section) => section.isVisible !== false)
     .sort((firstSection, secondSection) => (firstSection.order ?? 0) - (secondSection.order ?? 0));
+
+  if (isLoading) {
+    return (
+      <main className="route-shell species-info-shell">
+        <section className="species-info-not-found">
+          <h1>Зареждане</h1>
+          <p>Информацията за вида се зарежда.</p>
+        </section>
+      </main>
+    );
+  }
 
   if (!speciesContent) {
     return (
       <main className="route-shell species-info-shell">
         <section className="species-info-not-found">
           <h1>Информацията не беше намерена</h1>
-          <p>Избери вид от страницата с животните.</p>
-          <Link className="animals-primary-action" to="/za-zhivotnite">
+          <p>{errorMessage || 'Избери вид от страницата с животните.'}</p>
+          <Link className="app-primary-action" to="/za-zhivotnite">
             Към животните
           </Link>
         </section>
@@ -116,11 +127,14 @@ export function SpeciesInfoPage() {
           <SpeciesDetailSection key={section.title} section={section} />
         ))}
 
-        <div className="species-info-page-actions">
-          <Link className="animals-secondary-action" to="/informacia-za-zhivotnite">
+        <div className="route-actions species-info-detail-actions">
+          <Link className="app-secondary-action" to="/informacia-za-zhivotnite">
             Назад към видовете
           </Link>
-          <Link className="animals-primary-action" to={buildAnimalsSearchPath({ species })}>
+          <Link
+            className="app-primary-action"
+            to={buildAnimalsSearchPath({ species }, { scrollToFilters: true })}
+          >
             Виж животните
           </Link>
         </div>

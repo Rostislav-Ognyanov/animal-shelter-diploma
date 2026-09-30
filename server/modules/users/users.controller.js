@@ -1,15 +1,18 @@
-﻿import {
+import {
   sendCollectionSuccess,
   sendItemSuccess,
   sendMutationSuccess,
 } from '../../utils/apiResponse.js';
+import {
+  AUTH_COOKIE_NAME,
+  getAuthCookieOptions,
+} from '../auth/auth.security.js';
 import {
   changeCurrentUserPassword,
   createEmployeeUser,
   getAdminUserDetailsById,
   getAdminUsersCollection,
   getCurrentUserProfile,
-  getUsersModulePolicy,
   updateCurrentUserProfile,
   updateManagedUser,
   updateManagedUserStatus,
@@ -25,20 +28,13 @@ function readUsersFilters(query = {}) {
   };
 }
 
-function buildUserResponseData(user, roleCandidate) {
-  return {
-    ...user,
-    policy: getUsersModulePolicy(roleCandidate),
-  };
-}
-
 export async function getCurrentUser(req, res, next) {
   try {
     const currentUserProfile = await getCurrentUserProfile(req.user);
 
     return sendItemSuccess(res, {
       message: 'Профилът е зареден успешно.',
-      data: buildUserResponseData(currentUserProfile, req.user?.role),
+      data: currentUserProfile,
     });
   } catch (error) {
     return next(error);
@@ -51,7 +47,7 @@ export async function updateCurrentUserEntry(req, res, next) {
 
     return sendMutationSuccess(res, {
       message: 'Профилът е обновен успешно.',
-      data: buildUserResponseData(updatedCurrentUser, req.user?.role),
+      data: updatedCurrentUser,
     });
   } catch (error) {
     return next(error);
@@ -60,11 +56,13 @@ export async function updateCurrentUserEntry(req, res, next) {
 
 export async function updateCurrentUserPasswordEntry(req, res, next) {
   try {
-    const updatedCurrentUser = await changeCurrentUserPassword(req.body, req.user);
+    const passwordChangeResult = await changeCurrentUserPassword(req.body, req.user);
+
+    res.cookie(AUTH_COOKIE_NAME, passwordChangeResult.token, getAuthCookieOptions(false));
 
     return sendMutationSuccess(res, {
       message: 'Паролата е сменена успешно.',
-      data: buildUserResponseData(updatedCurrentUser, req.user?.role),
+      data: passwordChangeResult.user,
     });
   } catch (error) {
     return next(error);
@@ -81,7 +79,7 @@ export async function getUsers(req, res, next) {
       items: adminUsersCollection.items,
       total: adminUsersCollection.total,
       data: {
-        policy: getUsersModulePolicy(req.user?.role),
+        summary: adminUsersCollection.summary,
       },
       meta: {
         filters: adminUsersCollection.filters,
@@ -99,7 +97,7 @@ export async function getUserDetails(req, res, next) {
 
     return sendItemSuccess(res, {
       message: 'Данните за потребителя са заредени успешно.',
-      data: buildUserResponseData(adminUserDetails, req.user?.role),
+      data: adminUserDetails,
     });
   } catch (error) {
     return next(error);
@@ -113,7 +111,7 @@ export async function createEmployeeEntry(req, res, next) {
     return sendMutationSuccess(res, {
       status: 201,
       message: 'Служителят е създаден успешно.',
-      data: buildUserResponseData(createdEmployee, req.user?.role),
+      data: createdEmployee,
     });
   } catch (error) {
     return next(error);
@@ -126,7 +124,7 @@ export async function updateUserEntry(req, res, next) {
 
     return sendMutationSuccess(res, {
       message: 'Потребителят е обновен успешно.',
-      data: buildUserResponseData(updatedUser, req.user?.role),
+      data: updatedUser,
     });
   } catch (error) {
     return next(error);
@@ -139,7 +137,7 @@ export async function updateUserStatusEntry(req, res, next) {
 
     return sendMutationSuccess(res, {
       message: 'Статусът на потребителя е обновен успешно.',
-      data: buildUserResponseData(updatedUser, req.user?.role),
+      data: updatedUser,
     });
   } catch (error) {
     return next(error);

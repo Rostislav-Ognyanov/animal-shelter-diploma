@@ -1,7 +1,16 @@
 import SpeciesContent from '../../models/SpeciesContent.js';
 import { createHttpError } from '../../utils/httpError.js';
+import { assertAllowedFields, assertBodyObject } from '../../utils/requestValidation.js';
+import { SPECIES_CONTENT_EDITABLE_FIELDS } from '../../../shared/domain/speciesContentConstants.js';
 import { ANIMAL_SPECIES_VALUES } from '../animals/animal.constants.js';
+import { notifyUnreadUsersByRole } from '../notifications/notifications.service.js';
 import { hasPermission } from '../shared/rolePolicies.js';
+import {
+  assertSpeciesContentPublishable,
+  createEmptySpeciesContentFields,
+  mergeSpeciesContentFields,
+  normalizeSpeciesContentFields,
+} from './speciesContent.normalizers.js';
 
 const SPECIES_SET = new Set(ANIMAL_SPECIES_VALUES);
 
@@ -19,68 +28,32 @@ function normalizeSpecies(value) {
   return species;
 }
 
-function normalizeStringArray(value) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.map((item) => normalizeText(item)).filter(Boolean);
-}
-
-function normalizeSections(value) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value
-    .map((section, index) => ({
-      title: normalizeText(section?.title),
-      paragraphs: normalizeStringArray(section?.paragraphs),
-      items: normalizeStringArray(section?.items),
-      imageUrl: normalizeText(section?.imageUrl),
-      imageAlt: normalizeText(section?.imageAlt),
-      imagePosition: section?.imagePosition === 'left' ? 'left' : 'right',
-      order: Number.isFinite(Number(section?.order)) ? Number(section.order) : index,
-      isVisible: section?.isVisible !== false,
-      centered: Boolean(section?.centered),
-    }))
-    .filter((section) => section.title || section.paragraphs.length || section.items.length);
-}
-
-function normalizeContentFields(payload = {}) {
-  return {
-    displayName: normalizeText(payload.displayName),
-    title: normalizeText(payload.title),
-    subtitle: normalizeText(payload.subtitle),
-    cardImageUrl: normalizeText(payload.cardImageUrl),
-    cardImageAlt: normalizeText(payload.cardImageAlt),
-    heroImageUrl: normalizeText(payload.heroImageUrl),
-    introduction: normalizeText(payload.introduction),
-    issues: normalizeStringArray(payload.issues),
-    sections: normalizeSections(payload.sections),
-  };
-}
-
 function buildPublishedPayload(record) {
   const source = record.publishedSnapshot ?? record;
 
   return {
     id: String(record._id),
     species: record.species,
-    ...normalizeContentFields(source),
+    ...normalizeSpeciesContentFields(source),
     isPublished: Boolean(record.isPublished),
     publishedAt: record.publishedAt,
-    updatedAt: record.updatedAt,
+    updatedAt: record.publishedAt,
   };
 }
 
 function serializeStaffRecord(record) {
+  const draft = normalizeSpeciesContentFields(record);
+  const published = record.publishedSnapshot
+    ? normalizeSpeciesContentFields(record.publishedSnapshot)
+    : null;
+
   return {
     id: String(record._id),
     species: record.species,
-    draft: normalizeContentFields(record),
-    published: record.publishedSnapshot ? normalizeContentFields(record.publishedSnapshot) : null,
+    draft,
+    published,
     isPublished: Boolean(record.isPublished),
+    hasUnpublishedChanges: published ? JSON.stringify(draft) !== JSON.stringify(published) : true,
     publishedAt: record.publishedAt,
     updatedAt: record.updatedAt,
     createdAt: record.createdAt,
@@ -137,6 +110,7 @@ export async function getSpeciesContentDraft(speciesCandidate, currentUser) {
       draft: null,
       published: null,
       isPublished: false,
+      hasUnpublishedChanges: false,
       publishedAt: null,
       updatedAt: null,
       createdAt: null,
@@ -150,9 +124,16 @@ export async function getSpeciesContentDraft(speciesCandidate, currentUser) {
 
 export async function updateSpeciesContentDraft(speciesCandidate, payload, currentUser) {
   assertPermission(currentUser, 'update');
+  assertBodyObject(payload);
+  assertAllowedFields(payload, SPECIES_CONTENT_EDITABLE_FIELDS);
 
   const species = normalizeSpecies(speciesCandidate);
-  const contentFields = normalizeContentFields(payload);
+  const existingRecord = await SpeciesContent.findOne({ species }).lean();
+  const currentContent = existingRecord ?? createEmptySpeciesContentFields();
+  const contentFields = normalizeSpeciesContentFields(
+    mergeSpeciesContentFields(currentContent, payload),
+    { strict: true }
+  );
 
   const record = await SpeciesContent.findOneAndUpdate(
     { species },
@@ -163,12 +144,34 @@ export async function updateSpeciesContentDraft(speciesCandidate, payload, curre
       },
     },
     {
-      new: true,
+      returnDocument: 'after',
       runValidators: true,
       setDefaultsOnInsert: true,
       upsert: true,
     }
   ).lean();
+
+  if (currentUser.role === 'employee') {
+    const displayName = contentFields.displayName || species;
+
+    try {
+      await notifyUnreadUsersByRole(
+        ['admin'],
+        {
+          type: 'species-content-draft-updated',
+          title: `Нова чернова за вида „${displayName}“`,
+          message: `Информацията за вида „${displayName}“ има чернова за преглед и публикуване.`,
+          resourceId: species,
+          dedupeKey: `species-content:${species}`,
+        },
+        {
+          excludeUserIds: [currentUser.id],
+        }
+      );
+    } catch (error) {
+      console.error('Неуспешно изпращане на известие за чернова на вид:', error);
+    }
+  }
 
   return serializeStaffRecord(record);
 }
@@ -183,7 +186,12 @@ export async function publishSpeciesContentDraft(speciesCandidate, currentUser) 
     throw createHttpError(404, 'Няма чернова за публикуване.');
   }
 
-  record.publishedSnapshot = normalizeContentFields(record);
+  // Publishing copies the current draft into a public snapshot;
+  // later draft edits stay private until republished.
+  const publishedSnapshot = normalizeSpeciesContentFields(record.toObject(), { strict: true });
+  assertSpeciesContentPublishable(publishedSnapshot);
+
+  record.publishedSnapshot = publishedSnapshot;
   record.isPublished = true;
   record.publishedAt = new Date();
   record.publishedBy = currentUser.id;
@@ -196,6 +204,7 @@ export async function publishSpeciesContentDraft(speciesCandidate, currentUser) 
 export async function archiveSpeciesContent(speciesCandidate, currentUser) {
   assertPermission(currentUser, 'archive');
 
+  // Archiving hides the species content without deleting the draft or published snapshot.
   const species = normalizeSpecies(speciesCandidate);
   const record = await SpeciesContent.findOneAndUpdate(
     { species },
@@ -205,7 +214,7 @@ export async function archiveSpeciesContent(speciesCandidate, currentUser) {
         updatedBy: currentUser.id,
       },
     },
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   ).lean();
 
   if (!record) {

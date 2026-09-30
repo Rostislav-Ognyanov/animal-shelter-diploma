@@ -6,20 +6,24 @@ import { getMainNavigation } from '../../navigation/appNavigation.js';
 function renderFooterLink(item) {
   const target = item.href ?? item.to;
 
+  if (!target) {
+    return <span>{item.label}</span>;
+  }
+
   if (target?.startsWith('/') && !target.startsWith('/#')) {
     return <Link to={target}>{item.label}</Link>;
   }
 
-  if (item.href || item.to?.startsWith('/#') || item.to?.startsWith('#')) {
-    return <a href={item.href ?? item.to}>{item.label}</a>;
-  }
+  return <a href={target}>{item.label}</a>;
+}
 
-  return <Link to={item.to}>{item.label}</Link>;
+function normalizePhoneHref(phone) {
+  return String(phone ?? '').replace(/[^\d+]/g, '');
 }
 
 export function Footer({ footer, siteName }) {
-  const footerNavigation = getMainNavigation();
-  const logoUrl = footer?.logoUrl ?? footer?.siteSettings?.logoUrl ?? 'images/logo.jpg';
+  const footerNavigation = getMainNavigation('guest');
+  const logoUrl = footer?.logoUrl ?? 'images/logo.jpg';
   const contactInfo = footer?.contactInfo;
   const socialLinks = footer?.socialLinks ?? [];
   const footerLinks = footer?.links ?? [];
@@ -33,18 +37,28 @@ export function Footer({ footer, siteName }) {
             <span>{siteName}</span>
           </Link>
           <div className="footer-info">
-            <p>{footer.copyright}</p>
-            <p>{footer.secondary}</p>
-            {contactInfo?.phone ? <p>{contactInfo.phone}</p> : null}
-            {contactInfo?.email ? <p>{contactInfo.email}</p> : null}
+            {footer?.copyright ? <p>{footer.copyright}</p> : null}
+            {footer?.secondary ? <p>{footer.secondary}</p> : null}
+            {contactInfo?.phone ? (
+              <p>
+                <a href={`tel:${normalizePhoneHref(contactInfo.phone)}`}>{contactInfo.phone}</a>
+              </p>
+            ) : null}
+            {contactInfo?.email ? (
+              <p>
+                <a href={`mailto:${String(contactInfo.email).trim()}`}>{contactInfo.email}</a>
+              </p>
+            ) : null}
+            {contactInfo?.address ? <p>{contactInfo.address}</p> : null}
+            {contactInfo?.workingHours ? <p>{contactInfo.workingHours}</p> : null}
             {socialLinks.length ? (
-              <div className="footer-social-links" aria-label="Социални профили">
+              <nav className="footer-social-links" aria-label="Социални профили">
                 {socialLinks.map((link) => (
                   <a key={`${link.label}-${link.url}`} href={link.url} target="_blank" rel="noreferrer">
                     {link.label}
                   </a>
                 ))}
-              </div>
+              </nav>
             ) : null}
           </div>
         </div>

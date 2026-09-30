@@ -1,21 +1,18 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
-import {
-  canManageAnimals,
-  getRoleDescription,
-  getRoleLabel,
-  getRoleUiActions,
-} from '../../auth/roleUi.js';
+import { canManageAnimals } from '../../auth/roleUi.js';
 import { AnimalCard } from '../../components/animals/AnimalCard.jsx';
 import { AnimalsListSkeleton } from '../../components/animals/AnimalsListSkeleton.jsx';
-import { fetchApi } from '../../lib/api.js';
+import { PaginationControls } from '../../components/common/PaginationControls.jsx';
+import { fetchApiResponse } from '../../lib/api.js';
 import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
 import {
   DEFAULT_FILTERS,
   DEFAULT_SORT,
   GENDER_OPTIONS,
   PAGE_SIZE,
+  PUBLIC_STATUS_OPTIONS,
   SIZE_OPTIONS,
   SORT_OPTIONS,
   SPECIES_OPTIONS,
@@ -27,25 +24,18 @@ import {
   serializeSearchRouteParams,
 } from './animalsListQuery.js';
 
-const PAGE_COPY = {
-  animals: {
-    meta: '',
-    title: 'Списък с животни',
-    description:
-      'Разгледай наличните животни, филтрирай по вид, размер и статус и премини към подробната страница на всяко от тях.',
-    totalLabel: 'общо съвпадения',
-    pagesLabel: 'страници резултати',
-    resultsTitle: 'Налични животни',
-  },
-  search: {
-    meta: '',
-    title: 'Осинови животно',
-    description:
-      'Разгледайте животните, които търсят дом, и използвайте филтрите, за да откриете най-подходящия приятел за вашето семейство и начин на живот.',
-    totalLabel: 'намерени резултати',
-    pagesLabel: 'страници с резултати',
-    resultsTitle: 'Животни за осиновяване',
-  },
+const MANAGEMENT_PAGE_COPY = {
+  title: 'Списък с животни',
+  totalLabel: 'общо съвпадения',
+  pagesLabel: 'страници резултати',
+  resultsTitle: 'Налични животни',
+};
+
+const PUBLIC_ADOPTION_PAGE_COPY = {
+  title: 'Открий животно',
+  totalLabel: 'намерени резултати',
+  pagesLabel: 'страници с резултати',
+  resultsTitle: 'Животни в приюта',
 };
 
 function buildEmptyPagination(total = 0) {
@@ -59,26 +49,29 @@ function buildEmptyPagination(total = 0) {
   };
 }
 
-export function AnimalsListPage({ role, variant = 'animals' }) {
+export function AnimalsListPage({ role }) {
   const [searchParams, setSearchParams] = useSearchParams();
+  // URL parameters are the source of truth so filters survive refreshes
+  // and can be shared as a link.
   const activeFilters = useMemo(() => readFiltersFromParams(searchParams), [searchParams]);
   const hasManagementAccess = canManageAnimals(role);
-  const isSearchVariant = variant === 'search';
-  const usesAvailableOnly = isSearchVariant && !hasManagementAccess;
+  const isAdoptionView = !hasManagementAccess;
   const routeFilters = useMemo(
-    () => (usesAvailableOnly ? { ...activeFilters, status: '' } : activeFilters),
-    [activeFilters, usesAvailableOnly]
+    () =>
+      isAdoptionView &&
+      activeFilters.status &&
+      !PUBLIC_STATUS_OPTIONS.some((option) => option.value === activeFilters.status)
+        ? { ...activeFilters, status: '' }
+        : activeFilters,
+    [activeFilters, isAdoptionView]
   );
-  const effectiveFilters = useMemo(
-    () => (usesAvailableOnly ? { ...routeFilters, status: 'available' } : routeFilters),
-    [routeFilters, usesAvailableOnly]
-  );
+  const effectiveFilters = routeFilters;
   const normalizedRouteQuery = useMemo(
     () => serializeSearchRouteParams(routeFilters).toString(),
     [routeFilters]
   );
-  const copy = PAGE_COPY[variant] ?? PAGE_COPY.animals;
-  const showHeroAside = !isSearchVariant;
+  const copy = isAdoptionView ? PUBLIC_ADOPTION_PAGE_COPY : MANAGEMENT_PAGE_COPY;
+  const showHeroAside = hasManagementAccess;
   const [formValues, setFormValues] = useState(() => ({
     query: routeFilters.query,
     species: routeFilters.species,
@@ -121,6 +114,7 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
 
     async function loadAnimals() {
       try {
+        // Keep previous results visible during refetch to avoid UI flicker when filters change.
         setAnimalsState((currentValue) => ({
           ...currentValue,
           isLoading: true,
@@ -128,7 +122,7 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
         }));
 
         const params = serializeAnimalsParams(effectiveFilters);
-        const payload = await fetchApi(`/api/animals?${params.toString()}`);
+        const payload = await fetchApiResponse(`/api/animals?${params.toString()}`);
 
         if (!isMounted) {
           return;
@@ -165,7 +159,7 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
           isLoading: false,
           error:
             error.status === 503
-              ? 'Животните временно не могат да се заредят. Провери връзката към MongoDB.'
+              ? 'Животните временно не могат да се заредят. Опитай отново след малко.'
               : error.message,
         }));
       }
@@ -183,24 +177,26 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
     [routeFilters, animalsState.pagination, animalsState.total]
   );
 
-  const roleLabel = getRoleLabel(role);
-  const roleDescription = getRoleDescription(role);
-  const roleUiActions = getRoleUiActions(role);
   const hasAppliedFilters = Boolean(
     routeFilters.query || routeFilters.species || routeFilters.gender || routeFilters.size || routeFilters.status
   );
   const showInitialLoading = animalsState.isLoading && animalsState.items.length === 0;
   const showRefreshingState = animalsState.isLoading && animalsState.items.length > 0;
   const showEmptyState = !animalsState.isLoading && !animalsState.error && animalsState.items.length === 0;
-  const emptyStateTitle = isSearchVariant
+  const emptyStateTitle = isAdoptionView
     ? 'В момента няма животни, които да съвпадат напълно с избраните критерии.'
     : 'Няма намерени животни по тези критерии.';
-  const emptyStateDescription = isSearchVariant
-    ? 'Опитайте с по-широко търсене или изчистете част от филтрите, за да разгледате повече животни, които търсят дом.'
+  const emptyStateDescription = isAdoptionView
+    ? 'Опитай с по-широко търсене или изчисти част от филтрите, за да разгледаш повече животни в приюта.'
     : 'Опитай с по-широко търсене или изчисти част от филтрите, за да видиш повече налични записи.';
 
   function updateRouteFilters(nextFilters, navigateOptions = {}) {
-    const normalizedNextFilters = usesAvailableOnly ? { ...nextFilters, status: '' } : nextFilters;
+    const normalizedNextFilters =
+      isAdoptionView &&
+      nextFilters.status &&
+      !PUBLIC_STATUS_OPTIONS.some((option) => option.value === nextFilters.status)
+        ? { ...nextFilters, status: '' }
+        : nextFilters;
     setSearchParams(serializeSearchRouteParams(normalizedNextFilters), navigateOptions);
   }
 
@@ -222,7 +218,7 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
           species: formValues.species,
           gender: formValues.gender,
           size: formValues.size,
-          status: usesAvailableOnly ? '' : formValues.status,
+          status: formValues.status,
         },
         { resetPage: true }
       )
@@ -264,8 +260,8 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
   }
 
   return (
-    <main className={`route-shell animals-list-shell${isSearchVariant ? ' adoption-page-shell' : ''}`}>
-      <section className={`animals-list-hero${isSearchVariant ? ' adoption-page-hero' : ''}`}>
+    <main className={`route-shell animals-list-shell${isAdoptionView ? ' adoption-page-shell' : ''}`}>
+      <section className={`animals-list-hero${isAdoptionView ? ' adoption-page-hero' : ''}`}>
         <div>
           <h1>{copy.title}</h1>
         </div>
@@ -280,26 +276,11 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
               <strong>{Math.max(animalsState.pagination.totalPages, 1)}</strong>
               <span>{copy.pagesLabel}</span>
             </div>
-            <div className="animals-list-role-note">
-              <strong>{roleLabel} интерфейс</strong>
-              <span>{roleDescription}</span>
-              <div className="animals-list-role-actions">
-                {roleUiActions.map((action) => (
-                  <Link
-                    key={`${action.to}-${action.label}`}
-                    className={action.variant === 'primary' ? 'animals-primary-action' : 'animals-secondary-action'}
-                    to={action.to}
-                  >
-                    {action.label}
-                  </Link>
-                ))}
-              </div>
-            </div>
           </div>
         ) : null}
       </section>
 
-      {isSearchVariant ? (
+      {isAdoptionView ? (
         <section className="about adoption-reason-about">
           <div className="section-container about-content">
             <div className="about-layout">
@@ -307,16 +288,16 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
                 <h2>Нов дом, нов живот, нова надежда</h2>
                 <div className="about-copy">
                   <p>
-                    Осиновяването е шанс да дадете на едно животно не просто дом, а сигурност, грижа и истинско ново
+                    Осиновяването е шанс да дадеш на едно животно не просто дом, а сигурност, грижа и истинско ново
                     начало. Много от животните в приюта са преживели изоставяне, несигурност или липса на внимание, а
                     осиновяването им дава възможност отново да се почувстват обичани и защитени. То е добро не само за
                     самото животно, но и за човека, който получава верен приятел, доверие и силна емоционална връзка.
-                    Когато осиновите, вие променяте един живот завинаги и помагате на приюта да освободи място за друго
+                    Когато осиновиш, ти променяш един живот завинаги и помагаш на приюта да освободи място за друго
                     животно в нужда. Това е отговорен и съпричастен избор, който носи реална промяна.
                   </p>
                 </div>
-                <a className="about-page-contact-link adoption-reason-action" href="#adoption-filters">
-                  Осинови сега
+                <a className="page-contact-link" href="#adoption-filters">
+                  Разгледай животните
                 </a>
               </div>
 
@@ -332,10 +313,10 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
       ) : null}
 
       <section className="animals-toolbar-card" id="adoption-filters">
-        {isSearchVariant ? (
+        {isAdoptionView ? (
           <p className="animals-toolbar-intro">
-            Използвайте търсенето и филтрите, за да откриете животно, което най-добре отговаря на вашия дом, начин на
-            живот и възможности за грижа.
+            Използвай търсенето и филтрите, за да откриеш животно за осиновяване или да научиш повече за
+            животните под грижа и в защитен режим.
           </p>
         ) : null}
         <form className="animals-search-filters-form" onSubmit={handleFiltersSubmit}>
@@ -348,11 +329,11 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
               onChange={(event) => handleFieldChange('query', event.target.value)}
             />
             <button type="submit" disabled={animalsState.isLoading && !showInitialLoading}>
-              {isSearchVariant ? 'Приложи' : 'Търси'}
+              {isAdoptionView ? 'Приложи' : 'Търси'}
             </button>
           </div>
 
-          <div className={`animals-filters-form${usesAvailableOnly ? ' adoption-public-filters-form' : ''}`}>
+          <div className={`animals-filters-form${isAdoptionView ? ' adoption-public-filters-form' : ''}`}>
             <label>
               <span>Вид</span>
               <select
@@ -389,18 +370,16 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
               </select>
             </label>
 
-            {!usesAvailableOnly ? (
-              <label>
-                <span>Статус</span>
-                <select value={formValues.status} onChange={(event) => handleFieldChange('status', event.target.value)}>
-                  {STATUS_OPTIONS.map((option) => (
-                    <option key={option.value || 'all-statuses'} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
+            <label>
+              <span>Статус</span>
+              <select value={formValues.status} onChange={(event) => handleFieldChange('status', event.target.value)}>
+                {(isAdoptionView ? PUBLIC_STATUS_OPTIONS : STATUS_OPTIONS).map((option) => (
+                  <option key={option.value || 'all-statuses'} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
 
             <label className="animals-toolbar-sort">
               <span>Сортиране</span>
@@ -413,13 +392,13 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
               </select>
             </label>
 
-            <div className={`animals-filters-actions${isSearchVariant ? ' animals-filters-actions-single' : ''}`}>
-              {!isSearchVariant ? (
-                <button type="submit" className="animals-primary-action">
+            <div className={`animals-filters-actions${isAdoptionView ? ' animals-filters-actions-single' : ''}`}>
+              {!isAdoptionView ? (
+                <button type="submit" className="app-primary-action">
                   Приложи
                 </button>
               ) : null}
-              <button type="button" className="animals-secondary-action" onClick={handleClearFilters}>
+              <button type="button" className="app-secondary-action" onClick={handleClearFilters}>
                 Изчисти
               </button>
             </div>
@@ -445,11 +424,11 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
               <p>{animalsState.error}</p>
             </div>
             <div className="animals-feedback-actions">
-              <button type="button" className="animals-primary-action" onClick={handleRetryLoad}>
+              <button type="button" className="app-primary-action" onClick={handleRetryLoad}>
                 Опитай отново
               </button>
               {hasAppliedFilters ? (
-                <button type="button" className="animals-secondary-action" onClick={handleClearFilters}>
+                <button type="button" className="app-secondary-action" onClick={handleClearFilters}>
                   Изчисти филтрите
                 </button>
               ) : null}
@@ -473,12 +452,12 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
             </div>
             <div className="animals-feedback-actions">
               {hasAppliedFilters ? (
-                <button type="button" className="animals-primary-action" onClick={handleClearFilters}>
+                <button type="button" className="app-primary-action" onClick={handleClearFilters}>
                   Изчисти филтрите
                 </button>
               ) : null}
               {hasManagementAccess ? (
-                <Link className="animals-secondary-action" to="/animals/new">
+                <Link className="app-secondary-action" to="/animals/new">
                   Добави ново животно
                 </Link>
               ) : null}
@@ -486,40 +465,23 @@ export function AnimalsListPage({ role, variant = 'animals' }) {
           </div>
         ) : null}
 
-        {animalsState.items.length > 0 ? (
-          <>
-            <div className="animals-list-grid">
-              {animalsState.items.map((animal) => (
-                <AnimalCard key={animal.id} animal={animal} showManageLink={hasManagementAccess} />
-              ))}
-            </div>
-
-            <div className="animals-pagination">
-              <button
-                type="button"
-                className="animals-secondary-action"
-                disabled={animalsState.isLoading || !animalsState.pagination.hasPreviousPage}
-                onClick={() => handlePageChange(animalsState.pagination.page - 1)}
-              >
-                Предишна
-              </button>
-
-              <div className="animals-pagination-info">
-                <strong>Страница {animalsState.pagination.page}</strong>
-                <span>от {Math.max(animalsState.pagination.totalPages, 1)}</span>
-              </div>
-
-              <button
-                type="button"
-                className="animals-primary-action"
-                disabled={animalsState.isLoading || !animalsState.pagination.hasNextPage}
-                onClick={() => handlePageChange(animalsState.pagination.page + 1)}
-              >
-                Следваща
-              </button>
-            </div>
-          </>
+        {!animalsState.error && animalsState.items.length > 0 ? (
+          <div
+            id="animals-results-start"
+            className="animals-list-grid pagination-scroll-target"
+          >
+            {animalsState.items.map((animal) => (
+              <AnimalCard key={animal.id} animal={animal} showManageLink={hasManagementAccess} />
+            ))}
+          </div>
         ) : null}
+
+        <PaginationControls
+          pagination={animalsState.pagination}
+          isLoading={animalsState.isLoading}
+          onPageChange={handlePageChange}
+          scrollTargetId="animals-results-start"
+        />
       </section>
     </main>
   );

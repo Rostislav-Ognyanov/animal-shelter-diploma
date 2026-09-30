@@ -1,136 +1,94 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/AuthProvider.jsx';
+import { PaginationControls } from '../../components/common/PaginationControls.jsx';
+import { useDebouncedSearchFilter } from '../../hooks/useDebouncedSearchFilter.js';
+import { usePaginatedManagementList } from '../../hooks/usePaginatedManagementList.js';
 import {
-  buildEmptyPagination,
-  PaginationControls,
-} from '../../components/common/PaginationControls.jsx';
-import { fetchApi } from '../../lib/api.js';
+  buildManagementListSearchParams,
+  readManagementListSearchParams,
+} from '../../lib/searchParams.js';
 import {
   buildDonationListQuery,
+  DONATION_STATUS_FILTER_OPTIONS,
   formatDonationAmount,
   formatDonationDate,
   getDonationDisplayName,
   getDonationManagementPath,
+  getDonationStatusLabel,
+  isDonationTerminalStatus,
 } from './donationUi.js';
 
 const DONATIONS_PAGE_SIZE = 20;
 
-function normalizePageParam(value) {
-  const numericPage = Number(value ?? 1);
-  return Number.isInteger(numericPage) && numericPage > 0 ? numericPage : 1;
-}
-
-function normalizeSearchParams(searchParams) {
-  return {
-    search: searchParams.get('search') || '',
-    page: normalizePageParam(searchParams.get('page')),
-  };
-}
-
 export function DonationsManagementPage() {
   const { role } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [reloadToken, setReloadToken] = useState(0);
-  const [pageState, setPageState] = useState({
-    items: [],
-    total: 0,
-    pagination: buildEmptyPagination(DONATIONS_PAGE_SIZE),
-    isLoading: true,
-    error: '',
-  });
 
-  const filters = useMemo(() => normalizeSearchParams(searchParams), [searchParams]);
+  const filters = useMemo(
+    () => readManagementListSearchParams(searchParams, { includeStatus: true }),
+    [searchParams]
+  );
   const managementPath = useMemo(() => getDonationManagementPath(role), [role]);
-  const secondaryPath = role === 'admin' ? '/admin/reports' : '/search';
-  const secondaryLabel = role === 'admin' ? 'Отчети' : 'Към животните';
+  const dashboardPath = role === 'admin' ? '/admin' : '/staff';
 
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadDonations() {
-      try {
-        setPageState((currentValue) => ({ ...currentValue, isLoading: true, error: '' }));
-        const payload = await fetchApi(
-          `/api/donations${buildDonationListQuery(filters.search, filters.page, DONATIONS_PAGE_SIZE)}`
-        );
-
-        if (!isMounted) {
-          return;
-        }
-
-        const pagination = payload.meta?.pagination ?? buildEmptyPagination(DONATIONS_PAGE_SIZE);
-
-        setPageState({
-          items: payload.data?.items ?? [],
-          total: payload.data?.total ?? 0,
-          pagination,
-          isLoading: false,
-          error: '',
-        });
-        const syncedPage = Number(pagination.page ?? filters.page);
-
-        if (Number.isInteger(syncedPage) && syncedPage > 0 && syncedPage !== filters.page) {
-          updatePageParam(syncedPage);
-        }
-      } catch (error) {
-        if (!isMounted) {
-          return;
-        }
-
-        setPageState({
-          items: [],
-          total: 0,
-          pagination: buildEmptyPagination(DONATIONS_PAGE_SIZE),
-          isLoading: false,
-          error: error.message,
-        });
-      }
-    }
-
-    loadDonations();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [filters.search, filters.page, reloadToken]);
-
-  function updateSearch(value) {
-    const nextParams = new URLSearchParams();
-
-    if (value.trim()) {
-      nextParams.set('search', value.trim());
-    }
-
-    setSearchParams(nextParams, { replace: true });
-  }
-
-  function updatePageParam(nextPage) {
-    const nextParams = new URLSearchParams();
-
-    if (filters.search.trim()) {
-      nextParams.set('search', filters.search.trim());
-    }
-
-    if (nextPage > 1) {
-      nextParams.set('page', String(nextPage));
-    }
-
-    setSearchParams(nextParams, { replace: true });
-  }
+  const updateFilters = useCallback(
+    (nextValues) => {
+      setSearchParams(
+        buildManagementListSearchParams(filters, nextValues, { includeStatus: true }),
+        { replace: true }
+      );
+    },
+    [filters, setSearchParams]
+  );
+  const commitSearchFilter = useCallback(
+    (value) => updateFilters({ search: value }),
+    [updateFilters]
+  );
+  const [searchDraft, setSearchDraft] = useDebouncedSearchFilter(
+    filters.search,
+    commitSearchFilter
+  );
+  const handlePageSync = useCallback((page) => updateFilters({ page }), [updateFilters]);
+  const buildQuery = useCallback(
+    (currentFilters) =>
+      `/api/donations${buildDonationListQuery(
+        currentFilters.search,
+        currentFilters.page,
+        DONATIONS_PAGE_SIZE,
+        currentFilters.status
+      )}`,
+    []
+  );
+  const { pageState, reload } = usePaginatedManagementList({
+    buildQuery,
+    defaultLimit: DONATIONS_PAGE_SIZE,
+    filters,
+    onPageSync: handlePageSync,
+  });
+  const hasActiveFilters = Boolean(filters.status || filters.search);
 
   function handlePageChange(nextPage) {
     if (nextPage < 1 || nextPage === filters.page) {
       return;
     }
 
-    updatePageParam(nextPage);
+    updateFilters({ page: nextPage });
+  }
+
+  function handleClearFilters() {
+    setSearchDraft('');
+    updateFilters({
+      status: '',
+      search: '',
+      page: 1,
+    });
   }
 
   return (
     <main className="route-shell donations-shell">
-      <section className="donations-hero donations-hero-staff">
+      <section className="donations-hero">
         <div>
                     <h1>Дарения</h1>
           <p>Преглед на даренията.</p>
@@ -139,26 +97,56 @@ export function DonationsManagementPage() {
         <div className="donations-filters-card">
           <label>
             <span>Търсене</span>
-            <input
-              type="search"
-              value={filters.search}
+              <input
+                type="search"
+              value={searchDraft}
               placeholder="Име, имейл, телефон или съобщение"
-              onChange={(event) => updateSearch(event.target.value)}
+              onChange={(event) => setSearchDraft(event.target.value)}
             />
           </label>
+          <label>
+            <span>Статус</span>
+            <select
+              value={filters.status}
+              onChange={(event) => updateFilters({ status: event.target.value })}
+            >
+              {DONATION_STATUS_FILTER_OPTIONS.map((option) => (
+                <option key={option.value || 'all'} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {hasActiveFilters ? (
+            <button type="button" className="app-secondary-action" onClick={handleClearFilters}>
+              Изчисти
+            </button>
+          ) : null}
         </div>
       </section>
 
       <div className="route-actions">
-        <Link className="animals-secondary-action" to="/donations">
-          Към страницата за дарения
-        </Link>
-        <Link className="animals-primary-action" to={secondaryPath}>
-          {secondaryLabel}
+        <Link className="app-secondary-action" to={dashboardPath}>
+          Към таблото
         </Link>
       </div>
 
       <section className="donations-card">
+        {!pageState.isLoading && !pageState.error ? (
+          <div className="donations-list-heading">
+            <div>
+              <p className="route-meta">{hasActiveFilters ? 'Резултати' : 'Общ списък'}</p>
+              <h2>{hasActiveFilters ? 'Намерени дарения' : 'Всички дарения'}</h2>
+            </div>
+            <strong>
+              {hasActiveFilters
+                ? `Намерени: ${pageState.total} дарения`
+                : `Общо дарения: ${pageState.total}`}
+            </strong>
+          </div>
+        ) : null}
+
         {pageState.isLoading ? (
           <div className="adoptions-empty-state">
             <h2>Зареждане на даренията</h2>
@@ -172,8 +160,8 @@ export function DonationsManagementPage() {
             <p>{pageState.error}</p>
             <button
               type="button"
-              className="animals-primary-action"
-              onClick={() => setReloadToken((currentValue) => currentValue + 1)}
+              className="app-primary-action"
+              onClick={reload}
             >
               Опитай отново
             </button>
@@ -182,17 +170,41 @@ export function DonationsManagementPage() {
 
         {!pageState.isLoading && !pageState.error && pageState.items.length === 0 ? (
           <div className="adoptions-empty-state">
-            <h2>Няма записани дарения</h2>
-            <p>Когато има нови дарения, ще се покажат тук.</p>
+            <h2>{hasActiveFilters ? 'Няма дарения по избраните критерии' : 'Няма записани дарения'}</h2>
+            <p>
+              {hasActiveFilters
+                ? 'Промени или изчисти филтрите.'
+                : 'Когато има нови дарения, ще се покажат тук.'}
+            </p>
+            {hasActiveFilters ? (
+              <button type="button" className="app-secondary-action" onClick={handleClearFilters}>
+                Изчисти
+              </button>
+            ) : null}
           </div>
         ) : null}
 
         {!pageState.isLoading && !pageState.error && pageState.items.length > 0 ? (
-          <div className="donations-table">
+          <div
+            id="donations-results-start"
+            className="donations-table pagination-scroll-target"
+          >
             {pageState.items.map((donation) => (
-              <article key={donation.id} className="donations-table-row">
+              <article
+                key={donation.id}
+                className={`donations-table-row${
+                  isDonationTerminalStatus(donation.status)
+                    ? ' workflow-list-item--terminal'
+                    : ''
+                }`}
+              >
                 <div>
-                  <span className="donation-amount-pill">{formatDonationAmount(donation.amount)}</span>
+                  <div className="donation-row-badges">
+                    <span className="donation-amount-pill">{formatDonationAmount(donation.amount)}</span>
+                    <span className={`donation-status is-${donation.status}`}>
+                      {getDonationStatusLabel(donation.status)}
+                    </span>
+                  </div>
                   <h2>{getDonationDisplayName(donation)}</h2>
                   <p>{donation.email}{donation.phone ? ` • ${donation.phone}` : ''}</p>
                 </div>
@@ -208,7 +220,7 @@ export function DonationsManagementPage() {
                 </div>
 
                 <div className="adoptions-row-actions donations-row-actions">
-                  <Link className="animals-secondary-action" to={`${managementPath}/${donation.id}`}>
+                  <Link className="app-secondary-action" to={`${managementPath}/${donation.id}`}>
                     Детайли
                   </Link>
                 </div>
@@ -217,13 +229,12 @@ export function DonationsManagementPage() {
           </div>
         ) : null}
 
-        {!pageState.isLoading && !pageState.error && pageState.items.length > 0 ? (
-          <PaginationControls
-            pagination={pageState.pagination}
-            isLoading={pageState.isLoading}
-            onPageChange={handlePageChange}
-          />
-        ) : null}
+        <PaginationControls
+          pagination={pageState.pagination}
+          isLoading={pageState.isLoading}
+          onPageChange={handlePageChange}
+          scrollTargetId="donations-results-start"
+        />
       </section>
     </main>
   );

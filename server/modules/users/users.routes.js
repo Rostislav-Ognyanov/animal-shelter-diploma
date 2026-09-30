@@ -25,7 +25,7 @@ router.patch(
 router.get('/', permissionMiddleware('users', 'list'), getUsers);
 router.post('/employees', permissionMiddleware('users', 'create-employee'), createEmployeeEntry);
 router.get('/:userId', permissionMiddleware('users', 'detail'), getUserDetails);
-router.patch('/:userId', permissionMiddleware('users', 'manage-roles'), updateUserEntry);
+router.patch('/:userId', permissionMiddleware('users', 'manage-users'), updateUserEntry);
 router.patch(
   '/:userId/status',
   permissionMiddleware('users', 'manage-sensitive-access'),

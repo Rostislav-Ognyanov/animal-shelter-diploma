@@ -12,6 +12,7 @@ import donationsRoutes from './modules/donations/donations.routes.js';
 import favoritesRoutes from './modules/favorites/favorites.routes.js';
 import homeRoutes from './modules/home/home.routes.js';
 import legalContentRoutes from './modules/legal-content/legalContent.routes.js';
+import notificationsRoutes from './modules/notifications/notifications.routes.js';
 import pageContentRoutes from './modules/page-content/pageContent.routes.js';
 import reportsRoutes from './modules/reports/reports.routes.js';
 import rescueReportsRoutes from './modules/rescue-reports/rescueReports.routes.js';
@@ -31,13 +32,14 @@ const clientDistPath = path.join(projectRoot, 'client', 'dist');
 const clientIndexPath = path.join(clientDistPath, 'index.html');
 
 app.disable('x-powered-by');
-app.use(express.json({ limit: '8mb' }));
-app.use(express.urlencoded({ extended: true, limit: '8mb' }));
+app.use(express.json({ limit: '12mb' }));
+app.use(express.urlencoded({ extended: true, limit: '12mb' }));
 app.use(attachCurrentUser);
 
 app.use('/api/home', homeRoutes);
 app.use('/api/page-content', pageContentRoutes);
 app.use('/api/legal-content', legalContentRoutes);
+app.use('/api/notifications', notificationsRoutes);
 app.use('/api/site-settings', siteSettingsRoutes);
 app.use('/api/species-content', speciesContentRoutes);
 app.use('/api/rescue-stories', rescueStoriesRoutes);
@@ -110,14 +112,22 @@ app.get(/^(?!\/api).*/, (req, res) => {
 });
 
 app.use((error, req, res, next) => {
-  if ((error.status || 500) >= 500) {
+  const status = Number(error.status) || 500;
+
+  if (status >= 500) {
     console.error(error);
+
+    return sendError(res, {
+      status,
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'Възникна неочаквана грешка в сървъра.',
+    });
   }
 
   return sendError(res, {
-    status: error.status || 500,
+    status,
     code: error.code,
-    message: error.message || 'Възникна неочаквана грешка в сървъра.',
+    message: error.message,
     details: error.details,
   });
 });

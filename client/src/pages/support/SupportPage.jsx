@@ -1,8 +1,8 @@
 import { Fragment } from 'react';
 
+import { PageErrorState, PageLoadingState } from '../../components/common/PageStatusStates.jsx';
 import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
 import { PageContentLink } from '../page-content/PageContentLink.jsx';
-import { DEFAULT_PAGE_CONTENT } from '../page-content/pageContentDefaults.js';
 import {
   buildHeroBackgroundStyle,
   getVisibleContentItems,
@@ -23,7 +23,7 @@ function SplitInfoBlock({ block }) {
       {paragraphs.map((paragraph) => (
         <p key={paragraph}>{paragraph}</p>
       ))}
-      <PageContentLink className="about-page-contact-link" to={block.ctaTo}>
+      <PageContentLink className="page-contact-link" to={block.ctaTo}>
         {block.ctaLabel}
       </PageContentLink>
     </article>
@@ -42,9 +42,17 @@ function SplitInfoBlock({ block }) {
 }
 
 export function SupportPage() {
-  const { content } = usePageContent('support', DEFAULT_PAGE_CONTENT.support);
+  const { content, error, isLoading, reload } = usePageContent('support');
   const infoBlocks = getVisibleContentItems(content.infoBlocks ?? []);
   const actionCards = getVisibleContentItems(content.actionCards ?? []);
+
+  if (isLoading) {
+    return <PageLoadingState className="support-page-shell" />;
+  }
+
+  if (error) {
+    return <PageErrorState className="support-page-shell" message={error} onRetry={reload} />;
+  }
 
   return (
     <main className="route-shell support-page-shell">
@@ -54,7 +62,7 @@ export function SupportPage() {
         </div>
       </section>
 
-      <section className="support-page-story-block about-page-story-block">
+      <section className="about-page-story-block">
         {infoBlocks.map((block, index) => (
           <Fragment key={block.id ?? block.title}>
             {index > 0 ? <div className="about-page-story-divider" aria-hidden="true" /> : null}
@@ -71,7 +79,7 @@ export function SupportPage() {
               <article className="about-page-split-copy support-page-action-copy">
                 <h2>{option.title}</h2>
                 <p>{option.description}</p>
-                <PageContentLink className="about-page-contact-link" to={option.ctaTo}>
+                <PageContentLink className="page-contact-link" to={option.ctaTo}>
                   {option.ctaLabel}
                 </PageContentLink>
               </article>

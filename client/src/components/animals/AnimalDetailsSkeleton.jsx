@@ -1,8 +1,12 @@
 export function AnimalDetailsSkeleton() {
   return (
     <main className="route-shell animal-details-shell" aria-live="polite" aria-busy="true">
+      <p className="sr-only" role="status">
+        Зареждане на информацията за животното...
+      </p>
+
       <div className="animal-details-back-link-row">
-        <span className="animals-secondary-action animals-skeleton-button" />
+        <span className="app-secondary-action animals-skeleton-button" />
       </div>
 
       <section className="animal-details-hero animal-details-skeleton">
@@ -30,7 +34,7 @@ export function AnimalDetailsSkeleton() {
           <div className="animal-details-cta-card animal-details-cta-card-skeleton">
             <div className="animal-skeleton-line animal-skeleton-line-title" />
             <div className="animal-skeleton-line animal-skeleton-line-body" />
-            <span className="animals-primary-action animals-skeleton-button animals-skeleton-button-wide" />
+            <span className="app-primary-action animals-skeleton-button animals-skeleton-button-wide" />
           </div>
         </div>
       </section>
@@ -45,7 +49,7 @@ export function AnimalDetailsSkeleton() {
               <div className="animal-skeleton-line animal-skeleton-line-title" />
               <div className="animal-skeleton-line animal-skeleton-line-body" />
             </div>
-            <div className="animal-details-info-list animal-details-info-list-skeleton">
+            <div className="animal-details-info-list">
               {Array.from({ length: 4 }, (_, infoIndex) => (
                 <div key={`animal-details-info-skeleton-${index + 1}-${infoIndex + 1}`}>
                   <div className="animal-skeleton-line animal-skeleton-line-meta" />

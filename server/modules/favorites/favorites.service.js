@@ -1,38 +1,16 @@
+import mongoose from 'mongoose';
+
 import Favorite from '../../models/Favorite.js';
 import { createHttpError } from '../../utils/httpError.js';
-import { getAnimalById } from '../animals/animals.service.js';
-import { getAllowedFavoriteActions, hasPermission } from '../shared/rolePolicies.js';
+import { normalizeDateOutput } from '../../utils/serialization.js';
+import {
+  getAnimalReferenceById,
+  getAnimalReferencesByIds,
+} from '../animals/animals.service.js';
+import { hasPermission } from '../shared/rolePolicies.js';
 
 function normalizeText(value) {
   return String(value ?? '').trim();
-}
-
-function normalizeDateOutput(value) {
-  if (!value) {
-    return null;
-  }
-
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-
-  return value;
-}
-
-function serializeFavoriteId(favorite) {
-  if (!favorite) {
-    return '';
-  }
-
-  if (favorite.id) {
-    return String(favorite.id);
-  }
-
-  if (favorite._id) {
-    return String(favorite._id);
-  }
-
-  return '';
 }
 
 function assertFavoritePermission(currentUser, action) {
@@ -55,109 +33,135 @@ function assertAnimalId(animalId) {
   return normalizedAnimalId;
 }
 
+function normalizeObjectId(value, fieldName) {
+  const normalizedValue = normalizeText(value);
+
+  if (!mongoose.isValidObjectId(normalizedValue)) {
+    throw createHttpError(400, `Полето "${fieldName}" съдържа невалиден идентификатор.`);
+  }
+
+  return normalizedValue;
+}
+
 function serializeFavoriteAnimalItem(favorite, animal) {
   return {
+    favoriteId: String(favorite._id ?? favorite.id),
     ...animal,
-    favoriteId: serializeFavoriteId(favorite),
     favoritedAt: normalizeDateOutput(favorite.createdAt),
-    favorite: {
-      id: serializeFavoriteId(favorite),
-      animalId: animal.id,
-      createdAt: normalizeDateOutput(favorite.createdAt),
-    },
   };
 }
 
 async function listFavoriteRecordsByUserId(userId) {
-  return Favorite.find({ userId: normalizeText(userId) }).sort({ createdAt: -1 }).lean();
+  return Favorite.find({ userId: normalizeObjectId(userId, 'userId') })
+    .sort({ createdAt: -1, _id: -1 })
+    .lean();
 }
 
 async function findFavoriteRecordByUserAndAnimalId(userId, animalId) {
   return Favorite.findOne({
-    userId: normalizeText(userId),
-    animalId: normalizeText(animalId),
+    userId: normalizeObjectId(userId, 'userId'),
+    animalId: normalizeObjectId(animalId, 'animalId'),
   }).lean();
 }
 
 async function createFavoriteRecord(userId, animalId) {
   const createdFavorite = await Favorite.create({
-    userId: normalizeText(userId),
-    animalId: normalizeText(animalId),
+    userId: normalizeObjectId(userId, 'userId'),
+    animalId: normalizeObjectId(animalId, 'animalId'),
   });
 
   return createdFavorite.toObject();
 }
 
-async function deleteFavoriteRecord(userId, animalId) {
+async function findFavoriteRecordById(userId, favoriteId) {
+  return Favorite.findOne({
+    _id: normalizeObjectId(favoriteId, 'favoriteId'),
+    userId: normalizeObjectId(userId, 'userId'),
+  }).lean();
+}
+
+async function deleteFavoriteRecordById(userId, favoriteId) {
   await Favorite.deleteOne({
-    userId: normalizeText(userId),
-    animalId: normalizeText(animalId),
+    _id: normalizeObjectId(favoriteId, 'favoriteId'),
+    userId: normalizeObjectId(userId, 'userId'),
   });
 }
 
-async function resolveFavoriteAnimal(animalId) {
+async function resolveFavoriteAnimal(animalId, currentUser) {
   const normalizedAnimalId = assertAnimalId(animalId);
-  const animal = await getAnimalById(normalizedAnimalId);
+  const animalReference = await getAnimalReferenceById(
+    normalizedAnimalId,
+    currentUser,
+    {
+      restrictToPublicAnimal: true,
+    }
+  );
 
-  if (!animal) {
+  if (!animalReference) {
     throw createHttpError(404, 'Животното не беше намерено.');
   }
 
-  return animal;
-}
-
-export function getFavoritesModulePolicy(roleCandidate) {
-  return {
-    resource: 'favorites',
-    allowedActions: getAllowedFavoriteActions(roleCandidate),
-  };
+  return animalReference;
 }
 
 export async function getOwnFavoriteAnimals(currentUser) {
   assertFavoritePermission(currentUser, 'list-own');
   const favoriteRecords = await listFavoriteRecordsByUserId(currentUser.id);
-  const favoriteAnimals = [];
-
-  for (const favoriteRecord of favoriteRecords) {
-    const animal = await getAnimalById(favoriteRecord.animalId);
-
-    if (!animal) {
-      continue;
+  const animalReferences = await getAnimalReferencesByIds(
+    favoriteRecords.map((favoriteRecord) => favoriteRecord.animalId),
+    currentUser,
+    {
+      restrictToPublicAnimal: true,
+      publicVisibility: 'detail',
     }
+  );
+  const animalItemsByDatabaseId = new Map(
+    animalReferences.map((animalReference) => [animalReference.databaseId, animalReference.item])
+  );
 
-    favoriteAnimals.push(serializeFavoriteAnimalItem(favoriteRecord, animal));
-  }
-
-  return favoriteAnimals;
+  return favoriteRecords
+    .map((favoriteRecord) => {
+      const animal = animalItemsByDatabaseId.get(String(favoriteRecord.animalId));
+      return animal && animal.status !== 'adopted'
+        ? serializeFavoriteAnimalItem(favoriteRecord, animal)
+        : null;
+    })
+    .filter(Boolean);
 }
 
 export async function addOwnFavoriteAnimal(animalId, currentUser) {
   assertFavoritePermission(currentUser, 'create-own');
-  const animal = await resolveFavoriteAnimal(animalId);
-  const existingFavorite = await findFavoriteRecordByUserAndAnimalId(currentUser.id, animal.id);
+  const animalReference = await resolveFavoriteAnimal(animalId, currentUser);
+  const existingFavorite = await findFavoriteRecordByUserAndAnimalId(
+    currentUser.id,
+    animalReference.databaseId
+  );
 
   if (existingFavorite) {
     return {
       created: false,
-      item: serializeFavoriteAnimalItem(existingFavorite, animal),
+      item: serializeFavoriteAnimalItem(existingFavorite, animalReference.item),
     };
   }
 
   try {
-    const createdFavorite = await createFavoriteRecord(currentUser.id, animal.id);
+    const createdFavorite = await createFavoriteRecord(currentUser.id, animalReference.databaseId);
 
     return {
       created: true,
-      item: serializeFavoriteAnimalItem(createdFavorite, animal),
+      item: serializeFavoriteAnimalItem(createdFavorite, animalReference.item),
     };
   } catch (error) {
     if (error?.code === 11000) {
-      const duplicateFavorite = await findFavoriteRecordByUserAndAnimalId(currentUser.id, animal.id);
+      const duplicateFavorite = await findFavoriteRecordByUserAndAnimalId(
+        currentUser.id,
+        animalReference.databaseId
+      );
 
       if (duplicateFavorite) {
         return {
           created: false,
-          item: serializeFavoriteAnimalItem(duplicateFavorite, animal),
+          item: serializeFavoriteAnimalItem(duplicateFavorite, animalReference.item),
         };
       }
     }
@@ -166,24 +170,23 @@ export async function addOwnFavoriteAnimal(animalId, currentUser) {
   }
 }
 
-export async function removeOwnFavoriteAnimal(animalId, currentUser) {
+export async function removeOwnFavoriteAnimal(favoriteId, currentUser) {
   assertFavoritePermission(currentUser, 'remove-own');
-  const requestedAnimalId = assertAnimalId(animalId);
-  const existingAnimal = await getAnimalById(requestedAnimalId);
-  const canonicalAnimalId = existingAnimal?.id ?? requestedAnimalId;
-  const existingFavorite = await findFavoriteRecordByUserAndAnimalId(currentUser.id, canonicalAnimalId);
+  const normalizedFavoriteId = normalizeObjectId(favoriteId, 'favoriteId');
+  const existingFavorite = await findFavoriteRecordById(currentUser.id, normalizedFavoriteId);
 
   if (!existingFavorite) {
     return {
       removed: false,
-      animalId: canonicalAnimalId,
+      favoriteId: normalizedFavoriteId,
     };
   }
 
-  await deleteFavoriteRecord(currentUser.id, canonicalAnimalId);
+  await deleteFavoriteRecordById(currentUser.id, normalizedFavoriteId);
 
   return {
     removed: true,
-    animalId: canonicalAnimalId,
+    favoriteId: normalizedFavoriteId,
+    animalId: String(existingFavorite.animalId),
   };
 }

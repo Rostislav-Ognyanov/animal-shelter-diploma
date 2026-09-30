@@ -14,6 +14,10 @@ function parsePositiveInteger(value, fieldName, defaultValue) {
   return numericValue;
 }
 
+/**
+ * Normalizes pagination values from the query string.
+ * Invalid values throw an HTTP 400 error, while limit is capped at the configured maximum.
+ */
 export function normalizePaginationOptions(filters = {}, options = {}) {
   const defaultLimit = options.defaultLimit ?? 10;
   const maxLimit = options.maxLimit ?? defaultLimit;

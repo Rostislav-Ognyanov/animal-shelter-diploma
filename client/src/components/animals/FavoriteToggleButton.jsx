@@ -1,4 +1,4 @@
-﻿import { useAuth } from '../../auth/AuthProvider.jsx';
+import { useAuth } from '../../auth/AuthProvider.jsx';
 import { useFavorites } from '../../favorites/FavoritesProvider.jsx';
 
 function joinClassNames(...classNames) {
@@ -7,7 +7,7 @@ function joinClassNames(...classNames) {
 
 export function FavoriteToggleButton({ animal, variant = 'card', className = '', onFeedback }) {
   const { role } = useAuth();
-  const { addFavorite, isFavorite, isLoading, isPending, removeFavorite } = useFavorites();
+  const { addFavorite, getFavoriteId, isFavorite, isLoading, isPending, removeFavorite } = useFavorites();
 
   if (role !== 'client') {
     return null;
@@ -20,14 +20,23 @@ export function FavoriteToggleButton({ animal, variant = 'card', className = '',
   }
 
   const isAnimalFavorite = isFavorite(animalId);
-  const isBusy = isPending(animalId) || isLoading;
+  const favoriteId = String(animal?.favoriteId ?? getFavoriteId(animalId) ?? '').trim();
+  const canCreateFavorite = animal?.status === 'available';
+
+  if (!canCreateFavorite && !isAnimalFavorite) {
+    return null;
+  }
+
+  const isBusy = isPending(animalId) || isPending(favoriteId) || isLoading;
   const isDetailVariant = variant === 'detail';
   const actionLabel = isAnimalFavorite ? 'Премахни от любими' : 'Добави в любими';
   const accessibleLabel = isBusy ? 'Изчакване...' : actionLabel;
 
   async function handleClick() {
     try {
-      const result = isAnimalFavorite ? await removeFavorite(animalId) : await addFavorite(animal);
+      const result = isAnimalFavorite
+        ? await removeFavorite(animalId, favoriteId)
+        : await addFavorite(animalId);
 
       if (result?.message && typeof onFeedback === 'function') {
         onFeedback({

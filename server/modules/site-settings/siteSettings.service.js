@@ -1,81 +1,71 @@
 import SiteSettings from '../../models/SiteSettings.js';
+import {
+  SITE_SETTINGS_DEFAULTS,
+  SITE_SETTINGS_KEY,
+} from '../../../shared/domain/siteSettingsConstants.js';
+import { normalizeImageUrl } from '../../utils/contentUrls.js';
 import { createHttpError } from '../../utils/httpError.js';
 import { hasPermission } from '../shared/rolePolicies.js';
+import {
+  assertSiteSettingsPatch,
+  createDefaultSiteSettingsFields,
+  mergeSiteSettingsFields,
+  normalizeSiteSettingsFields,
+} from './siteSettings.normalizers.js';
 
-const SITE_SETTINGS_KEY = 'main';
-
-export const DEFAULT_SITE_SETTINGS = {
-  key: SITE_SETTINGS_KEY,
-  siteName: 'Animal Shelter',
-  logoUrl: 'images/logo.jpg',
-  copyright: '© 2026 Animal Shelter',
-  footerSecondary: 'Всички права запазени.',
-  phone: '+359 888 123 456',
-  email: 'contact@animal-shelter.bg',
-  address: 'гр. София, ул. Зелена грижа 12',
-  workingHours: 'Понеделник - събота, 09:00 - 18:00',
-  socialLinks: [],
-  publicBanner: {
-    isVisible: false,
-    text: '',
-  },
-};
-
-function normalizeText(value) {
-  return String(value ?? '').trim();
-}
-
-function normalizeSocialLinks(value) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value
-    .map((link) => ({
-      label: normalizeText(link?.label),
-      url: normalizeText(link?.url),
-    }))
-    .filter((link) => link.label && link.url);
-}
-
-function normalizePublicBanner(value = {}) {
-  return {
-    isVisible: Boolean(value?.isVisible),
-    text: normalizeText(value?.text),
-  };
-}
-
-function serializeSiteSettings(settings) {
+function serializeSiteSettings(settings, { includeManagement = false } = {}) {
   if (!settings) {
-    return {
-      ...DEFAULT_SITE_SETTINGS,
+    const defaultSettings = {
       id: null,
-      createdAt: null,
-      updatedAt: null,
-      updatedBy: null,
+      ...createDefaultSiteSettingsFields(),
     };
+
+    if (includeManagement) {
+      return {
+        ...defaultSettings,
+        createdAt: null,
+        updatedAt: null,
+        updatedBy: null,
+      };
+    }
+
+    const { id, ...publicDefaultSettings } = defaultSettings;
+    return publicDefaultSettings;
   }
 
-  return {
+  const serializedSettings = {
     id: String(settings._id),
     key: settings.key,
-    siteName: settings.siteName || DEFAULT_SITE_SETTINGS.siteName,
-    logoUrl: settings.logoUrl || DEFAULT_SITE_SETTINGS.logoUrl,
-    copyright: settings.copyright || `© 2026 ${settings.siteName || DEFAULT_SITE_SETTINGS.siteName}`,
-    footerSecondary: settings.footerSecondary || DEFAULT_SITE_SETTINGS.footerSecondary,
-    phone: settings.phone ?? DEFAULT_SITE_SETTINGS.phone,
-    email: settings.email ?? DEFAULT_SITE_SETTINGS.email,
-    address: settings.address ?? DEFAULT_SITE_SETTINGS.address,
-    workingHours: settings.workingHours ?? DEFAULT_SITE_SETTINGS.workingHours,
-    socialLinks: settings.socialLinks ?? [],
+    siteName: settings.siteName || SITE_SETTINGS_DEFAULTS.siteName,
+    logoUrl:
+      normalizeImageUrl(settings.logoUrl, {
+        fieldName: 'Пътят до логото',
+        strict: false,
+      }) || SITE_SETTINGS_DEFAULTS.logoUrl,
+    copyright: settings.copyright || `© 2026 ${settings.siteName || SITE_SETTINGS_DEFAULTS.siteName}`,
+    footerSecondary: settings.footerSecondary || SITE_SETTINGS_DEFAULTS.footerSecondary,
+    phone: settings.phone ?? SITE_SETTINGS_DEFAULTS.phone,
+    email: settings.email ?? SITE_SETTINGS_DEFAULTS.email,
+    address: settings.address ?? SITE_SETTINGS_DEFAULTS.address,
+    workingHours: settings.workingHours ?? SITE_SETTINGS_DEFAULTS.workingHours,
+    socialLinks: Array.isArray(settings.socialLinks)
+      ? settings.socialLinks.map((link) => ({ label: link.label, url: link.url }))
+      : [],
     publicBanner: {
-      ...DEFAULT_SITE_SETTINGS.publicBanner,
+      ...SITE_SETTINGS_DEFAULTS.publicBanner,
       ...(settings.publicBanner ?? {}),
     },
     createdAt: settings.createdAt,
     updatedAt: settings.updatedAt,
     updatedBy: settings.updatedBy ? String(settings.updatedBy) : null,
   };
+
+  if (includeManagement) {
+    return serializedSettings;
+  }
+
+  const { id, key, createdAt, updatedAt, updatedBy, ...publicSettings } = serializedSettings;
+  return publicSettings;
 }
 
 function assertPermission(currentUser, action) {
@@ -88,23 +78,6 @@ function assertPermission(currentUser, action) {
   }
 }
 
-function normalizeSettingsPayload(payload = {}) {
-  const siteName = normalizeText(payload.siteName) || DEFAULT_SITE_SETTINGS.siteName;
-
-  return {
-    siteName,
-    logoUrl: normalizeText(payload.logoUrl) || DEFAULT_SITE_SETTINGS.logoUrl,
-    copyright: normalizeText(payload.copyright) || `© 2026 ${siteName}`,
-    footerSecondary: normalizeText(payload.footerSecondary) || DEFAULT_SITE_SETTINGS.footerSecondary,
-    phone: normalizeText(payload.phone),
-    email: normalizeText(payload.email),
-    address: normalizeText(payload.address),
-    workingHours: normalizeText(payload.workingHours),
-    socialLinks: normalizeSocialLinks(payload.socialLinks),
-    publicBanner: normalizePublicBanner(payload.publicBanner),
-  };
-}
-
 export async function getSiteSettings() {
   const settings = await SiteSettings.findOne({ key: SITE_SETTINGS_KEY }).lean();
   return serializeSiteSettings(settings);
@@ -112,8 +85,11 @@ export async function getSiteSettings() {
 
 export async function updateSiteSettings(payload, currentUser) {
   assertPermission(currentUser, 'manage-settings');
+  assertSiteSettingsPatch(payload);
 
-  const settingsPayload = normalizeSettingsPayload(payload);
+  const currentSettings = await SiteSettings.findOne({ key: SITE_SETTINGS_KEY }).lean();
+  const mergedSettings = mergeSiteSettingsFields(currentSettings, payload);
+  const settingsPayload = normalizeSiteSettingsFields(mergedSettings);
   const settings = await SiteSettings.findOneAndUpdate(
     { key: SITE_SETTINGS_KEY },
     {
@@ -123,12 +99,12 @@ export async function updateSiteSettings(payload, currentUser) {
       },
     },
     {
-      new: true,
+      returnDocument: 'after',
       runValidators: true,
       setDefaultsOnInsert: true,
       upsert: true,
     }
   ).lean();
 
-  return serializeSiteSettings(settings);
+  return serializeSiteSettings(settings, { includeManagement: true });
 }

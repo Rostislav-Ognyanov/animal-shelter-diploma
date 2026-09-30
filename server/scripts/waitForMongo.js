@@ -18,6 +18,15 @@ function wait(delayMs) {
   });
 }
 
+async function assertWritablePrimary() {
+  const adminDb = mongoose.connection.db.admin();
+  const status = await adminDb.command({ hello: 1 });
+
+  if (!status.setName || !status.isWritablePrimary) {
+    throw new Error('MongoDB replica set PRIMARY is not ready yet.');
+  }
+}
+
 async function waitForMongo() {
   const mongoUri = getConfiguredMongoUri();
   const maxAttempts = parsePositiveInteger(process.env.MONGO_WAIT_ATTEMPTS, DEFAULT_ATTEMPTS);
@@ -32,8 +41,9 @@ async function waitForMongo() {
       await mongoose.connect(mongoUri, {
         serverSelectionTimeoutMS: 1000,
       });
+      await assertWritablePrimary();
       await mongoose.disconnect();
-      console.log(`MongoDB is ready at ${mongoUri}.`);
+      console.log(`MongoDB PRIMARY is ready at ${mongoUri}.`);
       return;
     } catch (error) {
       if (mongoose.connection.readyState !== 0) {

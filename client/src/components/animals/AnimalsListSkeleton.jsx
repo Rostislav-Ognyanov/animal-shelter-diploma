@@ -6,20 +6,8 @@ function SkeletonCard() {
         <span className="animal-status animal-status-skeleton" />
         <div className="animal-skeleton-line animal-skeleton-line-title" />
         <div className="animal-skeleton-line animal-skeleton-line-facts" />
-        <div className="animal-card-meta">
-          <div>
-            <dt>Статус</dt>
-            <dd>
-              <div className="animal-skeleton-line animal-skeleton-line-meta" />
-            </dd>
-          </div>
-          <div>
-            <dt>Приет</dt>
-            <dd>
-              <div className="animal-skeleton-line animal-skeleton-line-meta" />
-            </dd>
-          </div>
-        </div>
+        <div className="animal-skeleton-line animal-skeleton-line-body" />
+        <div className="animal-skeleton-line animal-skeleton-line-body animal-skeleton-line-body-short" />
         <div className="animal-card-actions">
           <span className="animal-card-link animal-card-link-skeleton" />
         </div>
@@ -28,9 +16,17 @@ function SkeletonCard() {
   );
 }
 
-export function AnimalsListSkeleton({ count = 6 }) {
+export function AnimalsListSkeleton({
+  count = 6,
+  gridClassName = 'animals-list-grid',
+  statusText = 'Зареждане на животните...',
+}) {
   return (
-    <div className="animals-list-grid animals-list-grid-loading" aria-live="polite" aria-busy="true">
+    <div className={gridClassName} aria-busy="true">
+      <p className="sr-only" role="status">
+        {statusText}
+      </p>
+
       {Array.from({ length: count }, (_, index) => (
         <SkeletonCard key={`animal-skeleton-${index + 1}`} />
       ))}

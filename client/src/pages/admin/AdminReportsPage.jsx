@@ -1,31 +1,23 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { fetchJson } from '../../lib/api.js';
 import {
   REPORT_PERIOD_OPTIONS,
   buildActivityCards,
-  buildDashboardCards,
   buildReportsFilterSummary,
-  buildReportsHighlights,
   buildReportsQueryString,
   buildReportsSearchParams,
-  downloadReportsExport,
   enrichBreakdown,
-  enrichIntakeByPeriod,
-  formatReportsDate,
-  getReportsSourceLabel,
   parseReportsFilters,
 } from './reportsUi.js';
 
-function DistributionPanel({ title, items }) {
+function DistributionPanel({ category, title, items }) {
   return (
-    <article className="route-card reports-panel">
+    <article className="reports-panel">
       <div className="reports-panel-heading">
-        <div>
-          <p className="route-meta">Breakdown</p>
-          <h2>{title}</h2>
-        </div>
+        <p className="route-meta">{category}</p>
+        <h3>{title}</h3>
       </div>
 
       <div className="reports-bar-list">
@@ -47,32 +39,37 @@ function DistributionPanel({ title, items }) {
   );
 }
 
-function DashboardCard({ card }) {
+function ActivityCard({ card }) {
   return (
-    <article className="reports-summary-card">
-      <p className="route-meta">Dashboard</p>
+    <article className={`reports-activity-card is-${card.tone}`}>
       <strong>{card.value}</strong>
-      <h2>{card.label}</h2>
+      <h3>{card.label}</h3>
       <p>{card.note}</p>
     </article>
   );
 }
 
-function ActivityCard({ card }) {
-  return (
-    <article className="route-card reports-activity-card">
-      <p className="route-meta">Периодна активност</p>
-      <strong>{card.value}</strong>
-      <h2>{card.label}</h2>
-      <p>{card.note}</p>
-    </article>
-  );
+function validateReportFilters(filters) {
+  if (filters.period !== 'custom') {
+    return '';
+  }
+
+  if (!filters.dateFrom && !filters.dateTo) {
+    return 'При персонализиран период избери поне начална или крайна дата.';
+  }
+
+  if (filters.dateFrom && filters.dateTo && filters.dateFrom > filters.dateTo) {
+    return 'Началната дата не може да бъде след крайната дата.';
+  }
+
+  return '';
 }
 
 export function AdminReportsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const appliedFilters = useMemo(() => parseReportsFilters(searchParams), [searchParams]);
   const [draftFilters, setDraftFilters] = useState(appliedFilters);
+  const [filterError, setFilterError] = useState('');
   const [pageState, setPageState] = useState({
     overview: null,
     animalMasterData: null,
@@ -83,6 +80,7 @@ export function AdminReportsPage() {
 
   useEffect(() => {
     setDraftFilters(appliedFilters);
+    setFilterError('');
   }, [appliedFilters.dateFrom, appliedFilters.dateTo, appliedFilters.period]);
 
   useEffect(() => {
@@ -137,25 +135,47 @@ export function AdminReportsPage() {
 
   const overview = pageState.overview ?? {};
   const animalMasterData = pageState.animalMasterData ?? {};
-  const dashboardCards = useMemo(() => buildDashboardCards(overview.dashboard ?? {}), [overview.dashboard]);
   const activityCards = useMemo(
-    () => buildActivityCards(overview.activity ?? {}, overview.filters ?? appliedFilters),
-    [appliedFilters, overview.activity, overview.filters]
-  );
-  const highlights = useMemo(
-    () => buildReportsHighlights(overview, animalMasterData),
-    [animalMasterData, overview]
+    () =>
+      buildActivityCards(
+        overview.activity ?? {},
+        overview.reports ?? {},
+        overview.filters ?? appliedFilters
+      ),
+    [appliedFilters, overview.activity, overview.filters, overview.reports]
   );
   const requestsByStatus = useMemo(
     () => enrichBreakdown(overview.reports?.requestsByStatus ?? [], 'request-status'),
     [overview.reports]
   );
-  const usersByRole = useMemo(
-    () => enrichBreakdown(overview.reports?.usersByRole ?? [], 'user-role'),
+  const volunteerApplicationsByStatus = useMemo(
+    () =>
+      enrichBreakdown(
+        overview.reports?.volunteerApplicationsByStatus ?? [],
+        'volunteer-status'
+      ),
     [overview.reports]
   );
-  const usersByActivity = useMemo(
-    () => enrichBreakdown(overview.reports?.usersByActivity ?? [], 'user-activity'),
+  const rescueReportsByStatus = useMemo(
+    () =>
+      enrichBreakdown(overview.reports?.rescueReportsByStatus ?? [], 'rescue-report-status'),
+    [overview.reports]
+  );
+  const rescueReportsByUrgency = useMemo(
+    () =>
+      enrichBreakdown(overview.reports?.rescueReportsByUrgency ?? [], 'rescue-report-urgency'),
+    [overview.reports]
+  );
+  const contactInquiriesByStatus = useMemo(
+    () =>
+      enrichBreakdown(
+        overview.reports?.contactInquiriesByStatus ?? [],
+        'contact-inquiry-status'
+      ),
+    [overview.reports]
+  );
+  const donationsByStatus = useMemo(
+    () => enrichBreakdown(overview.reports?.donationsByStatus ?? [], 'donation-status'),
     [overview.reports]
   );
   const animalsByStatus = useMemo(
@@ -166,24 +186,9 @@ export function AdminReportsPage() {
     () => enrichBreakdown(animalMasterData.animalSpeciesBreakdown ?? [], 'animal-species'),
     [animalMasterData.animalSpeciesBreakdown]
   );
-  const animalsBySize = useMemo(
-    () => enrichBreakdown(animalMasterData.animalSizeBreakdown ?? [], 'animal-size'),
-    [animalMasterData.animalSizeBreakdown]
-  );
-  const animalsByGender = useMemo(
-    () => enrichBreakdown(animalMasterData.animalGenderBreakdown ?? [], 'animal-gender'),
-    [animalMasterData.animalGenderBreakdown]
-  );
-  const animalCare = useMemo(
-    () => enrichBreakdown(animalMasterData.animalCareBreakdown ?? [], 'animal-care'),
-    [animalMasterData.animalCareBreakdown]
-  );
-  const intakeByPeriod = useMemo(
-    () => enrichIntakeByPeriod(animalMasterData.intakeByPeriod ?? []),
-    [animalMasterData.intakeByPeriod]
-  );
 
   function updateDraftField(fieldName, value) {
+    setFilterError('');
     setDraftFilters((currentValue) => ({
       ...currentValue,
       [fieldName]: value,
@@ -192,39 +197,35 @@ export function AdminReportsPage() {
 
   function handleApplyFilters(event) {
     event.preventDefault();
+
+    const nextFilterError = validateReportFilters(draftFilters);
+
+    if (nextFilterError) {
+      setFilterError(nextFilterError);
+      return;
+    }
+
+    setFilterError('');
     setSearchParams(buildReportsSearchParams(draftFilters));
   }
 
   function handleResetFilters() {
     const resetFilters = {
-      period: 'all',
+      period: '30d',
       dateFrom: '',
       dateTo: '',
     };
 
     setDraftFilters(resetFilters);
+    setFilterError('');
     setSearchParams(buildReportsSearchParams(resetFilters));
-  }
-
-  function handleExport() {
-    if (!pageState.overview || !pageState.animalMasterData) {
-      return;
-    }
-
-    downloadReportsExport(
-      {
-        overview: pageState.overview,
-        animalMasterData: pageState.animalMasterData,
-      },
-      overview.filters ?? appliedFilters
-    );
   }
 
   if (pageState.isLoading) {
     return (
       <main className="route-shell reports-shell">
         <section className="route-card reports-loading-card">
-                    <h1>Зареждане на dashboard-а</h1>
+          <h1>Зареждане на отчетите</h1>
           <p>Моля, изчакай.</p>
         </section>
       </main>
@@ -235,11 +236,11 @@ export function AdminReportsPage() {
     return (
       <main className="route-shell reports-shell">
         <section className="route-card reports-loading-card">
-                    <h1>Отчетите не могат да се заредят</h1>
+          <h1>Отчетите не могат да се заредят</h1>
           <p>{pageState.error}</p>
           <button
             type="button"
-            className="animals-primary-action"
+            className="app-primary-action"
             onClick={() => setReloadToken((currentValue) => currentValue + 1)}
           >
             Опитай отново
@@ -249,25 +250,17 @@ export function AdminReportsPage() {
     );
   }
 
-  const activeFilterSummary = buildReportsFilterSummary(appliedFilters, overview.filters ?? animalMasterData.filters);
-  const isEmpty =
-    (overview.dashboard?.totalAnimals ?? 0) === 0 &&
-    (overview.dashboard?.totalUsers ?? 0) === 0 &&
-    (overview.reports?.adoptions?.totalRequests ?? 0) === 0;
+  const activeFilterSummary = buildReportsFilterSummary(
+    appliedFilters,
+    overview.filters ?? animalMasterData.filters
+  );
 
   return (
     <main className="route-shell reports-shell">
       <section className="reports-hero">
         <div>
-                    <h1>Отчети и административен dashboard</h1>
-          <p>
-            Обобщен изглед на системата.
-          </p>
-        </div>
-
-        <div className="reports-hero-meta">
-          <span className="reports-source-pill">{getReportsSourceLabel(overview.source)}</span>
-          <span className="reports-generated-at">Обновено: {formatReportsDate(overview.generatedAt)}</span>
+          <h1>Отчети</h1>
+          <p>Обобщени показатели за дейността на приюта.</p>
         </div>
       </section>
 
@@ -294,6 +287,7 @@ export function AdminReportsPage() {
                 <input
                   type="date"
                   value={draftFilters.dateFrom}
+                  max={draftFilters.dateTo || undefined}
                   onChange={(event) => updateDraftField('dateFrom', event.target.value)}
                 />
               </label>
@@ -303,6 +297,7 @@ export function AdminReportsPage() {
                 <input
                   type="date"
                   value={draftFilters.dateTo}
+                  min={draftFilters.dateFrom || undefined}
                   onChange={(event) => updateDraftField('dateTo', event.target.value)}
                 />
               </label>
@@ -310,146 +305,84 @@ export function AdminReportsPage() {
           ) : null}
 
           <div className="reports-filter-actions">
-            <button type="submit" className="animals-primary-action">
-              Приложи филтъра
+            <button type="submit" className="app-primary-action">
+              Приложи
             </button>
-            <button type="button" className="animals-secondary-action" onClick={handleResetFilters}>
+            <button type="button" className="app-secondary-action" onClick={handleResetFilters}>
               Изчисти
-            </button>
-            <button type="button" className="animals-secondary-action" onClick={handleExport}>
-              Експорт JSON
             </button>
           </div>
         </form>
 
+        {filterError ? (
+          <p className="feedback-message feedback-message-error">{filterError}</p>
+        ) : null}
+
         <p className="reports-filter-summary">{activeFilterSummary}</p>
       </section>
 
-      {isEmpty ? (
-        <section className="route-card reports-empty-card">
-          <p className="route-meta">Dashboard</p>
-          <h2>Все още няма достатъчно данни за аналитика</h2>
-          <p>
-            Добави записи, за да се появи аналитика.
-          </p>
-        </section>
-      ) : (
-        <>
-          <section className="reports-summary-grid">
-            {dashboardCards.map((card) => (
-              <DashboardCard key={card.key} card={card} />
-            ))}
-          </section>
+      <section className="reports-section" aria-labelledby="reports-activity-title">
+        <div className="reports-section-heading">
+          <p className="route-meta">Избран период</p>
+          <h2 id="reports-activity-title">Основни показатели</h2>
+        </div>
 
-          <section className="reports-activity-grid">
-            {activityCards.map((card) => (
-              <ActivityCard key={card.key} card={card} />
-            ))}
-          </section>
+        <div className="reports-activity-grid">
+          {activityCards.map((card) => (
+            <ActivityCard key={card.key} card={card} />
+          ))}
+        </div>
+      </section>
 
-          <section className="reports-highlights-grid">
-            {highlights.map((highlight) => (
-              <article key={highlight.key} className="route-card reports-highlight-card">
-                <p className="route-meta">Insight</p>
-                <h2>{highlight.title}</h2>
-                <p>{highlight.text}</p>
-              </article>
-            ))}
-          </section>
+      <section className="reports-section" aria-labelledby="reports-breakdowns-title">
+        <div className="reports-section-heading">
+          <p className="route-meta">Оперативен преглед</p>
+          <h2 id="reports-breakdowns-title">Основни разбивки</h2>
+        </div>
 
-          <section className="reports-panels-grid">
-            <DistributionPanel
-              title="Заявки по статус"
-
-              items={requestsByStatus}
-            />
-            <DistributionPanel
-              title="Потребители по роля"
-
-              items={usersByRole}
-            />
-            <DistributionPanel
-              title="Активни и неактивни профили"
-
-              items={usersByActivity}
-            />
-            <DistributionPanel
-              title="Животни по статус"
-
-              items={animalsByStatus}
-            />
-            <DistributionPanel
-              title="Животни по вид"
-
-              items={animalsBySpecies}
-            />
-            <DistributionPanel
-              title="Животни по размер"
-
-              items={animalsBySize}
-            />
-            <DistributionPanel
-              title="Животни по пол"
-
-              items={animalsByGender}
-            />
-            <DistributionPanel
-              title="Грижи и подготовка"
-
-              items={animalCare}
-            />
-
-            <article className="route-card reports-panel reports-masterdata-panel">
-              <div className="reports-panel-heading">
-                <div>
-                  <p className="route-meta">Animal Master Data</p>
-                  <h2>Обхват и периоди</h2>
-                </div>
-
-              </div>
-
-              <div className="reports-masterdata-summary">
-                <div>
-                  <strong>{animalMasterData.totals?.totalAnimals ?? 0}</strong>
-                  <span>записа в текущия отчетен обхват</span>
-                </div>
-                <div>
-                  <strong>{animalMasterData.overallTotals?.totalAnimals ?? 0}</strong>
-                  <span>общо записа за животни в системата</span>
-                </div>
-                <div>
-                  <strong>{animalMasterData.totals?.activeRecords ?? 0}</strong>
-                  <span>активни записа в текущия обхват</span>
-                </div>
-                <div>
-                  <strong>{animalMasterData.totals?.inactiveRecords ?? 0}</strong>
-                  <span>неактивни записа в текущия обхват</span>
-                </div>
-              </div>
-
-              <div className="reports-period-grid">
-                {intakeByPeriod.map((period) => (
-                  <article key={period.key} className="reports-period-card">
-                    <strong>{period.count}</strong>
-                    <span>{period.label}</span>
-                    <div className="reports-bar-track">
-                      <div className="reports-bar-fill" style={{ width: `${period.widthPercent}%` }} />
-                    </div>
-                  </article>
-                ))}
-              </div>
-
-              <p className="reports-masterdata-updated">
-                Последна актуализация на animal master-data: {formatReportsDate(animalMasterData.updatedAt)}
-              </p>
-            </article>
-          </section>
-        </>
-      )}
+        <div className="reports-panels-grid">
+          <DistributionPanel
+            category="Осиновявания"
+            title="Заявки по статус"
+            items={requestsByStatus}
+          />
+          <DistributionPanel
+            category="Доброволчество"
+            title="Кандидатури по статус"
+            items={volunteerApplicationsByStatus}
+          />
+          <DistributionPanel
+            category="Сигнали"
+            title="По статус"
+            items={rescueReportsByStatus}
+          />
+          <DistributionPanel
+            category="Сигнали"
+            title="По спешност"
+            items={rescueReportsByUrgency}
+          />
+          <DistributionPanel
+            category="Запитвания"
+            title="По статус"
+            items={contactInquiriesByStatus}
+          />
+          <DistributionPanel
+            category="Дарения"
+            title="По статус"
+            items={donationsByStatus}
+          />
+          <DistributionPanel
+            category="Животни"
+            title="По статус"
+            items={animalsByStatus}
+          />
+          <DistributionPanel
+            category="Животни"
+            title="По вид"
+            items={animalsBySpecies}
+          />
+        </div>
+      </section>
     </main>
   );
 }
-
-
-
-

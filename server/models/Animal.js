@@ -2,10 +2,24 @@
 
 import {
   ANIMAL_GENDER_VALUES,
+  ANIMAL_IMAGE_MAX_COUNT,
   ANIMAL_SIZE_VALUES,
   ANIMAL_SPECIES_VALUES,
   ANIMAL_STATUS_VALUES,
+  ANIMAL_TEXT_LIMITS,
 } from '../modules/animals/animal.constants.js';
+
+function isPastOrTodayDate(value) {
+  if (!value) {
+    return false;
+  }
+
+  const dateValue = new Date(value);
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+
+  return !Number.isNaN(dateValue.getTime()) && dateValue <= todayEnd;
+}
 
 const animalSchema = new mongoose.Schema(
   {
@@ -15,15 +29,18 @@ const animalSchema = new mongoose.Schema(
       unique: true,
       trim: true,
       lowercase: true,
+      maxlength: ANIMAL_TEXT_LIMITS.slug,
     },
     name: {
       type: String,
       required: true,
       trim: true,
+      maxlength: ANIMAL_TEXT_LIMITS.name,
     },
     displayName: {
       type: String,
       trim: true,
+      maxlength: ANIMAL_TEXT_LIMITS.displayName,
     },
     species: {
       type: String,
@@ -36,6 +53,7 @@ const animalSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      maxlength: ANIMAL_TEXT_LIMITS.breed,
     },
     age: {
       type: Number,
@@ -66,31 +84,16 @@ const animalSchema = new mongoose.Schema(
     intakeDate: {
       type: Date,
       required: true,
+      validate: {
+        validator: isPastOrTodayDate,
+        message: 'Датата на приемане не може да бъде бъдеща дата.',
+      },
     },
     healthStatus: {
       type: String,
       required: true,
       trim: true,
-    },
-    healthCareItems: {
-      type: [
-        {
-          _id: false,
-          label: {
-            type: String,
-            trim: true,
-          },
-          value: {
-            type: String,
-            trim: true,
-          },
-          description: {
-            type: String,
-            trim: true,
-          },
-        },
-      ],
-      default: [],
+      maxlength: ANIMAL_TEXT_LIMITS.healthStatus,
     },
     vaccinated: {
       type: Boolean,
@@ -104,26 +107,37 @@ const animalSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      maxlength: ANIMAL_TEXT_LIMITS.description,
     },
     story: {
       type: String,
       trim: true,
+      maxlength: ANIMAL_TEXT_LIMITS.story,
     },
     historyAndCharacter: {
       type: String,
       trim: true,
+      maxlength: ANIMAL_TEXT_LIMITS.historyAndCharacter,
     },
     details: {
       type: String,
       trim: true,
+      maxlength: ANIMAL_TEXT_LIMITS.details,
     },
     careConditions: {
       type: String,
       trim: true,
+      maxlength: ANIMAL_TEXT_LIMITS.careConditions,
     },
     imageUrls: {
       type: [String],
       default: [],
+      validate: {
+        validator(value) {
+          return !Array.isArray(value) || value.length <= ANIMAL_IMAGE_MAX_COUNT;
+        },
+        message: `Могат да бъдат добавени най-много ${ANIMAL_IMAGE_MAX_COUNT} снимки.`,
+      },
     },
   },
   {

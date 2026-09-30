@@ -1,0 +1,493 @@
+.animal-facts {
+  margin: 0.45rem 0 0;
+  color: var(--text-soft);
+  font-weight: 600;
+}
+
+.animal-description {
+  margin: 0.85rem 0 0;
+  color: var(--text-main);
+}
+
+.animals-list-shell {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.animals-list-hero,
+.animals-toolbar-card,
+.animals-list-results {
+  border: 1px solid var(--border-soft);
+  border-radius: 28px;
+  background: var(--surface-color);
+  box-shadow: 0 16px 32px rgba(24, 48, 34, 0.08);
+}
+
+.animals-list-hero {
+  padding: 2rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.animals-list-hero h1 {
+  margin: 0 0 0.85rem;
+  line-height: 1.1;
+  font-size: clamp(2.1rem, 4vw, 3rem);
+}
+
+.animals-list-hero p:last-child {
+  margin: 0;
+  color: var(--text-soft);
+  max-width: 62ch;
+}
+
+.animals-list-hero-aside {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.animals-list-highlight-card {
+  padding: 1rem 1.05rem;
+  border-radius: 22px;
+}
+
+.animals-list-highlight-card {
+  display: grid;
+  gap: 0.2rem;
+  background: linear-gradient(180deg, #f4faf6, #edf5ef);
+}
+
+.animals-list-highlight-card strong {
+  color: var(--primary);
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.animals-list-highlight-card span {
+  color: var(--text-soft);
+}
+
+.animals-toolbar-card,
+.animals-list-results {
+  padding: 1.35rem;
+}
+
+.animals-toolbar-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.animals-toolbar-intro {
+  width: 100%;
+  margin: 0 auto;
+  color: var(--text-main);
+  line-height: 1.7;
+  text-align: center;
+}
+
+.animals-search-filters-form {
+  display: grid;
+  gap: 1rem;
+}
+
+#adoption-filters {
+  scroll-margin-top: calc(var(--header-scroll-offset) + 24px);
+}
+
+.animals-toolbar-search {
+  display: grid;
+  grid-template-columns: minmax(220px, 520px) auto;
+  gap: 0.75rem;
+  justify-content: center;
+  align-items: center;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(47, 111, 78, 0.12);
+}
+
+.animals-toolbar-search input,
+.animals-toolbar-sort select,
+.animals-filters-form select {
+  min-height: 52px;
+  padding: 0.9rem 1rem;
+  border: 1px solid #d1dfd5;
+  border-radius: 14px;
+  background: #f8fbf9;
+  color: var(--text-main);
+}
+
+.animals-toolbar-search input[type='search'] {
+  padding-left: 3rem;
+  background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='11' cy='11' r='7' stroke='%235c6961' stroke-width='2'/%3E%3Cpath d='M16.5 16.5L21 21' stroke='%235c6961' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: 1rem center;
+  background-size: 1.15rem;
+}
+
+.animals-toolbar-search button {
+  min-height: 52px;
+  padding: 0.9rem 1.25rem;
+  border-radius: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.animals-toolbar-sort {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+  color: #355240;
+  font-weight: 600;
+}
+
+.animals-list-summary h2 {
+  margin: 0;
+  color: var(--primary);
+}
+
+.animals-list-summary p {
+  margin: 0.35rem 0 0;
+  color: var(--text-soft);
+}
+
+.animals-filters-form {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+  gap: 0.85rem;
+  align-items: end;
+}
+
+.animals-filters-form label {
+  display: grid;
+  gap: 0.45rem;
+  color: #355240;
+  font-weight: 600;
+}
+
+.animals-filters-actions {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 0.75rem;
+}
+
+.animals-filters-actions-single {
+  grid-template-columns: auto;
+}
+
+.animals-list-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.animals-summary-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0.55rem 0.95rem;
+  border-radius: 999px;
+  background: #edf5ef;
+  color: var(--primary);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.animals-list-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1.4rem;
+}
+
+.animals-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid rgba(47, 111, 78, 0.1);
+}
+
+.animals-pagination-info {
+  display: grid;
+  justify-items: center;
+  gap: 0.1rem;
+  color: var(--text-soft);
+}
+
+.animals-pagination-info strong {
+  color: var(--text-main);
+}
+
+@media (max-width: 1280px) {
+  .animals-list-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
+  .animals-list-hero,
+  .animals-toolbar-card,
+  .animals-filters-form {
+    grid-template-columns: 1fr;
+  }
+
+  .animals-list-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .animals-toolbar-sort {
+    min-width: 0;
+  }
+
+  .animals-filters-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .animals-filters-actions-single {
+    grid-template-columns: 1fr;
+  }
+
+  .animals-toolbar-intro {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 720px) {
+  .animals-toolbar-search,
+  .animals-pagination {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .animals-list-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .animals-list-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .animals-pagination-info {
+    justify-items: start;
+  }
+}
+
+@media (max-width: 780px) {
+  .animal-card-actions {
+    flex-direction: column;
+  }
+
+  .animal-card-link,
+  .animal-card-manage-link {
+    width: 100%;
+  }
+}
+
+.animal-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 24px;
+  background: var(--surface-color);
+  box-shadow: 0 14px 30px rgba(24, 48, 34, 0.08);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.animal-card img {
+  flex: 0 0 auto;
+  width: 100%;
+  height: 260px;
+  object-fit: cover;
+}
+
+.animal-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 1rem;
+}
+
+.animal-status {
+  display: inline-flex;
+  margin-bottom: 0.75rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  background: #edf5ef;
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px rgba(47, 111, 78, 0.08);
+}
+
+.animal-card h3 {
+  margin: 0;
+}
+
+.animal-status.is-available {
+  background: #e7f6ec;
+  color: #1f7a45;
+}
+
+.animal-status.is-reserved {
+  background: #fff2d8;
+  color: #a56b00;
+}
+
+.animal-status.is-adopted {
+  background: #e4efff;
+  color: #2457a6;
+}
+
+.animal-status.is-medical-care {
+  background: #ffe6e1;
+  color: #b54534;
+}
+
+.animal-status.is-under-care {
+  background: #eaf4ff;
+  color: #23649a;
+}
+
+.animal-status.is-protected-care {
+  background: #e8f3ec;
+  color: #2f6f4e;
+}
+
+.animal-status.is-released {
+  background: #edf0ff;
+  color: #4e5aa8;
+}
+
+.animal-status.is-inactive,
+.animal-status.is-archived,
+.animal-status.is-default {
+  background: #ecefee;
+  color: #5c6961;
+}
+
+.adoption-page-shell {
+  padding-top: 0;
+}
+
+.adoption-page-hero {
+  width: 100vw;
+  min-height: 460px;
+  margin-left: calc(50% - 50vw);
+  margin-top: 0;
+  padding: 6rem 0;
+  display: flex;
+  align-items: center;
+  border: none;
+  border-radius: 0;
+  color: #ffffff;
+  background:
+    linear-gradient(90deg, rgba(28, 67, 47, 0.86), rgba(47, 111, 78, 0.34)),
+    url('/images/page_images/adoption_page.jpg?v=2');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.adoption-page-hero > div {
+  width: min(100%, var(--content-max-width));
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.adoption-page-hero h1 {
+  width: min(100%, 720px);
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  line-height: 1;
+  text-wrap: balance;
+}
+
+.adoption-public-filters-form {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+}
+
+.adoption-page-shell .animals-list-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 1280px) {
+  .adoption-page-shell .animals-list-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
+  .adoption-page-shell .animals-list-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .adoption-page-shell .animals-list-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.animal-card-actions {
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-end;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: 1rem;
+}
+
+.animal-card-link,
+.animal-card-manage-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.75rem 1rem;
+  margin-top: 0;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.animal-card-link {
+  border: none;
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.animal-card-manage-link {
+  border: 1px solid rgba(47, 111, 78, 0.18);
+  background: #f1f6f3;
+  color: var(--primary-deep);
+}
+
+.animal-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 36px rgba(24, 48, 34, 0.1);
+}
+
+/* favorite overlay in animal cards */
+.animal-card-media {
+  position: relative;
+}
+
+.animal-card-favorite-toggle {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  z-index: 2;
+}

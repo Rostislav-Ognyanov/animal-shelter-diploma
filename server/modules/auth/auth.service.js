@@ -1,24 +1,60 @@
-﻿import { createHttpError } from '../../utils/httpError.js';
+import {
+  EMAIL_PATTERN,
+  USER_EMAIL_MAX_LENGTH,
+  USER_FIRST_NAME_MAX_LENGTH,
+  USER_LAST_NAME_MAX_LENGTH,
+  USER_PASSWORD_MAX_BYTES,
+  USER_PASSWORD_MIN_LENGTH,
+  USERNAME_MAX_LENGTH,
+  USERNAME_MIN_LENGTH,
+  USERNAME_PATTERN,
+} from '../../../shared/domain/userConstants.js';
+import { createHttpError } from '../../utils/httpError.js';
+import { assertAllowedFields, assertBodyObject } from '../../utils/requestValidation.js';
+import {
+  isPasswordWithinBcryptLimit,
+  isStrongPassword,
+} from '../../utils/userValidation.js';
 import { normalizeRole } from '../shared/rolePolicies.js';
-import { createAuthToken, hashPassword, verifyPassword } from './auth.security.js';
+import { createDuplicateUserConflictError } from '../shared/userDuplicateErrors.js';
 import {
   createUser,
   findUserByEmail,
   findUserByIdentifier,
   findUserByUsername,
-  serializePublicUser,
+  serializeUserView,
   updateUserById,
 } from '../users/users.repository.js';
-
-const USERNAME_PATTERN = /^[a-zA-Z0-9._-]{3,32}$/;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { createAuthToken, hashPassword, verifyPassword } from './auth.security.js';
 
 function normalizeText(value) {
   return String(value ?? '').trim();
 }
 
+function normalizePassword(value) {
+  return String(value ?? '');
+}
+
+function assertMaxLength(value, maxLength, message) {
+  if (value.length > maxLength) {
+    throw createHttpError(400, message);
+  }
+}
+
+function parseOptionalBoolean(value, fieldName) {
+  if (value === undefined) {
+    return false;
+  }
+
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  throw createHttpError(400, `Полето "${fieldName}" трябва да бъде булева стойност.`);
+}
+
 function buildAuthPayload(user) {
-  const serializedUser = user ? serializePublicUser(user) : null;
+  const serializedUser = user ? serializeUserView(user) : null;
 
   return {
     authenticated: Boolean(serializedUser),
@@ -27,61 +63,100 @@ function buildAuthPayload(user) {
   };
 }
 
-function validatePasswordStrength(password) {
-  return password.length >= 8 && /[A-Za-z]/.test(password) && /\d/.test(password);
+function getPasswordPolicyMessage() {
+  return `Паролата трябва да е поне ${USER_PASSWORD_MIN_LENGTH} символа, да бъде до ${USER_PASSWORD_MAX_BYTES} UTF-8 байта и да съдържа поне една буква и една цифра.`;
 }
 
 function validateLoginInput(payload) {
-  const identifier = normalizeText(payload.username || payload.identifier);
-  const password = normalizeText(payload.password);
+  assertBodyObject(payload);
+  assertAllowedFields(payload, ['identifier', 'password', 'rememberMe']);
+
+  const identifier = normalizeText(payload.identifier);
+  const password = normalizePassword(payload.password);
 
   if (!identifier || !password) {
-    throw createHttpError(400, 'Попълни потребителско име и парола.');
+    throw createHttpError(400, 'Попълни потребителско име или имейл и парола.');
+  }
+
+  assertMaxLength(
+    identifier,
+    USER_EMAIL_MAX_LENGTH,
+    `Потребителското име или имейлът може да бъде най-много ${USER_EMAIL_MAX_LENGTH} символа.`
+  );
+  if (!isPasswordWithinBcryptLimit(password)) {
+    throw createHttpError(400, `Паролата може да бъде най-много ${USER_PASSWORD_MAX_BYTES} UTF-8 байта.`);
   }
 
   return {
     identifier,
     password,
-    rememberMe: Boolean(payload.rememberMe),
+    rememberMe: parseOptionalBoolean(payload.rememberMe, 'rememberMe'),
   };
 }
 
 function validateRegistrationInput(payload) {
+  assertBodyObject(payload);
+  assertAllowedFields(payload, [
+    'firstName',
+    'lastName',
+    'username',
+    'email',
+    'password',
+    'confirmPassword',
+    'acceptTerms',
+  ]);
+
   const firstName = normalizeText(payload.firstName);
   const lastName = normalizeText(payload.lastName);
   const username = normalizeText(payload.username).toLowerCase();
   const email = normalizeText(payload.email).toLowerCase();
-  const password = normalizeText(payload.password);
-  const confirmPassword = normalizeText(payload.confirmPassword);
-  const acceptTerms = Boolean(payload.acceptTerms);
+  const password = normalizePassword(payload.password);
+  const confirmPassword = normalizePassword(payload.confirmPassword);
 
   if (!firstName || !lastName || !username || !email || !password || !confirmPassword) {
     throw createHttpError(400, 'Попълни всички задължителни полета за регистрация.');
   }
 
+  assertMaxLength(
+    firstName,
+    USER_FIRST_NAME_MAX_LENGTH,
+    `Името може да бъде най-много ${USER_FIRST_NAME_MAX_LENGTH} символа.`
+  );
+  assertMaxLength(
+    lastName,
+    USER_LAST_NAME_MAX_LENGTH,
+    `Фамилията може да бъде най-много ${USER_LAST_NAME_MAX_LENGTH} символа.`
+  );
+
   if (!USERNAME_PATTERN.test(username)) {
     throw createHttpError(
       400,
-      'Потребителското име трябва да е между 3 и 32 символа и може да съдържа букви, цифри, точка, тире и долна черта.'
+      `Потребителското име трябва да е между ${USERNAME_MIN_LENGTH} и ${USERNAME_MAX_LENGTH} символа и може да съдържа букви, цифри, точка, тире и долна черта.`
     );
   }
+
+  assertMaxLength(
+    email,
+    USER_EMAIL_MAX_LENGTH,
+    `Имейл адресът може да бъде най-много ${USER_EMAIL_MAX_LENGTH} символа.`
+  );
 
   if (!EMAIL_PATTERN.test(email)) {
     throw createHttpError(400, 'Въведи валиден имейл адрес.');
   }
 
-  if (!validatePasswordStrength(password)) {
-    throw createHttpError(
-      400,
-      'Паролата трябва да е поне 8 символа и да съдържа поне една буква и една цифра.'
-    );
+  if (
+    !isPasswordWithinBcryptLimit(confirmPassword) ||
+    !isStrongPassword(password)
+  ) {
+    throw createHttpError(400, getPasswordPolicyMessage());
   }
 
   if (password !== confirmPassword) {
     throw createHttpError(400, 'Полетата за парола не съвпадат.');
   }
 
-  if (!acceptTerms) {
+  if (payload.acceptTerms !== true) {
     throw createHttpError(400, 'Необходимо е да приемеш условията за ползване.');
   }
 
@@ -117,7 +192,7 @@ export async function loginUser(payload) {
   const user = await findUserByIdentifier(identifier);
 
   if (!user) {
-    throw createHttpError(401, 'Невалидно потребителско име или парола.');
+    throw createHttpError(401, 'Невалидно потребителско име, имейл или парола.');
   }
 
   if (!user.isActive) {
@@ -130,20 +205,26 @@ export async function loginUser(payload) {
   const isPasswordValid = await verifyPassword(password, user.passwordHash);
 
   if (!isPasswordValid) {
-    throw createHttpError(401, 'Невалидно потребителско име или парола.');
+    throw createHttpError(401, 'Невалидно потребителско име, имейл или парола.');
   }
 
   const updatedUser =
-    (await updateUserById(serializePublicUser(user).id, {
-      lastLoginAt: new Date().toISOString(),
-    })) ?? user;
+    (await updateUserById(
+      serializeUserView(user).id,
+      {
+        lastLoginAt: new Date().toISOString(),
+      },
+      {
+        timestamps: false,
+      }
+    )) ?? user;
 
-  const authUser = serializePublicUser(updatedUser);
+  const authUser = serializeUserView(updatedUser);
 
   return {
     data: buildAuthPayload(authUser),
     message: 'Входът е успешен.',
-    token: createAuthToken(authUser, { rememberMe }),
+    token: createAuthToken(updatedUser ?? user, { rememberMe }),
     rememberMe,
   };
 }
@@ -153,22 +234,34 @@ export async function registerUser(payload) {
 
   await ensureUniqueUser(username, email);
 
-  const createdUser = await createUser({
-    firstName,
-    lastName,
-    username,
-    email,
-    passwordHash: await hashPassword(password),
-    role: normalizeRole('client'),
-    isActive: true,
-  });
+  let createdUser = null;
 
-  const authUser = serializePublicUser(createdUser);
+  try {
+    createdUser = await createUser({
+      firstName,
+      lastName,
+      username,
+      email,
+      passwordHash: await hashPassword(password),
+      role: normalizeRole('client'),
+      isActive: true,
+    });
+  } catch (error) {
+    const duplicateError = createDuplicateUserConflictError(error);
+
+    if (duplicateError) {
+      throw duplicateError;
+    }
+
+    throw error;
+  }
+
+  const authUser = serializeUserView(createdUser);
 
   return {
     data: buildAuthPayload(authUser),
     message: 'Регистрацията е успешна.',
-    token: createAuthToken(authUser),
+    token: createAuthToken(createdUser),
     rememberMe: false,
   };
 }

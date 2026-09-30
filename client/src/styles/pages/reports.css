@@ -1,0 +1,255 @@
+.reports-shell {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.reports-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 0.25rem 0 0.75rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.reports-hero h1,
+.reports-section-heading h2,
+.reports-panel h3,
+.reports-activity-card h3,
+.reports-loading-card h1 {
+  margin: 0;
+}
+
+.reports-hero p,
+.reports-section-heading p,
+.reports-panel-heading p,
+.reports-activity-card p,
+.reports-loading-card p {
+  margin: 0;
+  color: var(--color-ink-soft);
+}
+
+.reports-hero > div {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.reports-filters-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1.15rem;
+  border-radius: 8px;
+}
+
+.reports-filter-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  align-items: end;
+}
+
+.reports-filter-form label {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 180px;
+}
+
+.reports-filter-form label span {
+  color: var(--color-ink);
+  font-weight: 700;
+}
+
+.reports-filter-form input,
+.reports-filter-form select {
+  min-height: 46px;
+  padding: 0 0.8rem;
+  border: 1px solid rgba(35, 67, 49, 0.16);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--color-ink);
+}
+
+.reports-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.reports-filter-summary {
+  margin: 0;
+  color: var(--color-ink-soft);
+}
+
+.reports-section {
+  display: grid;
+  gap: 1rem;
+}
+
+.reports-section-heading {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.reports-activity-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.reports-activity-card {
+  display: grid;
+  align-content: start;
+  gap: 0.4rem;
+  min-height: 140px;
+  padding: 1rem;
+  border: 1px solid var(--border-soft);
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: var(--surface-color);
+}
+
+.reports-activity-card strong {
+  color: var(--color-ink);
+  font-size: 1.8rem;
+  line-height: 1.1;
+}
+
+.reports-activity-card h3 {
+  color: var(--color-ink);
+  font-size: 1rem;
+}
+
+.reports-activity-card.is-animals {
+  border-left-color: #2f6f4e;
+}
+
+.reports-activity-card.is-adoptions {
+  border-left-color: #356fa3;
+}
+
+.reports-activity-card.is-completed {
+  border-left-color: #268267;
+}
+
+.reports-activity-card.is-reports {
+  border-left-color: #b04b42;
+}
+
+.reports-activity-card.is-volunteers {
+  border-left-color: #7564a8;
+}
+
+.reports-activity-card.is-donations {
+  border-left-color: #a66a1f;
+}
+
+.reports-panels-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.reports-panel {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface-color);
+}
+
+.reports-panel-heading {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.reports-panel h3 {
+  color: var(--color-ink);
+  font-size: 1rem;
+}
+
+.reports-bar-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.reports-bar-row {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.reports-bar-topline {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.reports-bar-topline span,
+.reports-bar-topline small {
+  color: var(--color-ink-soft);
+}
+
+.reports-bar-track {
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: rgba(35, 67, 49, 0.1);
+}
+
+.reports-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+}
+
+.reports-loading-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  border-radius: 8px;
+}
+
+.reports-loading-card h1 {
+  color: var(--primary);
+}
+
+@media (max-width: 980px) {
+  .reports-activity-grid,
+  .reports-panels-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reports-filter-form {
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 720px) {
+  .reports-hero {
+    display: grid;
+  }
+
+  .reports-activity-grid,
+  .reports-panels-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reports-filter-form {
+    flex-direction: column;
+  }
+
+  .reports-filter-form label,
+  .reports-filter-actions {
+    width: 100%;
+  }
+
+  .reports-filter-actions > * {
+    flex: 1 1 140px;
+  }
+
+  .reports-bar-topline {
+    align-items: flex-start;
+  }
+}

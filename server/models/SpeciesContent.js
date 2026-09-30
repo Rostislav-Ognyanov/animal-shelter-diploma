@@ -1,20 +1,66 @@
 import mongoose from 'mongoose';
 
 import { ANIMAL_SPECIES_VALUES } from '../modules/animals/animal.constants.js';
+import {
+  SPECIES_CONTENT_IMAGE_POSITION_VALUES,
+  SPECIES_CONTENT_LIMITS,
+} from '../../shared/domain/speciesContentConstants.js';
+
+function limitedText(maxlength) {
+  return { type: String, trim: true, maxlength, default: '' };
+}
+
+function limitedTextList(maxlength, maximumItems, message) {
+  return {
+    type: [{ type: String, trim: true, maxlength }],
+    default: [],
+    validate: {
+      validator: (items) => Array.isArray(items) && items.length <= maximumItems,
+      message,
+    },
+  };
+}
+
+function sectionListDefinition() {
+  return {
+    type: [speciesContentSectionSchema],
+    default: [],
+    validate: {
+      validator: (sections) =>
+        Array.isArray(sections) && sections.length <= SPECIES_CONTENT_LIMITS.sections,
+      message: `Съдържанието може да има най-много ${SPECIES_CONTENT_LIMITS.sections} секции.`,
+    },
+  };
+}
 
 const speciesContentSectionSchema = new mongoose.Schema(
   {
-    title: { type: String, trim: true, default: '' },
-    paragraphs: { type: [String], default: [] },
-    items: { type: [String], default: [] },
-    imageUrl: { type: String, trim: true, default: '' },
-    imageAlt: { type: String, trim: true, default: '' },
+    title: limitedText(SPECIES_CONTENT_LIMITS.sectionTitle),
+    paragraphs: limitedTextList(
+      SPECIES_CONTENT_LIMITS.paragraph,
+      SPECIES_CONTENT_LIMITS.paragraphsPerSection,
+      `Една секция може да има най-много ${SPECIES_CONTENT_LIMITS.paragraphsPerSection} параграфа.`
+    ),
+    items: limitedTextList(
+      SPECIES_CONTENT_LIMITS.item,
+      SPECIES_CONTENT_LIMITS.itemsPerSection,
+      `Една секция може да има най-много ${SPECIES_CONTENT_LIMITS.itemsPerSection} елемента.`
+    ),
+    imageUrl: limitedText(SPECIES_CONTENT_LIMITS.imageUrl),
+    imageAlt: limitedText(SPECIES_CONTENT_LIMITS.imageAlt),
     imagePosition: {
       type: String,
-      enum: ['left', 'right'],
+      enum: SPECIES_CONTENT_IMAGE_POSITION_VALUES,
       default: 'right',
     },
-    order: { type: Number, default: 0 },
+    order: {
+      type: Number,
+      default: 0,
+      validate: {
+        validator: Number.isInteger,
+        message: 'Редът на секцията трябва да бъде цяло число.',
+      },
+    },
     isVisible: { type: Boolean, default: true },
     centered: { type: Boolean, default: false },
   },
@@ -23,15 +69,19 @@ const speciesContentSectionSchema = new mongoose.Schema(
 
 const speciesContentSnapshotSchema = new mongoose.Schema(
   {
-    displayName: { type: String, trim: true, default: '' },
-    title: { type: String, trim: true, default: '' },
-    subtitle: { type: String, trim: true, default: '' },
-    cardImageUrl: { type: String, trim: true, default: '' },
-    cardImageAlt: { type: String, trim: true, default: '' },
-    heroImageUrl: { type: String, trim: true, default: '' },
-    introduction: { type: String, trim: true, default: '' },
-    issues: { type: [String], default: [] },
-    sections: { type: [speciesContentSectionSchema], default: [] },
+    displayName: limitedText(SPECIES_CONTENT_LIMITS.displayName),
+    title: limitedText(SPECIES_CONTENT_LIMITS.title),
+    subtitle: limitedText(SPECIES_CONTENT_LIMITS.subtitle),
+    cardImageUrl: limitedText(SPECIES_CONTENT_LIMITS.imageUrl),
+    cardImageAlt: limitedText(SPECIES_CONTENT_LIMITS.imageAlt),
+    heroImageUrl: limitedText(SPECIES_CONTENT_LIMITS.imageUrl),
+    introduction: limitedText(SPECIES_CONTENT_LIMITS.introduction),
+    issues: limitedTextList(
+      SPECIES_CONTENT_LIMITS.issue,
+      SPECIES_CONTENT_LIMITS.issues,
+      `Съдържанието може да има най-много ${SPECIES_CONTENT_LIMITS.issues} основни проблема или акцента.`
+    ),
+    sections: sectionListDefinition(),
   },
   { _id: false }
 );
@@ -43,19 +93,22 @@ const speciesContentSchema = new mongoose.Schema(
       enum: ANIMAL_SPECIES_VALUES,
       required: true,
       unique: true,
-      index: true,
       trim: true,
       lowercase: true,
     },
-    displayName: { type: String, trim: true, default: '' },
-    title: { type: String, trim: true, default: '' },
-    subtitle: { type: String, trim: true, default: '' },
-    cardImageUrl: { type: String, trim: true, default: '' },
-    cardImageAlt: { type: String, trim: true, default: '' },
-    heroImageUrl: { type: String, trim: true, default: '' },
-    introduction: { type: String, trim: true, default: '' },
-    issues: { type: [String], default: [] },
-    sections: { type: [speciesContentSectionSchema], default: [] },
+    displayName: limitedText(SPECIES_CONTENT_LIMITS.displayName),
+    title: limitedText(SPECIES_CONTENT_LIMITS.title),
+    subtitle: limitedText(SPECIES_CONTENT_LIMITS.subtitle),
+    cardImageUrl: limitedText(SPECIES_CONTENT_LIMITS.imageUrl),
+    cardImageAlt: limitedText(SPECIES_CONTENT_LIMITS.imageAlt),
+    heroImageUrl: limitedText(SPECIES_CONTENT_LIMITS.imageUrl),
+    introduction: limitedText(SPECIES_CONTENT_LIMITS.introduction),
+    issues: limitedTextList(
+      SPECIES_CONTENT_LIMITS.issue,
+      SPECIES_CONTENT_LIMITS.issues,
+      `Съдържанието може да има най-много ${SPECIES_CONTENT_LIMITS.issues} основни проблема или акцента.`
+    ),
+    sections: sectionListDefinition(),
     isPublished: { type: Boolean, default: false, index: true },
     publishedSnapshot: { type: speciesContentSnapshotSchema, default: null },
     publishedAt: { type: Date, default: null },

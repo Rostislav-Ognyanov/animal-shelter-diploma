@@ -3,6 +3,7 @@
   ANIMAL_FILTER_SIZE_OPTIONS,
   ANIMAL_FILTER_SPECIES_OPTIONS,
   ANIMAL_FILTER_STATUS_OPTIONS,
+  PUBLIC_ANIMAL_FILTER_STATUS_OPTIONS,
   normalizeAnimalStatusValue,
   normalizeGenderValue,
   normalizeSizeValue,
@@ -26,6 +27,7 @@ export const SPECIES_OPTIONS = ANIMAL_FILTER_SPECIES_OPTIONS;
 export const GENDER_OPTIONS = ANIMAL_FILTER_GENDER_OPTIONS;
 export const SIZE_OPTIONS = ANIMAL_FILTER_SIZE_OPTIONS;
 export const STATUS_OPTIONS = ANIMAL_FILTER_STATUS_OPTIONS;
+export const PUBLIC_STATUS_OPTIONS = PUBLIC_ANIMAL_FILTER_STATUS_OPTIONS;
 
 export const SORT_OPTIONS = [
   { value: 'name-asc', label: 'Име: А-Я' },
@@ -165,10 +167,12 @@ export function serializeSearchRouteParams(filters) {
   );
 }
 
-export function buildAnimalsSearchPath(filters) {
+export function buildAnimalsSearchPath(filters, options = {}) {
   const params = serializeSearchRouteParams(filters);
   const queryString = params.toString();
-  return queryString ? `/search?${queryString}` : '/search';
+  const path = queryString ? `/animals?${queryString}` : '/animals';
+
+  return options.scrollToFilters ? `${path}#adoption-filters` : path;
 }
 
 export function buildResultsSummary(total, filters, pagination) {
@@ -193,6 +197,14 @@ export function buildResultsSummary(total, filters, pagination) {
 
   if (normalizedFilters.status) {
     parts.push(`статус ${findOptionLabel(STATUS_OPTIONS, normalizedFilters.status)}`);
+  }
+
+  if (total === 0) {
+    if (parts.length === 0) {
+      return 'Няма намерени животни.';
+    }
+
+    return `Няма намерени резултати при ${parts.join(', ')}.`;
   }
 
   const page = normalizePageValue(pagination?.page);

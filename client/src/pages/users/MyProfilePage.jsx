@@ -1,6 +1,14 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import {
+  USER_EMAIL_MAX_LENGTH,
+  USER_FIRST_NAME_MAX_LENGTH,
+  USER_LAST_NAME_MAX_LENGTH,
+  USER_PASSWORD_MAX_LENGTH,
+  USER_PASSWORD_MIN_LENGTH,
+} from '../../../../shared/domain/userConstants.js';
+
 import { useAuth } from '../../auth/AuthProvider.jsx';
 import { createEmptyFeedback, createErrorFeedback, createSuccessFeedback } from '../../lib/feedback.js';
 import { fetchJson, patchJson } from '../../lib/api.js';
@@ -8,14 +16,13 @@ import {
   formatUserDate,
   getUserDisplayName,
   getUserRoleLabel,
-  getUserStatusLabel,
-  getUserStatusTone,
 } from './usersUi.js';
 
 const EMPTY_PROFILE_FORM = {
   firstName: '',
   lastName: '',
   email: '',
+  currentPassword: '',
 };
 
 const EMPTY_PASSWORD_FORM = {
@@ -29,7 +36,12 @@ function buildProfileForm(user) {
     firstName: user?.firstName ?? '',
     lastName: user?.lastName ?? '',
     email: user?.email ?? '',
+    currentPassword: '',
   };
+}
+
+function normalizeEmailForCompare(value) {
+  return String(value ?? '').trim().toLowerCase();
 }
 
 export function MyProfilePage() {
@@ -96,6 +108,16 @@ export function MyProfilePage() {
 
   const profileUser = pageState.item ?? currentUser;
   const showClientShortcuts = profileUser?.role === 'client';
+  const isProfileEmailChanged = useMemo(() => {
+    if (!pageState.item) {
+      return false;
+    }
+
+    return (
+      normalizeEmailForCompare(profileForm.email) !==
+      normalizeEmailForCompare(pageState.item.email)
+    );
+  }, [pageState.item, profileForm.email]);
   const isProfileDirty = useMemo(() => {
     if (!pageState.item) {
       return false;
@@ -139,7 +161,22 @@ export function MyProfilePage() {
         feedback: createEmptyFeedback(),
       });
 
-      const updatedProfile = await patchJson('/api/users/me', profileForm);
+      if (isProfileEmailChanged && !profileForm.currentPassword) {
+        setProfileState({
+          isSubmitting: false,
+          feedback: createErrorFeedback('Въведи текущата си парола, за да смениш имейла.'),
+        });
+        return;
+      }
+
+      const profilePayload = {
+        firstName: profileForm.firstName,
+        lastName: profileForm.lastName,
+        email: profileForm.email,
+        ...(isProfileEmailChanged ? { currentPassword: profileForm.currentPassword } : {}),
+      };
+
+      const updatedProfile = await patchJson('/api/users/me', profilePayload);
 
       setPageState((currentValue) => ({
         ...currentValue,
@@ -161,6 +198,14 @@ export function MyProfilePage() {
 
   async function handlePasswordSubmit(event) {
     event.preventDefault();
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordState({
+        isSubmitting: false,
+        feedback: createErrorFeedback('Новата парола и потвърждението не съвпадат.'),
+      });
+      return;
+    }
 
     try {
       setPasswordState({
@@ -207,7 +252,7 @@ export function MyProfilePage() {
           <p>{pageState.error}</p>
           <button
             type="button"
-            className="animals-primary-action"
+            className="app-primary-action"
             onClick={() => setReloadToken((currentValue) => currentValue + 1)}
           >
             Опитай отново
@@ -222,23 +267,19 @@ export function MyProfilePage() {
       <section className="profile-hero">
         <div>
           <h1>Моят профил</h1>
-          <p>Лични данни и парола.</p>
         </div>
 
         <div className="profile-hero-badges">
-          <span className={`profile-status-pill ${getUserStatusTone(profileUser?.isActive)}`}>
-            {getUserStatusLabel(profileUser?.isActive)}
-          </span>
           <span className="profile-role-pill">{getUserRoleLabel(profileUser?.role)}</span>
         </div>
       </section>
 
       {showClientShortcuts ? (
         <div className="route-actions profile-shortcuts">
-          <Link className="animals-secondary-action" to="/adoptions/my">
+          <Link className="app-secondary-action" to="/adoptions/my">
             Моите заявки
           </Link>
-          <Link className="animals-primary-action" to="/favorites">
+          <Link className="app-primary-action" to="/favorites">
             Любими животни
           </Link>
         </div>
@@ -248,7 +289,7 @@ export function MyProfilePage() {
         <article className="route-card profile-summary-card">
           <div className="profile-summary-top">
             <div>
-              <p className="route-meta">Profile Overview</p>
+              <p className="route-meta">Преглед на профила</p>
               <h2>{getUserDisplayName(profileUser)}</h2>
               <p>{profileUser?.email}</p>
             </div>
@@ -258,14 +299,6 @@ export function MyProfilePage() {
             <div>
               <dt>Потребителско име</dt>
               <dd>{profileUser?.username || 'Няма данни'}</dd>
-            </div>
-            <div>
-              <dt>Роля</dt>
-              <dd>{getUserRoleLabel(profileUser?.role)}</dd>
-            </div>
-            <div>
-              <dt>Статус</dt>
-              <dd>{getUserStatusLabel(profileUser?.isActive)}</dd>
             </div>
             <div>
               <dt>Създаден профил</dt>
@@ -285,14 +318,13 @@ export function MyProfilePage() {
         <article className="route-card profile-panel-card">
           <div className="profile-panel-heading">
             <div>
-              <p className="route-meta">Personal Data</p>
               <h2>Лични данни</h2>
             </div>
           </div>
 
           {profileState.feedback.message ? (
             <div
-              className={`auth-status ${profileState.feedback.type === 'error' ? 'auth-status-error' : 'auth-status-info'}`}
+              className={`feedback-message ${profileState.feedback.type === 'error' ? 'feedback-message-error' : 'feedback-message-info'}`}
             >
               {profileState.feedback.message}
             </div>
@@ -307,6 +339,8 @@ export function MyProfilePage() {
                 onChange={(event) => handleProfileFieldChange('firstName', event.target.value)}
                 disabled={profileState.isSubmitting}
                 autoComplete="given-name"
+                maxLength={USER_FIRST_NAME_MAX_LENGTH}
+                required
               />
             </label>
 
@@ -318,6 +352,8 @@ export function MyProfilePage() {
                 onChange={(event) => handleProfileFieldChange('lastName', event.target.value)}
                 disabled={profileState.isSubmitting}
                 autoComplete="family-name"
+                maxLength={USER_LAST_NAME_MAX_LENGTH}
+                required
               />
             </label>
 
@@ -329,20 +365,37 @@ export function MyProfilePage() {
                 onChange={(event) => handleProfileFieldChange('email', event.target.value)}
                 disabled={profileState.isSubmitting}
                 autoComplete="email"
+                maxLength={USER_EMAIL_MAX_LENGTH}
+                required
               />
             </label>
+
+            {isProfileEmailChanged ? (
+              <label className="profile-form-grid-wide">
+                <span>Текуща парола за промяна на имейл</span>
+                <input
+                  type="password"
+                  value={profileForm.currentPassword}
+                  onChange={(event) => handleProfileFieldChange('currentPassword', event.target.value)}
+                  disabled={profileState.isSubmitting}
+                  autoComplete="current-password"
+                  maxLength={USER_PASSWORD_MAX_LENGTH}
+                  required
+                />
+              </label>
+            ) : null}
 
             <div className="profile-form-actions profile-form-grid-wide">
               <button
                 type="submit"
-                className="animals-primary-action"
+                className="app-primary-action"
                 disabled={profileState.isSubmitting || !isProfileDirty}
               >
                 {profileState.isSubmitting ? 'Запис...' : 'Запази промените'}
               </button>
               <button
                 type="button"
-                className="animals-secondary-action"
+                className="app-secondary-action"
                 onClick={handleProfileReset}
                 disabled={profileState.isSubmitting || !isProfileDirty}
               >
@@ -355,7 +408,7 @@ export function MyProfilePage() {
         <article className="route-card profile-panel-card">
           <div className="profile-panel-heading">
             <div>
-              <p className="route-meta">Security</p>
+              <p className="route-meta">Сигурност</p>
               <h2>Смяна на парола</h2>
             </div>
             <p>Мин. 8 символа, буква и цифра.</p>
@@ -363,7 +416,7 @@ export function MyProfilePage() {
 
           {passwordState.feedback.message ? (
             <div
-              className={`auth-status ${passwordState.feedback.type === 'error' ? 'auth-status-error' : 'auth-status-info'}`}
+              className={`feedback-message ${passwordState.feedback.type === 'error' ? 'feedback-message-error' : 'feedback-message-info'}`}
             >
               {passwordState.feedback.message}
             </div>
@@ -378,6 +431,8 @@ export function MyProfilePage() {
                 onChange={(event) => handlePasswordFieldChange('currentPassword', event.target.value)}
                 disabled={passwordState.isSubmitting}
                 autoComplete="current-password"
+                maxLength={USER_PASSWORD_MAX_LENGTH}
+                required
               />
             </label>
 
@@ -389,6 +444,9 @@ export function MyProfilePage() {
                 onChange={(event) => handlePasswordFieldChange('newPassword', event.target.value)}
                 disabled={passwordState.isSubmitting}
                 autoComplete="new-password"
+                minLength={USER_PASSWORD_MIN_LENGTH}
+                maxLength={USER_PASSWORD_MAX_LENGTH}
+                required
               />
             </label>
 
@@ -400,13 +458,16 @@ export function MyProfilePage() {
                 onChange={(event) => handlePasswordFieldChange('confirmPassword', event.target.value)}
                 disabled={passwordState.isSubmitting}
                 autoComplete="new-password"
+                minLength={USER_PASSWORD_MIN_LENGTH}
+                maxLength={USER_PASSWORD_MAX_LENGTH}
+                required
               />
             </label>
 
             <div className="profile-form-actions profile-form-grid-wide">
               <button
                 type="submit"
-                className="animals-primary-action"
+                className="app-primary-action"
                 disabled={passwordState.isSubmitting}
               >
                 {passwordState.isSubmitting ? 'Запис...' : 'Смени паролата'}

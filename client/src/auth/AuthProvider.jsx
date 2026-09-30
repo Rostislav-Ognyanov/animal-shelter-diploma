@@ -1,15 +1,10 @@
-﻿import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 
 import { fetchJson, postJson } from '../lib/api.js';
-import {
-  readStoredToken,
-  readStoredUser,
-  writeStoredToken,
-  writeStoredUser,
-} from './authStorage.js';
 
 const AuthContext = createContext(null);
 const AUTH_REQUIRED_EVENT = 'app:auth-required';
+const AUTH_REFRESH_SYNC_COOLDOWN_MS = 1000 * 30;
 const DEFAULT_AUTH_NOTICE = 'Сесията ти е прекъсната. Влез отново, за да продължиш.';
 
 function buildLoggedOutPayload() {
@@ -17,26 +12,21 @@ function buildLoggedOutPayload() {
     authenticated: false,
     role: 'guest',
     user: null,
-    accessToken: '',
     authNotice: '',
   };
 }
 
 export function AuthProvider({ children }) {
-  const [currentUser, setCurrentUser] = useState(readStoredUser);
-  const [accessToken, setAccessToken] = useState(readStoredToken);
+  const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [authNotice, setAuthNotice] = useState('');
+  const lastAuthRefreshAtRef = useRef(0);
 
   function syncAuthState(payload) {
     const nextUser = payload?.user ?? null;
-    const nextToken = payload?.accessToken ?? '';
 
     setCurrentUser(nextUser);
-    setAccessToken(nextToken);
-    writeStoredUser(nextUser);
-    writeStoredToken(nextToken);
   }
 
   function clearAuthNotice() {
@@ -49,8 +39,12 @@ export function AuthProvider({ children }) {
     setAuthNotice(String(message || DEFAULT_AUTH_NOTICE).trim() || DEFAULT_AUTH_NOTICE);
   }
 
-  async function refreshAuth() {
-    setIsLoading(true);
+  async function refreshAuth({ silent = false } = {}) {
+    lastAuthRefreshAtRef.current = Date.now();
+
+    if (!silent) {
+      setIsLoading(true);
+    }
 
     try {
       const payload = await fetchJson('/api/auth/status');
@@ -59,11 +53,12 @@ export function AuthProvider({ children }) {
       setAuthNotice(payload.authenticated ? '' : payload.authNotice || '');
       return payload;
     } catch (error) {
-      syncAuthState(null);
       setErrorMessage(error.message);
       throw error;
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   }
 
@@ -100,7 +95,6 @@ export function AuthProvider({ children }) {
 
   function updateCurrentUser(nextUser) {
     setCurrentUser(nextUser ?? null);
-    writeStoredUser(nextUser ?? null);
     clearAuthNotice();
   }
 
@@ -122,9 +116,34 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  useEffect(() => {
+    function shouldSyncAuthOnFocus() {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+        return false;
+      }
+
+      return Date.now() - lastAuthRefreshAtRef.current >= AUTH_REFRESH_SYNC_COOLDOWN_MS;
+    }
+
+    function syncAuthOnFocus() {
+      if (!shouldSyncAuthOnFocus()) {
+        return;
+      }
+
+      refreshAuth({ silent: true }).catch(() => {});
+    }
+
+    window.addEventListener('focus', syncAuthOnFocus);
+    document.addEventListener('visibilitychange', syncAuthOnFocus);
+
+    return () => {
+      window.removeEventListener('focus', syncAuthOnFocus);
+      document.removeEventListener('visibilitychange', syncAuthOnFocus);
+    };
+  }, []);
+
   const value = {
     currentUser,
-    accessToken,
     isAuthenticated: Boolean(currentUser),
     role: currentUser?.role ?? 'guest',
     isLoading,

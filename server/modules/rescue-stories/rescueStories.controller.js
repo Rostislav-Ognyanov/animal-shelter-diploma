@@ -4,17 +4,24 @@ import {
   createRescueStory,
   listPublishedRescueStories,
   listRescueStoryRecords,
+  publishRescueStory,
+  unpublishRescueStory,
   updateRescueStory,
 } from './rescueStories.service.js';
 
 export async function listPublishedRescueStoriesEntry(req, res, next) {
   try {
-    const stories = await listPublishedRescueStories(req.query);
+    const result = await listPublishedRescueStories(req.query);
 
     return sendCollectionSuccess(res, {
       message: 'Историите са заредени успешно.',
-      items: stories,
-      total: stories.length,
+      items: result.items,
+      total: result.total,
+      meta: result.pagination
+        ? {
+            pagination: result.pagination,
+          }
+        : undefined,
     });
   } catch (error) {
     return next(error);
@@ -55,6 +62,32 @@ export async function updateRescueStoryEntry(req, res, next) {
 
     return sendMutationSuccess(res, {
       message: 'Историята е обновена успешно.',
+      data: story,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function publishRescueStoryEntry(req, res, next) {
+  try {
+    const story = await publishRescueStory(req.params.storyId, req.user);
+
+    return sendMutationSuccess(res, {
+      message: 'Историята е публикувана успешно.',
+      data: story,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function unpublishRescueStoryEntry(req, res, next) {
+  try {
+    const story = await unpublishRescueStory(req.params.storyId, req.user);
+
+    return sendMutationSuccess(res, {
+      message: 'Историята е скрита от публичната част успешно.',
       data: story,
     });
   } catch (error) {

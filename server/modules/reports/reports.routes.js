@@ -1,11 +1,11 @@
 ﻿import { Router } from 'express';
 
-import { roleMiddleware } from '../auth/auth.middleware.js';
+import { permissionMiddleware } from '../auth/auth.middleware.js';
 import { getAnimalMasterData, getReportsOverview } from './reports.controller.js';
 
 const router = Router();
 
-router.use(roleMiddleware('admin'));
+router.use(permissionMiddleware('reports', 'view-operational'));
 router.get('/overview', getReportsOverview);
 router.get('/animal-master-data', getAnimalMasterData);
 

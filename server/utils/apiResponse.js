@@ -1,11 +1,10 @@
-﻿const DEFAULT_SUCCESS_MESSAGE = 'Заявката е обработена успешно.';
+﻿import { isPlainObject } from './object.js';
+
+const DEFAULT_SUCCESS_MESSAGE = 'Заявката е обработена успешно.';
 const DEFAULT_ERROR_MESSAGE = 'Възникна неочаквана грешка в сървъра.';
 
-function isPlainObject(value) {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
 
-export function sendSuccess(
+function sendSuccess(
   res,
   { status = 200, message = DEFAULT_SUCCESS_MESSAGE, data = null, meta } = {}
 ) {
@@ -22,6 +21,17 @@ export function sendSuccess(
   return res.status(status).json(payload);
 }
 
+function buildCollectionMeta(meta) {
+  if (!isPlainObject(meta)) {
+    return undefined;
+  }
+
+  const safeMeta = { ...meta };
+  delete safeMeta.total;
+
+  return Object.keys(safeMeta).length > 0 ? safeMeta : undefined;
+}
+
 export function sendCollectionSuccess(
   res,
   {
@@ -34,10 +44,6 @@ export function sendCollectionSuccess(
   } = {}
 ) {
   const extraData = isPlainObject(data) ? data : {};
-  const collectionMeta = {
-    total,
-    ...(isPlainObject(meta) ? meta : {}),
-  };
 
   return sendSuccess(res, {
     status,
@@ -47,7 +53,7 @@ export function sendCollectionSuccess(
       items,
       total,
     },
-    meta: collectionMeta,
+    meta: buildCollectionMeta(meta),
   });
 }
 

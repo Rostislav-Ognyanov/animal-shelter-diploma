@@ -1,33 +1,40 @@
-﻿const BASE_SPECIES_OPTIONS = [
-  { value: 'dog', label: 'Куче' },
-  { value: 'cat', label: 'Котка' },
-  { value: 'rabbit', label: 'Зайче' },
-  { value: 'fox', label: 'Лисица' },
-  { value: 'lizard', label: 'Гущер' },
-  { value: 'owl', label: 'Сова' },
-  { value: 'horse', label: 'Кон' },
-  { value: 'hedgehog', label: 'Таралеж' },
-];
+import {
+  ANIMAL_CREATABLE_STATUS_VALUES,
+  ANIMAL_GENDER_LABELS,
+  ANIMAL_SIZE_LABELS,
+  ANIMAL_SIZE_VALUES,
+  ANIMAL_SPECIES_LABELS,
+  ANIMAL_SPECIES_VALUES,
+  ANIMAL_STATUS_LABELS,
+  ANIMAL_STATUS_TRANSITIONS,
+  ANIMAL_STATUS_VALUES,
+  ANIMAL_SYSTEM_MANAGED_STATUS_VALUES,
+  PUBLIC_ANIMAL_LIST_STATUS_VALUES,
+  PROTECTED_CARE_SPECIES_VALUES,
+} from '../../../../shared/domain/animalConstants.js';
 
-const BASE_SIZE_OPTIONS = [
-  { value: 'small', label: 'Малка' },
-  { value: 'medium', label: 'Средна' },
-  { value: 'large', label: 'Голяма' },
-  { value: 'extra-large', label: 'Много голяма' },
-];
+const BASE_SPECIES_OPTIONS = ANIMAL_SPECIES_VALUES.map((value) => ({
+  value,
+  label: ANIMAL_SPECIES_LABELS[value],
+}));
+
+const BASE_SIZE_OPTIONS = ANIMAL_SIZE_VALUES.map((value) => ({
+  value,
+  label: ANIMAL_SIZE_LABELS[value],
+}));
 
 export const ANIMAL_SPECIES_OPTIONS = BASE_SPECIES_OPTIONS;
-export const ANIMAL_GENDER_OPTIONS = [
-  { value: 'male', label: 'Мъжки' },
-  { value: 'female', label: 'Женски' },
-  { value: 'unknown', label: 'Неуточнен' },
-];
+export const ANIMAL_GENDER_OPTIONS = Object.entries(ANIMAL_GENDER_LABELS).map(([value, label]) => ({
+  value,
+  label,
+}));
 export const ANIMAL_SIZE_OPTIONS = BASE_SIZE_OPTIONS;
 
 export const ANIMAL_FILTER_GENDER_OPTIONS = [
   { value: '', label: 'Всички' },
-  { value: 'male', label: 'Мъжки' },
-  { value: 'female', label: 'Женски' },
+  { value: 'male', label: ANIMAL_GENDER_LABELS.male },
+  { value: 'female', label: ANIMAL_GENDER_LABELS.female },
+  { value: 'unknown', label: ANIMAL_GENDER_LABELS.unknown },
 ];
 
 export const ANIMAL_FILTER_SPECIES_OPTIONS = [
@@ -40,57 +47,37 @@ export const ANIMAL_FILTER_SIZE_OPTIONS = [
   ...BASE_SIZE_OPTIONS,
 ];
 
-export const ANIMAL_STATUS_LABELS = {
-  available: 'Готово за осиновяване',
-  reserved: 'Резервирано',
-  adopted: 'Осиновено',
-  'medical-care': 'Медицинска грижа',
-  'under-care': 'Под грижа',
-  'protected-care': 'Защитена грижа',
-  released: 'Върнато в природата',
-  inactive: 'Неактивно',
-  archived: 'Архивирано',
-};
+export { ANIMAL_STATUS_LABELS, ANIMAL_STATUS_TRANSITIONS, ANIMAL_STATUS_VALUES };
 
-export const ANIMAL_STATUS_VALUES = Object.keys(ANIMAL_STATUS_LABELS);
+export const ANIMAL_FORM_STATUS_OPTIONS = ANIMAL_CREATABLE_STATUS_VALUES.map((value) => ({
+  value,
+  label: ANIMAL_STATUS_LABELS[value],
+}));
 
-export const ANIMAL_FORM_STATUS_OPTIONS = [
-  { value: 'available', label: ANIMAL_STATUS_LABELS.available },
-  { value: 'reserved', label: ANIMAL_STATUS_LABELS.reserved },
-  { value: 'medical-care', label: ANIMAL_STATUS_LABELS['medical-care'] },
-  { value: 'under-care', label: ANIMAL_STATUS_LABELS['under-care'] },
-  { value: 'protected-care', label: ANIMAL_STATUS_LABELS['protected-care'] },
-  { value: 'released', label: ANIMAL_STATUS_LABELS.released },
-  { value: 'inactive', label: ANIMAL_STATUS_LABELS.inactive },
-  { value: 'archived', label: ANIMAL_STATUS_LABELS.archived },
-];
+export function getAnimalFormStatusOptions(role) {
+  if (role !== 'employee') {
+    return ANIMAL_FORM_STATUS_OPTIONS;
+  }
+
+  return ANIMAL_FORM_STATUS_OPTIONS.filter(
+    (option) => option.value !== 'inactive' && option.value !== 'archived'
+  );
+}
 
 export const ANIMAL_FILTER_STATUS_OPTIONS = [
   { value: '', label: 'Всички статуси' },
-  { value: 'available', label: ANIMAL_STATUS_LABELS.available },
-  { value: 'reserved', label: ANIMAL_STATUS_LABELS.reserved },
-  { value: 'adopted', label: ANIMAL_STATUS_LABELS.adopted },
-  { value: 'medical-care', label: ANIMAL_STATUS_LABELS['medical-care'] },
-  { value: 'under-care', label: ANIMAL_STATUS_LABELS['under-care'] },
-  { value: 'protected-care', label: ANIMAL_STATUS_LABELS['protected-care'] },
-  { value: 'released', label: ANIMAL_STATUS_LABELS.released },
-  { value: 'inactive', label: ANIMAL_STATUS_LABELS.inactive },
-  { value: 'archived', label: ANIMAL_STATUS_LABELS.archived },
+  ...ANIMAL_STATUS_VALUES.map((value) => ({ value, label: ANIMAL_STATUS_LABELS[value] })),
 ];
 
-export const ANIMAL_STATUS_TRANSITIONS = {
-  available: ['reserved', 'medical-care', 'under-care', 'protected-care', 'inactive', 'archived'],
-  reserved: ['available', 'adopted', 'medical-care', 'under-care', 'protected-care', 'inactive', 'archived'],
-  adopted: ['archived'],
-  'medical-care': ['available', 'under-care', 'protected-care', 'released', 'inactive', 'archived'],
-  'under-care': ['available', 'medical-care', 'protected-care', 'released', 'inactive', 'archived'],
-  'protected-care': ['under-care', 'medical-care', 'released', 'inactive', 'archived'],
-  released: ['protected-care', 'medical-care', 'archived'],
-  inactive: ['available', 'medical-care', 'under-care', 'protected-care', 'archived'],
-  archived: [],
-};
+export const PUBLIC_ANIMAL_FILTER_STATUS_OPTIONS = [
+  { value: '', label: 'Всички' },
+  ...PUBLIC_ANIMAL_LIST_STATUS_VALUES.map((value) => ({
+    value,
+    label: ANIMAL_STATUS_LABELS[value],
+  })),
+];
 
-export const PROTECTED_CARE_SPECIES = new Set(['fox', 'owl', 'hedgehog']);
+export const PROTECTED_CARE_SPECIES = new Set(PROTECTED_CARE_SPECIES_VALUES);
 
 const SPECIES_ALIASES = {
   dog: 'dog',
@@ -154,9 +141,11 @@ const GENDER_ALIASES = {
   мъжки: 'male',
   female: 'female',
   f: 'female',
+  unknown: 'unknown',
+  u: 'unknown',
   женски: 'female',
 };
-const FILTER_GENDER_VALUE_SET = new Set(['male', 'female']);
+const FILTER_GENDER_VALUE_SET = new Set(['male', 'female', 'unknown']);
 
 function normalizeText(value) {
   return String(value ?? '').trim().toLowerCase();
@@ -185,6 +174,32 @@ export function normalizeAnimalStatusValue(value) {
 
 export function getAnimalStatusLabel(status) {
   return ANIMAL_STATUS_LABELS[status] ?? status;
+}
+
+export function getAvailableStatusTransitions(status, role) {
+  const transitions = ANIMAL_STATUS_TRANSITIONS[status] ?? [];
+
+  if (role === 'employee' && ['inactive', 'archived'].includes(status)) {
+    return [];
+  }
+
+  const manualTransitions = transitions.filter((nextStatus) => {
+    if (status === 'reserved') {
+      return false;
+    }
+
+    if (status === 'adopted') {
+      return nextStatus === 'archived';
+    }
+
+    return !ANIMAL_SYSTEM_MANAGED_STATUS_VALUES.includes(nextStatus);
+  });
+
+  if (role === 'employee') {
+    return manualTransitions.filter((nextStatus) => nextStatus !== 'inactive' && nextStatus !== 'archived');
+  }
+
+  return manualTransitions;
 }
 
 export function isProtectedCareSpecies(species) {

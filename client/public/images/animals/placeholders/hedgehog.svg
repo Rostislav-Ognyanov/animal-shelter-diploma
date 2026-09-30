@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-label="Hedgehog placeholder">
+  <rect width="320" height="240" fill="#f2f7f3"/>
+  <circle cx="262" cy="58" r="38" fill="#dcece3"/>
+  <path d="M67 154c19-46 58-72 111-72 52 0 88 25 107 72-29 42-181 42-218 0z" fill="#2f6f4e"/>
+  <path d="M86 142l-18-20M111 125L99 94M141 115l-4-36M173 113l5-36M204 120l17-34M232 136l28-22" stroke="#6d8f77" stroke-width="10" stroke-linecap="round"/>
+  <path d="M68 154c17-21 48-30 78-19 20 7 34 21 42 38-39 17-91 11-120-19z" fill="#3d7a57"/>
+  <circle cx="102" cy="145" r="5" fill="#f7fbf8"/>
+  <circle cx="78" cy="157" r="6" fill="#f7fbf8"/>
+  <path d="M122 183v-16M176 190v-18M231 183v-16" stroke="#2f6f4e" stroke-width="12" stroke-linecap="round"/>
+</svg>

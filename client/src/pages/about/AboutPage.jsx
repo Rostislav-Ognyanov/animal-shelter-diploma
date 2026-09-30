@@ -1,8 +1,8 @@
 import { Fragment, useState } from 'react';
 
+import { PageErrorState, PageLoadingState } from '../../components/common/PageStatusStates.jsx';
 import { buildPublicAssetPath } from '../../lib/publicAssetPath.js';
 import { PageContentLink } from '../page-content/PageContentLink.jsx';
-import { DEFAULT_PAGE_CONTENT } from '../page-content/pageContentDefaults.js';
 import {
   buildHeroBackgroundStyle,
   getVisibleContentItems,
@@ -25,7 +25,7 @@ function ContentBlock({ block }) {
       {paragraphs.map((paragraph) => (
         <p key={paragraph}>{paragraph}</p>
       ))}
-      <PageContentLink className="about-page-contact-link" to={block.ctaTo}>
+      <PageContentLink className="page-contact-link" to={block.ctaTo}>
         {block.ctaLabel}
       </PageContentLink>
     </article>
@@ -44,7 +44,7 @@ function ContentBlock({ block }) {
 }
 
 export function AboutPage() {
-  const { content } = usePageContent('about', DEFAULT_PAGE_CONTENT.about);
+  const { content, error, isLoading, reload } = usePageContent('about');
   const [openSections, setOpenSections] = useState({});
   const visibleBlocks = getVisibleContentItems(content.blocks ?? []);
   const visibleToggles = getVisibleContentItems(content.toggles ?? []);
@@ -54,6 +54,14 @@ export function AboutPage() {
       ...currentValue,
       [sectionKey]: !currentValue[sectionKey],
     }));
+  }
+
+  if (isLoading) {
+    return <PageLoadingState className="about-page-shell" />;
+  }
+
+  if (error) {
+    return <PageErrorState className="about-page-shell" message={error} onRetry={reload} />;
   }
 
   return (

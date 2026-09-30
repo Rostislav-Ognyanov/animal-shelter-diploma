@@ -1,6 +1,7 @@
 ﻿import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
 import { useAuth } from './AuthProvider.jsx';
+import { getAuthRedirectPath } from './authNavigation.js';
 
 function AuthRouteFallback({ title, description }) {
   return (
@@ -15,6 +16,7 @@ function AuthRouteFallback({ title, description }) {
 
 export function GuestOnlyRoute() {
   const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -26,7 +28,7 @@ export function GuestOnlyRoute() {
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={getAuthRedirectPath(location.state?.from)} replace />;
   }
 
   return <Outlet />;

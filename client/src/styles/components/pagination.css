@@ -1,0 +1,3 @@
+.pagination-scroll-target {
+  scroll-margin-top: calc(var(--header-scroll-offset) + 24px);
+}

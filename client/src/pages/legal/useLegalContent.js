@@ -1,28 +1,36 @@
 import { useEffect, useState } from 'react';
 
 import { fetchJson } from '../../lib/api.js';
-import { getDefaultLegalContent, normalizeLegalContent } from './legalContentDefaults.js';
 
 export function useLegalContent(legalKey) {
-  const fallbackContent = getDefaultLegalContent(legalKey);
-  const [legalContent, setLegalContent] = useState(fallbackContent);
+  const [legalContent, setLegalContent] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
 
-    setLegalContent(fallbackContent);
+    setLegalContent(null);
     setIsLoading(true);
+    setErrorMessage('');
 
     fetchJson(`/api/legal-content/${legalKey}`)
       .then((payload) => {
-        if (isMounted) {
-          setLegalContent(normalizeLegalContent(payload?.content, fallbackContent));
+        if (!isMounted) {
+          return;
         }
+
+        if (!payload?.content || typeof payload.content !== 'object') {
+          throw new Error('Публикуваното юридическо съдържание не може да бъде заредено.');
+        }
+
+        setLegalContent(payload.content);
       })
-      .catch(() => {
+      .catch((error) => {
         if (isMounted) {
-          setLegalContent(fallbackContent);
+          setLegalContent(null);
+          setErrorMessage(error.message);
         }
       })
       .finally(() => {
@@ -34,7 +42,12 @@ export function useLegalContent(legalKey) {
     return () => {
       isMounted = false;
     };
-  }, [fallbackContent, legalKey]);
+  }, [legalKey, reloadToken]);
 
-  return { legalContent, isLoading };
+  return {
+    legalContent,
+    isLoading,
+    errorMessage,
+    reload: () => setReloadToken((currentValue) => currentValue + 1),
+  };
 }

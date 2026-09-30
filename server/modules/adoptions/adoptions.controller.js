@@ -7,7 +7,6 @@ import {
   cancelAdoptionRequest,
   createAdoptionRequest,
   getAdoptionRequestById,
-  getAdoptionRequestModulePolicy,
   getAllAdoptionRequestCollection,
   getOwnAdoptionRequestCollection,
   updateAdoptionRequestStatus,
@@ -16,15 +15,9 @@ import {
 function readAdoptionRequestFilters(query = {}) {
   return {
     status: query.status,
+    search: query.search,
     page: query.page,
     limit: query.limit,
-  };
-}
-
-function buildAdoptionResponseData(adoptionRequest, roleCandidate) {
-  return {
-    ...adoptionRequest,
-    policy: getAdoptionRequestModulePolicy(roleCandidate),
   };
 }
 
@@ -35,7 +28,7 @@ export async function createAdoptionRequestEntry(req, res, next) {
     return sendMutationSuccess(res, {
       status: 201,
       message: 'Заявката за осиновяване е създадена успешно.',
-      data: buildAdoptionResponseData(createdAdoptionRequest, req.user?.role),
+      data: createdAdoptionRequest,
     });
   } catch (error) {
     return next(error);
@@ -51,9 +44,6 @@ export async function listOwnAdoptionRequests(req, res, next) {
       message: 'Твоите заявки за осиновяване са заредени успешно.',
       items: adoptionRequestCollection.items,
       total: adoptionRequestCollection.total,
-      data: {
-        policy: getAdoptionRequestModulePolicy(req.user?.role),
-      },
       meta: {
         filters: adoptionFilters,
         pagination: adoptionRequestCollection.pagination,
@@ -73,9 +63,6 @@ export async function listAdoptionRequests(req, res, next) {
       message: 'Заявките за осиновяване са заредени успешно.',
       items: adoptionRequestCollection.items,
       total: adoptionRequestCollection.total,
-      data: {
-        policy: getAdoptionRequestModulePolicy(req.user?.role),
-      },
       meta: {
         filters: adoptionFilters,
         pagination: adoptionRequestCollection.pagination,
@@ -92,7 +79,7 @@ export async function getAdoptionRequest(req, res, next) {
 
     return sendItemSuccess(res, {
       message: 'Данните за заявката са заредени успешно.',
-      data: buildAdoptionResponseData(adoptionRequest, req.user?.role),
+      data: adoptionRequest,
     });
   } catch (error) {
     return next(error);
@@ -109,7 +96,7 @@ export async function updateAdoptionRequestStatusEntry(req, res, next) {
 
     return sendMutationSuccess(res, {
       message: 'Статусът на заявката е обновен успешно.',
-      data: buildAdoptionResponseData(updatedAdoptionRequest, req.user?.role),
+      data: updatedAdoptionRequest,
     });
   } catch (error) {
     return next(error);
@@ -126,7 +113,7 @@ export async function cancelAdoptionRequestEntry(req, res, next) {
 
     return sendMutationSuccess(res, {
       message: 'Заявката за осиновяване е отменена успешно.',
-      data: buildAdoptionResponseData(cancelledAdoptionRequest, req.user?.role),
+      data: cancelledAdoptionRequest,
     });
   } catch (error) {
     return next(error);

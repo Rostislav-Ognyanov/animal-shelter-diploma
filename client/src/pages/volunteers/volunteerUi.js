@@ -1,30 +1,15 @@
-﻿export const VOLUNTEER_STATUS_LABELS = {
-  pending: 'В очакване',
-  'under-review': 'В преглед',
-  approved: 'Одобрена',
-  rejected: 'Отхвърлена',
-};
+import {
+  VOLUNTEER_POSITION_LABELS,
+  VOLUNTEER_STATUS_LABELS,
+  VOLUNTEER_STATUS_TRANSITIONS,
+} from '../../../../shared/domain/volunteerConstants.js';
+import { isTerminalWorkflowStatus } from '../../../../shared/domain/workflowStatus.js';
+
+export { VOLUNTEER_POSITION_LABELS, VOLUNTEER_STATUS_LABELS, VOLUNTEER_STATUS_TRANSITIONS };
 
 export const VOLUNTEER_STATUS_OPTIONS = Object.entries(VOLUNTEER_STATUS_LABELS).map(
   ([value, label]) => ({ value, label })
 );
-
-export const VOLUNTEER_STATUS_TRANSITIONS = {
-  pending: ['under-review'],
-  'under-review': ['approved', 'rejected'],
-  approved: [],
-  rejected: [],
-};
-
-export const VOLUNTEER_POSITION_LABELS = {
-  'animal-care': 'Грижа за животни',
-  cleaning: 'Почистване',
-  walking: 'Разходка',
-  transport: 'Транспорт',
-  'admin-support': 'Административна помощ',
-  'events-campaigns': 'Събития и кампании',
-  other: 'Друго',
-};
 
 export const VOLUNTEER_POSITION_OPTIONS = Object.entries(VOLUNTEER_POSITION_LABELS).map(
   ([value, label]) => ({ value, label })
@@ -36,10 +21,14 @@ export function getVolunteerStatusLabel(status) {
 
 export function getVolunteerStatusTransitions(status, allowedTransitions) {
   if (Array.isArray(allowedTransitions)) {
-    return allowedTransitions;
+    return [...allowedTransitions];
   }
 
-  return VOLUNTEER_STATUS_TRANSITIONS[status] ?? [];
+  return [...(VOLUNTEER_STATUS_TRANSITIONS[status] ?? [])];
+}
+
+export function isVolunteerTerminalStatus(status) {
+  return isTerminalWorkflowStatus(status, VOLUNTEER_STATUS_TRANSITIONS);
 }
 
 export function getVolunteerStatusTransitionOptions(
